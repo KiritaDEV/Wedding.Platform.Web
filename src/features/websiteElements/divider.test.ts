@@ -8,7 +8,7 @@ import { validateSectionContent } from "../websiteEditor/schemas";
 function content(element: unknown, depth: number) {
   let root = element;
   for (let index = 0; index < depth; index++) root = { id: `group-${index}`, type: "compositionGroup", editorName: `Group ${index + 1}`, children: [root] };
-  return { childFlow: { elements: [root], order: [{ kind: "element", id: depth ? `group-${depth - 1}` : "divider-1" }] } };
+  return { semantic: {}, compositions: { shared: { childFlow: { elements: [root], order: [{ kind: "element", id: depth ? `group-${depth - 1}` : "divider-1" }] } } } };
 }
 
 describe("Divider canonical contract (mirrored API fixtures)", () => {

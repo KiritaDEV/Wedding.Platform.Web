@@ -3,6 +3,7 @@ import { collectRequiredFontIds } from '../websiteFonts/platformFonts'
 import { ensureProjectFonts } from '../websiteFonts/fontLoader'
 import { resolveSectionAppearanceForViewport } from '../websiteEditor/responsiveAppearance'
 import { sectionCapability } from '../websiteCapabilities/lookup'
+import { resolveSectionAppearance } from '../websiteEditor/sectionAppearance'
 import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRenderer'
 import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
 import type { WebsiteRendererProps } from './types'
@@ -39,11 +40,17 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     ...props.website,
     sections: props.website.sections.map((section) => {
       const capability = props.website.template ? sectionCapability(props.website.template.capabilities, section.type) : undefined
-      return capability
-        ? { ...section, appearance: resolveSectionAppearanceForViewport(section.appearance, targetViewport, capability) }
-        : section
+      const ownedAppearance = section.type === 'hero' || section.type === 'blank'
+        ? resolveSectionAppearance(section.appearance, targetViewport).appearance
+        : section.appearance
+      return {
+        ...section,
+        appearance: capability
+          ? resolveSectionAppearanceForViewport(ownedAppearance, targetViewport, capability)
+          : ownedAppearance,
+      }
     }),
   }
 
-  return <div ref={rootRef}><WebsiteElementChangeContext.Provider value={{ onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></div>
+  return <div ref={rootRef}><WebsiteElementChangeContext.Provider value={{ onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></div>
 }

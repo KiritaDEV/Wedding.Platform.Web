@@ -7,10 +7,18 @@ const mediaVariantSchema = z.object({
 }).strict()
 
 const mediaUsageReferenceSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('sectionMedia') }).strict(),
+  z.object({
+    type: z.literal('sectionMedia'),
+    appearanceScope: z.enum(['appearance/shared', 'appearance/desktop', 'appearance/tablet', 'appearance/mobile']).optional(),
+    compositionScope: z.enum(['shared', 'custom/desktop', 'custom/tablet', 'custom/mobile']).optional(),
+    elementId: z.string().min(1).optional(),
+    itemId: z.string().min(1).optional(),
+  }).strict(),
   z.object({
     type: z.literal('person'), personId: z.string().min(1), label: z.string().optional(),
     groupId: z.string().optional(), groupLabel: z.string().optional(),
+    compositionScope: z.enum(['shared', 'custom/desktop', 'custom/tablet', 'custom/mobile']),
+    elementId: z.string().min(1),
   }).strict(),
 ])
 

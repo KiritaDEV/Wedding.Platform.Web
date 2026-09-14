@@ -1,4 +1,4 @@
-import type { BlankContent, ResolvedWebsiteMedia, ResponsiveViewport, WebsiteSection } from '../websiteEditor/types'
+import type { ResolvedWebsiteMedia, ResponsiveViewport, SectionComposition, WebsiteSection, WebsiteSectionAppearance } from '../websiteEditor/types'
 import type { TemplateDesignLibrary } from '../websiteCapabilities/types'
 import type { ProjectColor } from '../websiteColors/projectColors'
 import { SectionChildFlowRenderer } from './SectionChildFlowRenderer'
@@ -7,6 +7,7 @@ import { INNER_SPACING_CSS, resolveInnerSpacing } from '../websiteElements/group
 
 export function BlankSectionRenderer({
   section,
+  composition,
   mode,
   viewport,
   templateKey,
@@ -19,6 +20,7 @@ export function BlankSectionRenderer({
   onElementEdit,
 }: {
   section: WebsiteSection
+  composition: SectionComposition
   mode: 'editor' | 'public'
   viewport: ResponsiveViewport
   templateKey: string
@@ -30,9 +32,10 @@ export function BlankSectionRenderer({
   onElementSelect?: (sectionId: string, elementId: string) => void
   onElementEdit?: (sectionId: string, elementId: string) => void
 }) {
-  const flow = (section.content as BlankContent).childFlow
+  const flow = composition.childFlow
+  const appearance = section.appearance as unknown as WebsiteSectionAppearance
   const hasEditorChildren = flow.elements.length > 0
-  const spacing = resolveInnerSpacing(section.appearance.innerSpacing, viewport === 'desktop' ? undefined : section.appearance.responsive?.[viewport]?.innerSpacing)
+  const spacing = resolveInnerSpacing(appearance.innerSpacing, viewport === 'desktop' ? undefined : appearance.responsive?.[viewport]?.innerSpacing)
   const foregroundStyle = { paddingTop: INNER_SPACING_CSS[spacing.top ?? 'none'], paddingRight: INNER_SPACING_CSS[spacing.right ?? 'none'], paddingBottom: INNER_SPACING_CSS[spacing.bottom ?? 'none'], paddingLeft: INNER_SPACING_CSS[spacing.left ?? 'none'] }
   return <SectionContentInset className="relative">
     <div data-blank-foreground className="box-border w-full" style={foregroundStyle}>

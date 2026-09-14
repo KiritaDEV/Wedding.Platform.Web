@@ -4,6 +4,7 @@ import type {
   ResponsiveViewport,
   RsvpContent,
   WebsiteSection,
+  WebsiteSectionAppearance,
 } from "../../websiteEditor/types";
 import type { WebsiteRendererProps } from "../types";
 import {
@@ -20,6 +21,7 @@ import { SectionDecorativeLayers } from "../SectionDecorativeLayers";
 import { BlankSectionRenderer } from "../BlankSectionRenderer";
 import { isBlankSectionRenderable, isHeroSectionRenderable } from "../blankSectionRenderability";
 import { HeroSectionRenderer } from "../HeroSectionRenderer";
+import { resolveSectionComposition } from "../../websiteEditor/sectionComposition";
 
 export function ClassicFilipinianaRenderer({
   event,
@@ -42,8 +44,8 @@ export function ClassicFilipinianaRenderer({
           .map((section, index) => ({ section, index }))
           .filter(({ section }) => section.isEnabled);
   const sections = candidates.filter(({ section }) => {
-    if (mode === "public" && section.type === "blank") return isBlankSectionRenderable(section, website.templateKey, website.media, event.eventDate);
-    if (mode === "public" && section.type === "hero") return isHeroSectionRenderable(section, website.templateKey, website.media, event.eventDate);
+    if (mode === "public" && section.type === "blank") return isBlankSectionRenderable(section, website.templateKey, website.media, event.eventDate, targetViewport);
+    if (mode === "public" && section.type === "hero") return isHeroSectionRenderable(section, website.templateKey, website.media, event.eventDate, targetViewport);
     return true;
   });
 
@@ -117,7 +119,7 @@ function ClassicSection({
   const appearance = resolveClassicFilipinianaSectionAppearance(
     section.type,
     designSettings,
-    section.appearance,
+    section.appearance as unknown as WebsiteSectionAppearance,
     library,
     designSettings.customColors,
   );
@@ -164,7 +166,7 @@ function ClassicSection({
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {section.type === "blank" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10">{showLeadingDivider && <ClassicSectionDivider />}<Section
+      {section.type === "blank" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} /><div className="relative z-10">{showLeadingDivider && <ClassicSectionDivider />}<Section
         section={section}
         eventDate={eventDate}
         mode={mode}
@@ -206,15 +208,19 @@ function Section({
   onElementEdit?: (sectionId: string, elementId: string) => void;
 }) {
   switch (section.type) {
-    case "blank":
-      return <BlankSectionRenderer section={section} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
-    case "hero":
-      return <HeroSectionRenderer section={section} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
+    case "blank": {
+      const resolved = resolveSectionComposition(section, targetViewport);
+      return <BlankSectionRenderer section={section} composition={resolved.composition} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
+    }
+    case "hero": {
+      const resolved = resolveSectionComposition(section, targetViewport);
+      return <HeroSectionRenderer section={section} composition={resolved.composition} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
+    }
     case "gallery":
       return (
         <ClassicFilipinianaGallery
           sectionId={section.id}
-          content={section.content as GalleryContent}
+          content={(section.content as GalleryContent).semantic}
           mode={mode}
         />
       );
@@ -222,7 +228,7 @@ function Section({
       return (
         <ClassicFilipinianaRsvp
           sectionId={section.id}
-          content={section.content as RsvpContent}
+          content={(section.content as RsvpContent).semantic}
         />
       );
     default:

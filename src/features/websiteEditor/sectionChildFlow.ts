@@ -394,9 +394,9 @@ function sameReference(first: SectionChildReference, second: SectionChildReferen
   return first.kind === second.kind && (first.kind === "specialized" ? second.kind === "specialized" : second.kind === "element" && first.id === second.id);
 }
 
-function regenerateElementIdentities(element: WebsiteElement, names: Record<GenericBlockType, number>): WebsiteElement {
+function regenerateElementIdentities(element: WebsiteElement, names: Record<GenericBlockType, number>, regenerateNames = true): WebsiteElement {
   element.id = createSemanticId(element.type === "compositionGroup" ? "group" : element.type);
-  if (isGenericBlock(element)) element.editorName = nextAutomaticName(element.type, names);
+  if (regenerateNames && isGenericBlock(element)) element.editorName = nextAutomaticName(element.type, names);
   if (element.type === "mediaCollection" || element.type === "media") element.items.forEach((item) => { item.id = createSemanticId("media-item"); });
   if (element.type === "accordion") element.items.forEach((item) => { item.id = createSemanticId("accordion-item"); });
   if (element.type === "schedule") element.items.forEach((item) => { item.id = createSemanticId("schedule-item"); });
@@ -404,8 +404,22 @@ function regenerateElementIdentities(element: WebsiteElement, names: Record<Gene
     group.id = createSemanticId("people-group");
     group.people.forEach((person) => { person.id = createSemanticId("person"); });
   });
-  if (element.type === "compositionGroup") element.children.forEach((child) => regenerateElementIdentities(child, names));
+  if (element.type === "compositionGroup") element.children.forEach((child) => regenerateElementIdentities(child, names, regenerateNames));
   return element;
+}
+
+export function regenerateSectionCompositionIdentities(composition: import('./types').SectionComposition): import('./types').SectionComposition {
+  const next = structuredClone(composition);
+  const rootIds = new Map<string, string>();
+  next.childFlow.elements.forEach((element) => {
+    const previousId = element.id;
+    regenerateElementIdentities(element, automaticNameState(), false);
+    rootIds.set(previousId, element.id);
+  });
+  next.childFlow.order = next.childFlow.order.map((reference) => reference.kind === "element"
+    ? { ...reference, id: rootIds.get(reference.id) ?? reference.id }
+    : reference);
+  return next;
 }
 
 export function duplicateWebsiteElement<T extends WebsiteElement>(flow: SectionChildFlow, element: T): T {

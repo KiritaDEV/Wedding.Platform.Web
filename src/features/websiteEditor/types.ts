@@ -6,12 +6,14 @@ import type { BackgroundMedia } from '../websiteMedia/backgroundMedia'
 export type SectionDesignDefaults = ContextDefaultsIntent
 
 export type SectionMedia = BackgroundMedia
-export type HeroContent = { backgroundMedia?: SectionMedia; childFlow: SectionChildFlow }
+export type SectionComposition = { childFlow: SectionChildFlow }
+export type SectionCompositions = { shared: SectionComposition; custom?: Partial<Record<ResponsiveViewport, SectionComposition>> }
+export type HeroContent = { semantic: Record<string, never>; compositions: SectionCompositions }
 export type PeoplePerson = { id: string; name: string; role?: string | null; media?: SectionMedia }
 export type PeopleGroup = { id: string; name: string; people: PeoplePerson[] }
-export type GalleryContent = { heading: string; items: [] }
-export type RsvpContent = { heading: string; description: string; buttonLabel: string }
-export type BlankContent = { childFlow: SectionChildFlow }
+export type GalleryContent = { semantic: { heading: string; items: [] } }
+export type RsvpContent = { semantic: { heading: string; description: string; buttonLabel: string } }
+export type BlankContent = { semantic: Record<string, never>; compositions: SectionCompositions }
 
 type SectionBase<TType extends string, TContent> = {
   id: string
@@ -21,7 +23,7 @@ type SectionBase<TType extends string, TContent> = {
   sortOrder: number
   isEnabled: boolean
   content: TContent
-  appearance: WebsiteSectionAppearance
+  appearance: TType extends 'hero' | 'blank' ? WebsiteSectionAppearanceEnvelope : WebsiteSectionAppearance
   designDefaults: SectionDesignDefaults
   resolvedDesignContext: ResolvedDesignContext | null
   appearanceOptions: WebsiteSectionAppearanceOptions | null
@@ -60,6 +62,7 @@ export type WebsiteSectionResponsiveAppearance = {
   mediaSpacing?: { top: string; right: string; bottom: string; left: string }
 }
 export type WebsiteSectionAppearance = {
+  backgroundMedia?: SectionMedia
   contentPosition?: import('../websiteRenderer/heroContentPosition').HeroContentPosition
   innerSpacing?: import('../websiteElements/group').InnerSpacing
   headingAlignment: SectionAlignment
@@ -80,6 +83,10 @@ export type WebsiteSectionAppearance = {
   responsive?: Partial<Record<'tablet' | 'mobile', WebsiteSectionResponsiveAppearance>>
   backgroundImageOpacity?: number
   height?: 'auto' | 'screen'
+}
+export type WebsiteSectionAppearanceEnvelope = {
+  shared: WebsiteSectionAppearance
+  custom?: Partial<Record<ResponsiveViewport, WebsiteSectionAppearance>>
 }
 export type WebsiteSectionPresentationOption = {
   key: string

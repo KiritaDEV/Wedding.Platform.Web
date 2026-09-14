@@ -17,7 +17,7 @@ describe("Accordion block", () => {
   });
 
   it("validates through the complete Blank save contract", () => {
-    const content = { childFlow: { elements: [element], order: [{ kind: "element", id: element.id }] } };
+    const content = { semantic: {}, compositions: { shared: { childFlow: { elements: [element], order: [{ kind: "element", id: element.id }] } } } };
     expect(validateSectionContent("blank", content, "classic-filipiniana-v1").success).toBe(true);
     expect(validateSectionContent("blank", content, "modern-editorial-v1").success).toBe(true);
   });

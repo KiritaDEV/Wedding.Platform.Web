@@ -7,7 +7,7 @@ import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs
 import { controlsForViewport, globalDesignCapability, presentationCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
 import type { AppearanceControlCapability, SectionCapability } from '../websiteCapabilities/types'
 import { projectColorsSchema } from '../websiteColors/projectColors'
-import { genericTextSectionChildFlowSchema, textSectionChildFlowSchema } from './sectionChildFlow'
+import { genericTextSectionChildFlowSchema } from './sectionChildFlow'
 import { backgroundMediaSchema } from '../websiteMedia/backgroundMedia'
 import { groupPaddingSchema } from '../websiteElements/schemas'
 
@@ -43,10 +43,32 @@ const responsiveControlSchema = z.object({
     options: z.array(designOptionSchema).min(1),
   }).strict().optional(),
 }).strict()
-export const heroContentSchema = z.object({ backgroundMedia: backgroundMediaSchema, childFlow: genericTextSectionChildFlowSchema }).strict()
-export const galleryContentSchema = z.object({ heading: text, items: z.tuple([]) }).strict()
-export const rsvpContentSchema = z.object({ heading: text, description: text, buttonLabel: text }).strict()
-export const blankContentSchema = z.object({ childFlow: genericTextSectionChildFlowSchema }).strict()
+export const sectionCompositionSchema = z.object({ childFlow: genericTextSectionChildFlowSchema }).strict()
+export const sectionCompositionsSchema = z.object({
+  shared: sectionCompositionSchema,
+  custom: z.object({ desktop: sectionCompositionSchema.optional(), tablet: sectionCompositionSchema.optional(), mobile: sectionCompositionSchema.optional() }).strict().optional(),
+}).strict().superRefine((compositions, context) => {
+  const seen = new Set<string>()
+  const visitIdentity = (id: string, path: (string | number)[]) => {
+    if (seen.has(id)) context.addIssue({ code: 'custom', message: `Owned IDs must be unique across all Section compositions; duplicate [${id}] found.`, path })
+    seen.add(id)
+  }
+  const visit = (element: import('../websiteElements/types').WebsiteElement, path: (string | number)[]) => {
+    visitIdentity(element.id, [...path, 'id'])
+    if ('items' in element) element.items.forEach((item, index) => visitIdentity(item.id, [...path, 'items', index, 'id']))
+    if (element.type === 'people') element.groups.forEach((group, groupIndex) => {
+      visitIdentity(group.id, [...path, 'groups', groupIndex, 'id'])
+      group.people.forEach((person, personIndex) => visitIdentity(person.id, [...path, 'groups', groupIndex, 'people', personIndex, 'id']))
+    })
+    if (element.type === 'compositionGroup') element.children.forEach((child, index) => visit(child, [...path, 'children', index]))
+  }
+  const branches = [['shared', compositions.shared], ...Object.entries(compositions.custom ?? {})] as const
+  branches.forEach(([name, composition]) => composition.childFlow.elements.forEach((element, index) => visit(element, [name, 'childFlow', 'elements', index])))
+}).transform((compositions) => compositions.custom && Object.keys(compositions.custom).length > 0 ? compositions : { shared: compositions.shared })
+export const heroContentSchema = z.object({ semantic: z.object({}).strict(), compositions: sectionCompositionsSchema }).strict()
+export const galleryContentSchema = z.object({ semantic: z.object({ heading: text, items: z.tuple([]) }).strict() }).strict()
+export const rsvpContentSchema = z.object({ semantic: z.object({ heading: text, description: text, buttonLabel: text }).strict() }).strict()
+export const blankContentSchema = z.object({ semantic: z.object({}).strict(), compositions: sectionCompositionsSchema }).strict()
 
 const contentSchemas: Record<string, z.ZodType> = {
   hero: heroContentSchema,
@@ -108,23 +130,24 @@ function validateCapabilityBoundAppearance(capability: SectionCapability, appear
 export function validateSectionContent(type: string, content: Record<string, unknown>, templateKey?: string) {
   const schema = contentSchemas[type]
   return schema ? schema.superRefine((value, context) => {
-    if (!templateKey || typeof value !== "object" || value === null || !("childFlow" in value)) return;
-    const flow = (type === 'blank' || type === 'hero' ? genericTextSectionChildFlowSchema : textSectionChildFlowSchema).safeParse(value.childFlow);
-    if (!flow.success) return;
+    if (!templateKey || typeof value !== "object" || value === null || !("compositions" in value)) return;
+    const compositions = value.compositions as { shared: { childFlow: unknown }; custom?: Record<string, { childFlow: unknown }> };
     const visit = (element: import("../websiteElements/types").WebsiteElement, path: (string | number)[]) => {
       if (element.type === "divider" && element.appearance?.assetId !== undefined && !isDividerAssetForTemplate(templateKey, element.appearance.assetId)) {
         context.addIssue({ code: "custom", message: "The selected Divider asset is not supported by this Template.", path: [...path, "appearance", "assetId"] });
       }
       if (element.type === "compositionGroup") element.children.forEach((child, index) => visit(child, [...path, "children", index]));
     };
-    flow.data.elements.forEach((element, index) => visit(element, ["childFlow", "elements", index]));
+    const branches = [["shared", compositions.shared], ...Object.entries(compositions.custom ?? {})] as const;
+    branches.forEach(([branchName, branch]) => {
+      const flow = genericTextSectionChildFlowSchema.safeParse(branch.childFlow);
+      if (flow.success) flow.data.elements.forEach((element, index) => visit(element, ["compositions", branchName, "childFlow", "elements", index]));
+    });
   }).safeParse(content) : { success: false as const, error: null }
 }
 
-const sectionSchema = z.object({
-  id: z.string(), type: z.enum(['hero', 'gallery', 'rsvp', 'blank']), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
-  isEnabled: z.boolean(), content: z.record(z.string(), z.unknown()),
-  appearance: z.object({
+const sectionAppearanceSchema = z.object({
+    backgroundMedia: backgroundMediaSchema,
     headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),
     bodyAlignment: z.enum(['inherit', 'left', 'center', 'right']),
     backgroundTreatment: backgroundTreatmentSchema,
@@ -164,7 +187,16 @@ const sectionSchema = z.object({
     height: z.enum(['auto', 'screen']).optional(),
     contentPosition: z.enum(['top-start', 'top-center', 'top-end', 'center-start', 'center', 'center-end', 'bottom-start', 'bottom-center', 'bottom-end']).optional(),
     innerSpacing: groupPaddingSchema.optional(),
-  }).strict(),
+  }).strict()
+const sectionAppearanceEnvelopeSchema = z.object({
+  shared: sectionAppearanceSchema,
+  custom: z.object({ desktop: sectionAppearanceSchema.optional(), tablet: sectionAppearanceSchema.optional(), mobile: sectionAppearanceSchema.optional() }).strict().optional(),
+}).strict()
+
+const sectionSchema = z.object({
+  id: z.string(), type: z.enum(['hero', 'gallery', 'rsvp', 'blank']), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
+  isEnabled: z.boolean(), content: z.record(z.string(), z.unknown()),
+  appearance: z.union([sectionAppearanceSchema, sectionAppearanceEnvelopeSchema]),
   designDefaults: z.object({
     headingFontId: nonEmptyString.optional(),
     bodyFontId: nonEmptyString.optional(),
@@ -275,6 +307,19 @@ const draftSchema = draftCommonSchema.extend({
     customColors: draft.designSettings.customColors ?? [],
   },
 })).superRefine((draft, context) => {
+  const rejectResponsive = (value: unknown, path: (string | number)[]): void => {
+    if (Array.isArray(value)) return value.forEach((item, index) => rejectResponsive(item, [...path, index]))
+    if (!value || typeof value !== 'object') return
+    const record = value as Record<string, unknown>
+    if (Object.hasOwn(record, 'responsive')) context.addIssue({ code: 'custom', message: 'Device-specific authored properties require a custom Section owner.', path: [...path, 'responsive'] })
+    Object.entries(record).forEach(([key, item]) => rejectResponsive(item, [...path, key]))
+  }
+  draft.sections.forEach((section, index) => {
+    if (section.type === 'hero' || section.type === 'blank') {
+      rejectResponsive(section.content, ['sections', index, 'content'])
+      rejectResponsive(section.appearance, ['sections', index, 'appearance'])
+    }
+  })
   if (!draft.template) return
 
   const designCapability = globalDesignCapability(draft.template.capabilities)
@@ -331,7 +376,23 @@ const draftSchema = draftCommonSchema.extend({
   }
 
   draft.sections.forEach((section, index) => {
-    const presentation = section.appearance.presentation
+    const composable = section.type === 'hero' || section.type === 'blank'
+    const envelope = composable && 'shared' in section.appearance ? section.appearance : null
+    if (composable && !envelope) {
+      context.addIssue({ code: 'custom', message: 'Composition Sections require a shared/custom appearance envelope', path: ['sections', index, 'appearance'] })
+      return
+    }
+    if (!composable && 'shared' in section.appearance) {
+      context.addIssue({ code: 'custom', message: 'Semantic-only Sections require one Section appearance', path: ['sections', index, 'appearance'] })
+      return
+    }
+    if (envelope) {
+      const content = section.content as { compositions?: { custom?: Record<string, unknown> } }
+      for (const viewport of ['desktop', 'tablet', 'mobile'] as const) {
+        if (Boolean(content.compositions?.custom?.[viewport]) !== Boolean(envelope.custom?.[viewport])) context.addIssue({ code: 'custom', message: 'Custom composition and appearance must be paired', path: ['sections', index, 'appearance', 'custom', viewport] })
+      }
+    }
+    const appearances = envelope ? [envelope.shared, ...Object.values(envelope.custom ?? {})] : [section.appearance as WebsiteSectionAppearance]
     const capability = sectionCapability(draft.template!.capabilities, section.type)
     const allowedContextValues = new Map<string, string[]>()
     capability?.contextDefaults.typography.forEach((control) => allowedContextValues.set(control.role === 'heading' ? 'headingFontId' : 'bodyFontId', control.allowedFontIds))
@@ -349,6 +410,8 @@ const draftSchema = draftCommonSchema.extend({
         }
       }
     }
+    appearances.forEach((appearance) => {
+    const presentation = appearance.presentation
     if (presentation && !capability?.presentations.some((option) => option.id === presentation)) {
       context.addIssue({
         code: 'custom',
@@ -357,8 +420,9 @@ const draftSchema = draftCommonSchema.extend({
       })
     }
     if (capability && (!presentation || capability.presentations.some((option) => option.id === presentation))) {
-      validateCapabilityBoundAppearance(capability, section.appearance, index, context)
+      validateCapabilityBoundAppearance(capability, appearance, index, context)
     }
+    })
   })
 })
 

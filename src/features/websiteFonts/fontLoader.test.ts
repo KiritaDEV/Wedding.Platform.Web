@@ -22,17 +22,32 @@ describe("fontStylesheetUrl", () => {
       projectDesignDefaults: null,
       template: { capabilities: { designLibrary: { typographyPresets: [] } } },
       sections: [{
-        type: "date",
+        type: "blank",
         resolvedDesignContext: null,
         designDefaults: {},
-        content: {
+        content: { semantic: {}, compositions: { shared: {
           childFlow: {
             elements: [{ id: "text-1", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Details" }] }] }, appearance: { fontFamilyId: "inter" } }],
-            order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "text-1" }],
+            order: [{ kind: "element", id: "text-1" }],
           },
-        },
+        } } },
       }],
     } as unknown as WebsiteDraft;
     expect(collectRequiredFontIds(website)).toContain("inter");
+  });
+
+  it("collects custom-only fonts from every persisted composition and releases them with the branch", () => {
+    const text = (id: string, fontFamilyId: string) => ({ id, type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: id }] }] }, appearance: { fontFamilyId } });
+    const composition = (element: ReturnType<typeof text>) => ({ childFlow: { elements: [element], order: [{ kind: "element" as const, id: element.id }] } });
+    const website = {
+      designSettings: { fontSet: "none", projectDefaults: {} }, projectDesignDefaults: null,
+      template: { capabilities: { designLibrary: { typographyPresets: [] } } },
+      sections: [{ type: "blank", resolvedDesignContext: null, designDefaults: {}, content: { semantic: {}, compositions: {
+        shared: composition(text("shared", "inter")), custom: { mobile: composition(text("mobile", "playfair-display")) },
+      } } }],
+    } as unknown as WebsiteDraft;
+    expect(collectRequiredFontIds(website)).toEqual(["inter", "playfair-display"]);
+    delete (website.sections[0].content as { compositions: { custom?: unknown } }).compositions.custom;
+    expect(collectRequiredFontIds(website)).toEqual(["inter"]);
   });
 });

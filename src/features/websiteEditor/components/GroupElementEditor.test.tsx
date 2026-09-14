@@ -10,11 +10,11 @@ describe("GroupElementEditor", () => {
   it("groups and orders size, spacing, and layout controls", () => {
     const html = renderToStaticMarkup(<GroupElementEditor group={group} viewport="desktop" onChange={() => undefined} onUngroup={() => undefined} />);
     expect(html).toContain("Size &amp; spacing");
-    expect(html).toContain("Outer spacing · desktop");
-    expect(html).toContain("Inner spacing · desktop");
-    expect(html).toContain("Top outer spacing: None. Click to use next value.");
-    expect(html).toContain("Top inner spacing: None. Click to use next value.");
-    expect(html).not.toContain("Top spacing");
+    expect(html).toContain("Outer spacing");
+    expect(html).toContain("Inner spacing");
+    expect(html).toContain('aria-label="Vertical spacing"');
+    expect(html).toContain('aria-label="Horizontal spacing"');
+    expect(html).not.toContain('aria-label="Top"');
     expect(html).toContain(">Layout<");
     expect(html).toContain('aria-label="Vertical"');
     expect(html).toContain('aria-label="Start"');
@@ -24,21 +24,21 @@ describe("GroupElementEditor", () => {
     expect(html).toContain('>None</button>');
     expect(html).toContain('aria-label="Xs"');
     expect(html).toContain(">XS<");
-    const positions = ["Width · desktop", "Outer spacing", "Inner spacing", "Direction", "Child alignment", "Gap", "Division"].map((label) => html.indexOf(label));
+    const positions = ["Width", "Outer spacing", "Inner spacing", "Direction", "Child alignment", "Gap", "Division"].map((label) => html.indexOf(label));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
   it.each(["tablet", "mobile"] as const)("highlights effective Desktop values for untouched %s controls", (viewport) => {
     const html = renderToStaticMarkup(<GroupElementEditor group={group} viewport={viewport} onChange={() => undefined} onUngroup={() => undefined} />);
-    expect(html).toContain(`Width · ${viewport}`);
+    expect(html).toContain("Width");
     expect(html).toContain(">Wide</span>");
-    expect(html).toContain(`Direction · ${viewport}`);
+    expect(html).toContain("Direction");
     expectPressed(html, "Horizontal");
     expectPressed(html, "Start");
     expectPressed(html, "M");
     expect(html).toContain('aria-checked="true" aria-label="50 / 50 division"');
-    expect(html).toContain("Top inner spacing: None");
+    expect(html).toContain('aria-label="Vertical spacing"');
     expect(html).not.toContain("Use desktop setting");
   });
 
@@ -49,7 +49,7 @@ describe("GroupElementEditor", () => {
     expectPressed(html, "Vertical");
     expectPressed(html, "End");
     expectPressed(html, "None");
-    expect(html).toContain("Top inner spacing: Xl");
+    expect(html).toContain("Mixed");
     expect(html).not.toContain("Use desktop setting");
     expect(html).not.toContain("Use default");
   });
@@ -84,7 +84,7 @@ describe("GroupElementEditor", () => {
       expectPressed(html, "Vertical");
       expectPressed(html, "S");
       expectPressed(html, "Fill");
-      expect(html).toContain("Left inner spacing: L");
+      expect(html).toContain("Mixed");
     }
   });
 });

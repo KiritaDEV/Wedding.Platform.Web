@@ -98,44 +98,41 @@ export function GroupElementEditor({
   const effectiveDirection = effective.direction ?? "vertical";
   const appearance = group.appearance ?? {};
   const effectiveOuterSpacing = resolveFourSidedSpacing(appearance.outerSpacing, viewport === "desktop" ? undefined : appearance.responsive?.[viewport]?.outerSpacing);
-  const updateOuterSpacing = (side: keyof FourSidedSpacing, value: SpacingPreset) => {
+  const updateOuterSpacing = (changes: Partial<Record<keyof FourSidedSpacing, SpacingPreset>>) => {
     const nextAppearance = structuredClone(appearance);
-    if (viewport === "desktop") {
-      const spacing = { ...nextAppearance.outerSpacing };
-      if (value === "none") delete spacing[side]; else spacing[side] = value;
-      if (Object.keys(spacing).length) nextAppearance.outerSpacing = spacing; else delete nextAppearance.outerSpacing;
-    } else {
-      const responsive = { ...nextAppearance.responsive };
-      const branch = { ...responsive[viewport] };
-      const spacing = { ...branch.outerSpacing };
-      if (value === (nextAppearance.outerSpacing?.[side] ?? "none")) delete spacing[side]; else spacing[side] = value;
-      if (Object.keys(spacing).length) branch.outerSpacing = spacing; else delete branch.outerSpacing;
-      if (Object.keys(branch).length) responsive[viewport] = branch; else delete responsive[viewport];
-      if (Object.keys(responsive).length) nextAppearance.responsive = responsive; else delete nextAppearance.responsive;
+    for (const [sideKey, value] of Object.entries(changes)) {
+      const side = sideKey as keyof FourSidedSpacing;
+      if (viewport === "desktop") {
+        const spacing = { ...nextAppearance.outerSpacing };
+        if (value === "none") delete spacing[side]; else spacing[side] = value;
+        if (Object.keys(spacing).length) nextAppearance.outerSpacing = spacing; else delete nextAppearance.outerSpacing;
+      } else {
+        const responsive = { ...nextAppearance.responsive };
+        const branch = { ...responsive[viewport] };
+        const spacing = { ...branch.outerSpacing };
+        if (value === (nextAppearance.outerSpacing?.[side] ?? "none")) delete spacing[side]; else spacing[side] = value;
+        if (Object.keys(spacing).length) branch.outerSpacing = spacing; else delete branch.outerSpacing;
+        if (Object.keys(branch).length) responsive[viewport] = branch; else delete responsive[viewport];
+        if (Object.keys(responsive).length) nextAppearance.responsive = responsive; else delete nextAppearance.responsive;
+      }
     }
     const next = { ...group };
     if (Object.keys(nextAppearance).length) next.appearance = nextAppearance; else delete next.appearance;
     onChange(next);
   };
-  const updatePadding = (
-    side: "top" | "right" | "bottom" | "left",
-    value: string,
-  ) => {
+  const updatePadding = (changes: Partial<Record<"top" | "right" | "bottom" | "left", SpacingPreset>>) => {
+    let nextLayout = layout;
+    for (const [side, value] of Object.entries(changes)) nextLayout = selectGroupPaddingSide(nextLayout, viewport, side as "top" | "right" | "bottom" | "left", value!);
     onChange({
       ...group,
-      layout: selectGroupPaddingSide(
-        layout,
-        viewport,
-        side,
-        value as NonNullable<NonNullable<GroupLayout["padding"]>[typeof side]>,
-      ),
+      layout: nextLayout,
     });
   };
 
   return (
     <div className="space-y-5" data-group-element-editor>
       <InspectorSection title="Size & spacing">
-        <Field label={`Width · ${viewport}`}>
+        <Field label="Width">
           <Select
             value={effective.width ?? "full"}
             options={options(GROUP_WIDTHS)}
@@ -144,20 +141,19 @@ export function GroupElementEditor({
             }
           />
         </Field>
-        <Field label={`Outer spacing · ${viewport}`}>
-          <InnerSpacingControl kind="Outer" spacing={effectiveOuterSpacing} subject="Group" onChange={updateOuterSpacing} />
+        <Field label="Outer spacing">
+          <InnerSpacingControl kind="Outer" spacing={effectiveOuterSpacing} onChange={updateOuterSpacing} />
         </Field>
-        <Field label={`Inner spacing · ${viewport}`}>
+        <Field label="Inner spacing">
           <InnerSpacingControl
             spacing={effective.padding}
-            subject="Group"
-            onChange={(side, value) => updatePadding(side, value)}
+            onChange={updatePadding}
           />
         </Field>
       </InspectorSection>
       <InspectorSection title="Layout">
         <CompactField
-          label={`Direction · ${viewport}`}
+          label="Direction"
           value={effective.direction ?? "vertical"}
           options={GROUP_DIRECTIONS.map((value) => ({
             value,
@@ -171,9 +167,9 @@ export function GroupElementEditor({
             )
           }
         />
-        <Field label={`Content position · ${viewport}`}><ContentPositionControl value={(effective.contentPosition ?? "center") as HeroContentPosition} onChange={(contentPosition) => set("contentPosition", contentPosition)} /></Field>
+        <Field label="Content position"><ContentPositionControl value={(effective.contentPosition ?? "center") as HeroContentPosition} onChange={(contentPosition) => set("contentPosition", contentPosition)} /></Field>
         <CompactField
-          label={`Child alignment · ${viewport}`}
+          label="Child alignment"
           value={effective.alignment ?? "stretch"}
           options={GROUP_ALIGNMENTS.map((value) => ({
             value,
@@ -188,7 +184,7 @@ export function GroupElementEditor({
           }
         />
         <CompactField
-          label={`Gap · ${viewport}`}
+          label="Gap"
           value={effective.gap ?? "none"}
           options={GROUP_GAPS.map((value) => ({
             value,
@@ -201,7 +197,7 @@ export function GroupElementEditor({
         />
         {effectiveDirection === "horizontal" && (
           <VisualField
-            label={`Division · ${viewport}`}
+            label="Division"
             value={effective.division ?? "50-50"}
             columns={2}
             options={[

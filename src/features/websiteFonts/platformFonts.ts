@@ -1,6 +1,6 @@
 import type { WebsiteDraft } from "../websiteEditor/types";
+import { listSectionCompositions } from "../websiteEditor/sectionComposition";
 import type { WebsiteElement } from "../websiteElements/types";
-import type { SectionChildFlow } from "../websiteEditor/sectionChildFlow";
 
 export type FontCategory = "serif" | "sans" | "script" | "display" | "mono" | "legacy";
 export type FontRole = "heading" | "body" | "accent";
@@ -50,10 +50,7 @@ export function collectRequiredFontIds(website: WebsiteDraft): string[] {
     if (section.resolvedDesignContext) { ids.add(section.resolvedDesignContext.headingFontId); ids.add(section.resolvedDesignContext.bodyFontId); }
     if (section.designDefaults.headingFontId) ids.add(section.designDefaults.headingFontId);
     if (section.designDefaults.bodyFontId) ids.add(section.designDefaults.bodyFontId);
-    const childFlow = (section.content as { childFlow?: SectionChildFlow }).childFlow;
-    if (childFlow) {
-      childFlow.elements.forEach((element) => collectElementFontIds(element, ids));
-    }
+    listSectionCompositions(section).forEach(({ composition }) => composition.childFlow.elements.forEach((element) => collectElementFontIds(element, ids)));
   }
   return [...ids];
 }

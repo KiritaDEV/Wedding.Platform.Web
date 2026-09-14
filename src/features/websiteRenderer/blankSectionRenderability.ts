@@ -1,10 +1,14 @@
-import type { BlankContent, HeroContent, ResolvedWebsiteMedia, WebsiteSection } from '../websiteEditor/types'
+import type { ResolvedWebsiteMedia, ResponsiveViewport, WebsiteSection } from '../websiteEditor/types'
+import { resolveOwnedSectionAppearance } from '../websiteEditor/sectionAppearance'
 import type { WebsiteElement } from '../websiteElements/types'
+import { resolveSectionComposition } from '../websiteEditor/sectionComposition'
 import { isElementRenderable } from './elementRenderability'
+import { resolveBackgroundMediaForDevice } from '../websiteMedia/backgroundMedia'
 
-export function hasIntentionalSectionSurface(section: WebsiteSection): boolean {
-  if (section.appearance.backgroundTreatment !== 'inherit') return true
-  const decorative = section.appearance.decorativeAppearance
+export function hasIntentionalSectionSurface(section: WebsiteSection, targetViewport: ResponsiveViewport = 'desktop'): boolean {
+  const appearance = resolveOwnedSectionAppearance(section.appearance, targetViewport)
+  if (appearance.backgroundTreatment !== 'inherit') return true
+  const decorative = appearance.decorativeAppearance
   const background = decorative?.background
   return Boolean(
     background?.colorId
@@ -16,16 +20,16 @@ export function hasIntentionalSectionSurface(section: WebsiteSection): boolean {
   )
 }
 
-export function isHeroSectionRenderable(section: WebsiteSection, templateKey: string, media: Record<string, ResolvedWebsiteMedia>, eventDate: string | null): boolean {
+export function isHeroSectionRenderable(section: WebsiteSection, templateKey: string, media: Record<string, ResolvedWebsiteMedia>, eventDate: string | null, targetViewport: ResponsiveViewport = 'desktop'): boolean {
   if (section.type !== 'hero') return true
-  const content = section.content as HeroContent
+  const appearance = resolveOwnedSectionAppearance(section.appearance, targetViewport)
   const isRenderable = (element: WebsiteElement): boolean => element.type === 'compositionGroup'
     ? element.children.some(isRenderable)
     : isElementRenderable(element, templateKey, 'public', media, eventDate)
-  return content.childFlow.elements.some(isRenderable)
-    || Boolean(content.backgroundMedia && media[content.backgroundMedia.assetId])
-    || hasIntentionalSectionSurface(section)
-    || section.appearance.height === 'screen'
+  return resolveSectionComposition(section, targetViewport).composition.childFlow.elements.some(isRenderable)
+    || Boolean(resolveBackgroundMediaForDevice(appearance.backgroundMedia, targetViewport)?.assetId)
+    || hasIntentionalSectionSurface(section, targetViewport)
+    || resolveOwnedSectionAppearance(section.appearance, targetViewport).height === 'screen'
 }
 
 export function isBlankSectionRenderable(
@@ -33,12 +37,13 @@ export function isBlankSectionRenderable(
   templateKey: string,
   media: Record<string, ResolvedWebsiteMedia>,
   eventDate: string | null,
+  targetViewport: ResponsiveViewport = 'desktop',
 ): boolean {
   if (section.type !== 'blank') return true
-  const flow = (section.content as BlankContent).childFlow
+  const flow = resolveSectionComposition(section, targetViewport).composition.childFlow
   const isRenderable = (element: WebsiteElement): boolean => element.type === 'compositionGroup'
     ? element.children.some(isRenderable)
     : isElementRenderable(element, templateKey, 'public', media, eventDate)
   return flow.elements.some(isRenderable)
-    || hasIntentionalSectionSurface(section)
+    || hasIntentionalSectionSurface(section, targetViewport)
 }

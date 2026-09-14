@@ -8,7 +8,7 @@ export function ModernEditorialGallery({
   mode,
 }: {
   sectionId: string;
-  content: GalleryContent;
+  content: GalleryContent["semantic"];
   mode: "editor" | "public";
 }) {
   return (
@@ -17,7 +17,7 @@ export function ModernEditorialGallery({
       heading={
         <EditableText
           sectionId={sectionId}
-          path={["heading"]}
+          path={["semantic", "heading"]}
           value={content.heading}
           fallback="Gallery"
           placeholder="Add heading"
@@ -38,7 +38,7 @@ export function ModernEditorialRsvp({
   content,
 }: {
   sectionId: string;
-  content: RsvpContent;
+  content: RsvpContent["semantic"];
 }) {
   return (
     <EditorialSection
@@ -46,7 +46,7 @@ export function ModernEditorialRsvp({
       heading={
         <EditableText
           sectionId={sectionId}
-          path={["heading"]}
+          path={["semantic", "heading"]}
           value={content.heading}
           fallback="Kindly Respond"
           placeholder="Add heading"
@@ -57,7 +57,7 @@ export function ModernEditorialRsvp({
       <p className="max-w-xl whitespace-pre-line text-lg">
         <EditableText
           sectionId={sectionId}
-          path={["description"]}
+          path={["semantic", "description"]}
           value={content.description}
           fallback="We would be honored to celebrate this day with you."
           placeholder="Add description"
@@ -71,7 +71,7 @@ export function ModernEditorialRsvp({
       >
         <EditableText
           sectionId={sectionId}
-          path={["buttonLabel"]}
+          path={["semantic", "buttonLabel"]}
           value={content.buttonLabel}
           fallback="RSVP"
           placeholder="Add button label"

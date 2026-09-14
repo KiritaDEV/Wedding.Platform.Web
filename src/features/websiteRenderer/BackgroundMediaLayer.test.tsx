@@ -8,10 +8,10 @@ const media = {
 };
 
 describe("BackgroundMediaLayer", () => {
-  it("renders the shared asset with the active device zoom", () => {
-    const html = renderToStaticMarkup(<BackgroundMediaLayer ownerId="hero" kind="hero" viewport="mobile" media={media} reference={{ assetId: "desktop", zoom: 2.5, responsive: { mobile: { assetId: "mobile", zoom: .6 } } }} />);
-    expect(html).toContain('src="/portrait.jpg"');
-    expect(html).toContain('data-media-zoom="0.6"');
+  it("renders the selected appearance owner's base asset on every viewport", () => {
+    const html = renderToStaticMarkup(<BackgroundMediaLayer ownerId="hero" kind="hero" viewport="mobile" media={media} reference={{ assetId: "desktop", zoom: 2.5 }} />);
+    expect(html).toContain('src="/wide.jpg"');
+    expect(html).toContain('data-media-zoom="2.5"');
     expect(html).not.toContain("object-contain");
   });
 

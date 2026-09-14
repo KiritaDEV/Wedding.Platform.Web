@@ -39,6 +39,7 @@ import {
   setWebsiteSectionEnabled,
   updateWebsiteDesignSettings,
   updateWebsiteSectionAppearance,
+  updateWebsiteSectionPresentation,
   updateWebsiteSectionContent,
   updateWebsiteSectionDesignDefaults,
 } from "../../features/websiteEditor/api";
@@ -58,6 +59,9 @@ import { AccordionElementEditor } from "../../features/websiteEditor/components/
 import { ScheduleElementEditor } from "../../features/websiteEditor/components/ScheduleElementEditor";
 import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
+import { SectionCompositionControls } from "../../features/websiteEditor/components/SectionCompositionControls";
+import { createCustomSectionPresentation, removeCustomSectionPresentation } from "../../features/websiteEditor/compositionLifecycle";
+import { mergeScopedSectionAppearance, replaceScopedSectionAppearance, resolveSectionAppearance } from "../../features/websiteEditor/sectionAppearance";
 import { SectionNavigator } from "../../features/websiteEditor/components/SectionNavigator";
 import {
   BlankSectionDeleteDialog,
@@ -77,12 +81,10 @@ import type {
   SectionDesignDefaults,
   WebsiteSection,
   WebsiteSectionAppearance,
+  WebsiteSectionAppearanceEnvelope,
 } from "../../features/websiteEditor/types";
 import type { ProjectColor } from "../../features/websiteColors/projectColors";
-import {
-  appearanceEquals,
-  pruneResponsiveAppearance,
-} from "../../features/websiteEditor/responsiveAppearance";
+import { pruneResponsiveAppearance } from "../../features/websiteEditor/responsiveAppearance";
 import {
   accessiblePreviewViewports,
   EDITOR_DEVICE_VIEWPORTS,
@@ -90,6 +92,14 @@ import {
 } from "../../features/websiteEditor/responsiveViewport";
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
+import {
+  authoredPropertyViewport,
+  mergeScopedComposition,
+  replaceScopedComposition,
+  resolveEditorCompositionTarget,
+  sameCompositionScope,
+  type SectionCompositionScope,
+} from "../../features/websiteEditor/editorComposition";
 import {
   globalDesignCapability,
   sectionCapability,
@@ -195,10 +205,12 @@ function WebsitePageContent() {
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   const [pendingChildSelection, setPendingChildSelection] = useState<{
     sectionId: string;
+    compositionScope: SectionCompositionScope;
     reference: SectionChildReference;
     requestCanvasScroll?: boolean;
   } | null>(null);
   const [pendingMode, setPendingMode] = useState<BuilderMode | null>(null);
+  const [pendingPreviewMode, setPendingPreviewMode] = useState<{ viewport: ResponsiveViewport; scope?: SectionCompositionScope } | null>(null);
   const [mode, setMode] = useState<BuilderMode>("content");
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
   const [sectionPanelMode, setSectionPanelMode] =
@@ -224,21 +236,14 @@ function WebsitePageContent() {
     [deviceCategory],
   );
 
-  useEffect(() => {
-    if (accessibleViewports.includes(previewMode)) return;
-    const timer = window.setTimeout(
-      () => setPreviewMode(accessibleViewports[0]),
-      0,
-    );
-    return () => window.clearTimeout(timer);
-  }, [accessibleViewports, previewMode]);
   const [contentOverride, setContentOverride] = useState<{
     sectionId: string;
+    scope?: SectionCompositionScope;
     content: Record<string, unknown>;
   } | null>(null);
   const [appearanceOverride, setAppearanceOverride] = useState<{
     sectionId: string;
-    appearance: WebsiteSectionAppearance;
+    appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope;
   } | null>(null);
   const [appearanceError, setAppearanceError] = useState<string | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
@@ -247,10 +252,11 @@ function WebsitePageContent() {
     null,
   );
   const [inlineEditingTarget, setInlineEditingTarget] =
-    useState<InlineEditingTarget | null>(null);
+    useState<(InlineEditingTarget & { compositionScope?: SectionCompositionScope }) | null>(null);
   useState<string | null>(null);
   const [selectedChild, setSelectedChild] = useState<{
     sectionId: string;
+    compositionScope: SectionCompositionScope;
     reference: SectionChildReference;
   } | null>(null);
   const canvasSelectionRequestId = useRef(0);
@@ -281,10 +287,17 @@ function WebsitePageContent() {
     contentOverride?.sectionId === effectiveSelectedId
       ? contentOverride.content
       : (authoritativeSelected?.content as Record<string, unknown> | undefined);
-  const workingAppearance =
+  const activeCompositionTarget = workingSelected && workingContent && (workingSelected.type === "blank" || workingSelected.type === "hero")
+    ? resolveEditorCompositionTarget({ ...workingSelected, content: workingContent } as WebsiteSection, previewMode)
+    : null;
+  const workingAppearanceOwner =
     appearanceOverride?.sectionId === effectiveSelectedId
       ? appearanceOverride.appearance
       : authoritativeSelected?.appearance;
+  const activeAppearanceTarget = workingSelected && workingAppearanceOwner && (workingSelected.type === 'hero' || workingSelected.type === 'blank')
+    ? resolveSectionAppearance(workingAppearanceOwner as WebsiteSectionAppearanceEnvelope, previewMode)
+    : null;
+  const workingAppearance = activeAppearanceTarget?.appearance ?? workingAppearanceOwner as WebsiteSectionAppearance | undefined;
   const contentDirty = Boolean(
     authoritativeSelected &&
     workingContent &&
@@ -293,8 +306,8 @@ function WebsitePageContent() {
   );
   const appearanceDirty = Boolean(
     authoritativeSelected &&
-    workingAppearance &&
-    !appearanceEquals(workingAppearance, authoritativeSelected.appearance),
+    workingAppearanceOwner &&
+    JSON.stringify(workingAppearanceOwner) !== JSON.stringify(authoritativeSelected.appearance),
   );
   const sectionDirty = contentDirty || appearanceDirty;
   const designDirty = Boolean(
@@ -313,6 +326,22 @@ function WebsitePageContent() {
   );
   const sectionStructureDirty = sectionOrderDirty || sectionVisibilityDirty;
   const globalDirty = sectionStructureDirty || sectionDirty || designDirty;
+
+  useEffect(() => {
+    if (accessibleViewports.includes(previewMode)) return;
+    const next = accessibleViewports[0];
+    const nextScope = workingSelected && workingContent && (workingSelected.type === "blank" || workingSelected.type === "hero")
+      ? resolveEditorCompositionTarget({ ...workingSelected, content: workingContent } as WebsiteSection, next).scope
+      : undefined;
+    const timer = window.setTimeout(() => {
+      if (sectionDirty) setPendingPreviewMode({ viewport: next, scope: nextScope });
+      else {
+        setSelectedChild(null);
+        setPreviewMode(next);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [accessibleViewports, previewMode, sectionDirty, workingContent, workingSelected]);
 
   function selectSection(id: string, requestCanvasScroll = false) {
     if (requestCanvasScroll) {
@@ -351,8 +380,17 @@ function WebsitePageContent() {
   }
 
   function changePreviewMode(next: ResponsiveViewport) {
+    if (next === previewMode) return;
+    const nextTarget = workingSelected && workingContent && (workingSelected.type === "blank" || workingSelected.type === "hero")
+      ? resolveEditorCompositionTarget({ ...workingSelected, content: workingContent } as WebsiteSection, next)
+      : null;
+    if (sectionDirty && activeCompositionTarget && nextTarget && !sameCompositionScope(activeCompositionTarget.scope, nextTarget.scope)) {
+      setPendingPreviewMode({ viewport: next, scope: nextTarget.scope });
+      return;
+    }
     if (isStandaloneTextEditingTarget(inlineEditingTarget))
       setInlineEditingTarget(null);
+    setSelectedChild(null);
     setPreviewMode(next);
   }
 
@@ -549,7 +587,7 @@ function WebsitePageContent() {
 
   function updateWorkingContent(content: Record<string, unknown>) {
     if (effectiveSelectedId) {
-      setContentOverride({ sectionId: effectiveSelectedId, content });
+      setContentOverride({ sectionId: effectiveSelectedId, scope: activeCompositionTarget?.scope, content });
     }
   }
 
@@ -562,16 +600,52 @@ function WebsitePageContent() {
     setMediaOverrides({});
   }
 
+  async function customizeActiveComposition() {
+    if (sectionDirty || !authoritativeSelected || !activeCompositionTarget || activeCompositionTarget.scope.kind !== "shared") return;
+    if (authoritativeSelected.type !== 'hero' && authoritativeSelected.type !== 'blank') return
+    const presentation = createCustomSectionPresentation(authoritativeSelected.content, authoritativeSelected.appearance, previewMode);
+    setListPending(true);
+    try {
+      contentSaved(await updateWebsiteSectionPresentation(event.id, projectId, authoritativeSelected.id, presentation.content, presentation.appearance));
+      setSelectedChild(null);
+      setInlineEditingTarget(null);
+      setCanvasSelectionRequest(null);
+    } catch (branchError) {
+      setContentError(messageFor(branchError));
+    } finally {
+      setListPending(false);
+    }
+  }
+
+  async function resetActiveComposition() {
+    if (sectionDirty || !authoritativeSelected || !activeCompositionTarget || activeCompositionTarget.scope.kind !== "custom") return;
+    if (authoritativeSelected.type !== 'hero' && authoritativeSelected.type !== 'blank') return
+    const presentation = removeCustomSectionPresentation(authoritativeSelected.content, authoritativeSelected.appearance, previewMode);
+    setListPending(true);
+    try {
+      contentSaved(await updateWebsiteSectionPresentation(event.id, projectId, authoritativeSelected.id, presentation.content, presentation.appearance));
+      setSelectedChild(null);
+      setInlineEditingTarget(null);
+      setCanvasSelectionRequest(null);
+    } catch (branchError) {
+      setContentError(messageFor(branchError));
+    } finally {
+      setListPending(false);
+    }
+  }
+
   function selectChild(
     sectionId: string,
     reference: SectionChildReference,
     requestCanvasScroll = false,
   ) {
-    const target = { sectionId, reference };
     const section = workingSections.find(({ id }) => id === sectionId);
-    const flow = (
-      section?.content as { childFlow?: SectionChildFlow } | undefined
-    )?.childFlow;
+    const content = sectionId === effectiveSelectedId && workingContent ? workingContent : section?.content as Record<string, unknown> | undefined;
+    const compositionTarget = section && content && (section.type === "blank" || section.type === "hero")
+      ? resolveEditorCompositionTarget({ ...section, content } as WebsiteSection, previewMode)
+      : null;
+    const target = { sectionId, compositionScope: compositionTarget?.scope ?? { kind: "shared" } as SectionCompositionScope, reference };
+    const flow = compositionTarget?.composition.childFlow;
     const selectedElement =
       reference.kind === "element"
         ? findSectionElement(flow, reference.id)
@@ -615,7 +689,7 @@ function WebsitePageContent() {
     if (sectionId !== effectiveSelectedId && sectionDirty) {
       setPendingSelection(sectionId);
       if (selection)
-        setPendingChildSelection({ sectionId, reference: selection });
+        setPendingChildSelection({ sectionId, compositionScope: activeCompositionTarget?.scope ?? { kind: "shared" }, reference: selection });
       return false;
     }
     const content = structuredClone(
@@ -623,16 +697,20 @@ function WebsitePageContent() {
         ? workingContent
         : (section.content as Record<string, unknown>),
     );
-    if (flow) content.childFlow = flow;
-    else delete content.childFlow;
+    if (!flow) return false;
+    const target = section.type === "blank" || section.type === "hero"
+      ? resolveEditorCompositionTarget({ ...section, content } as WebsiteSection, previewMode)
+      : null;
+    if (!target) return false;
+    const nextContent = replaceScopedComposition(content, target.scope, { childFlow: flow });
     if (sectionId !== effectiveSelectedId) {
       setSelectedId(sectionId);
       setAppearanceOverride(null);
     }
-    setContentOverride({ sectionId, content });
+    setContentOverride({ sectionId, scope: target?.scope, content: nextContent });
     setInlineEditingTarget(null);
     if (selection) {
-      setSelectedChild({ sectionId, reference: selection });
+      setSelectedChild({ sectionId, compositionScope: target?.scope ?? { kind: "shared" }, reference: selection });
       const selectedElement =
         selection.kind === "element"
           ? findSectionElement(flow, selection.id)
@@ -668,10 +746,14 @@ function WebsitePageContent() {
         ? workingContent
         : (section.content as Record<string, unknown>),
     );
-    content.childFlow = flow;
+    const target = section.type === "blank" || section.type === "hero"
+      ? resolveEditorCompositionTarget({ ...section, content } as WebsiteSection, previewMode)
+      : null;
+    if (!target) return "This Section does not support block trees.";
+    const nextContent = replaceScopedComposition(content, target.scope, { childFlow: flow });
     const parsed = validateSectionContent(
       section.type,
-      content,
+      nextContent,
       draft?.template?.key,
     );
     if (!parsed.success)
@@ -699,10 +781,12 @@ function WebsitePageContent() {
 
   function requestInlineEdit(target: InlineEditingTarget) {
     if (target.sectionId !== effectiveSelectedId) return;
-    setInlineEditingTarget(target);
+    const compositionScope = activeCompositionTarget?.scope;
+    setInlineEditingTarget({ ...target, compositionScope });
     if (target.elementId) {
       setSelectedChild({
         sectionId: target.sectionId,
+        compositionScope: compositionScope ?? { kind: "shared" },
         reference: { kind: "element", id: target.elementId },
       });
     }
@@ -773,7 +857,7 @@ function WebsitePageContent() {
   ]);
 
   async function saveEditorChanges() {
-    if (!draft) return;
+    if (!draft) return false;
     let domain: "structure" | "content" | "appearance" | "design" = "structure";
     let latestDraft = draft;
     const desiredStructure = structureFor(workingSections);
@@ -809,9 +893,19 @@ function WebsitePageContent() {
 
       if (contentDirty && selected && workingContent) {
         domain = "content";
+        const freshestSection = latestDraft.sections.find(({ id }) => id === selected.id);
+        let saveContent = workingContent;
+        if (freshestSection && contentOverride?.scope && activeCompositionTarget) {
+          saveContent = mergeScopedComposition(
+            freshestSection.content as Record<string, unknown>,
+            contentOverride.scope,
+            activeCompositionTarget.composition,
+          );
+          if ("semantic" in workingContent) saveContent.semantic = workingContent.semantic;
+        }
         const parsed = validateSectionContent(
           selected.type,
-          workingContent,
+          saveContent,
           draft?.template?.key,
         );
         if (!parsed.success) {
@@ -822,7 +916,7 @@ function WebsitePageContent() {
               ? `${field}: ${issue.message}`
               : "Review this section and enter valid content before saving.",
           );
-          return;
+          return false;
         }
         latestDraft = await updateWebsiteSectionContent(
           event.id,
@@ -835,11 +929,15 @@ function WebsitePageContent() {
 
       if (appearanceDirty && effectiveSelectedId && workingAppearance) {
         domain = "appearance";
+        const freshestSelected = latestDraft.sections.find((section) => section.id === effectiveSelectedId)
+        const appearance = activeAppearanceTarget && freshestSelected && (freshestSelected.type === 'hero' || freshestSelected.type === 'blank')
+          ? mergeScopedSectionAppearance(freshestSelected.appearance, activeAppearanceTarget.scope, pruneResponsiveAppearance(workingAppearance))
+          : pruneResponsiveAppearance(workingAppearance)
         latestDraft = await updateWebsiteSectionAppearance(
           event.id,
           projectId,
           effectiveSelectedId,
-          pruneResponsiveAppearance(workingAppearance),
+          appearance,
         );
         setDraft(latestDraft);
         setAppearanceOverride(null);
@@ -855,6 +953,7 @@ function WebsitePageContent() {
         setDraft(latestDraft);
         setDesignOverride(null);
       }
+      return true;
     } catch (saveError) {
       if (domain === "structure") setListError(messageFor(saveError));
       else if (domain === "content") {
@@ -866,6 +965,7 @@ function WebsitePageContent() {
       } else if (domain === "appearance") {
         setAppearanceError(messageFor(saveError));
       } else setDesignError(messageFor(saveError));
+      return false;
     } finally {
       setListPending(false);
     }
@@ -955,8 +1055,7 @@ function WebsitePageContent() {
         (selected.type === "blank" || selected.type === "hero")
           ? {
               sectionId: selected.id,
-              flow: (workingContent as { childFlow?: SectionChildFlow })
-                .childFlow,
+              flow: activeCompositionTarget?.composition.childFlow,
             }
           : null
       }
@@ -1022,13 +1121,15 @@ function WebsitePageContent() {
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
         selectedChild={
-          selectedChild && selectedChild.sectionId === selected?.id
+          selectedChild && selectedChild.sectionId === selected?.id && activeCompositionTarget && sameCompositionScope(selectedChild.compositionScope, activeCompositionTarget.scope)
             ? selectedChild.reference
             : null
         }
         panelMode={sectionPanelMode}
         showModeSwitch
         appearanceDirty={appearanceDirty}
+        contentDirty={contentDirty}
+        compositionPending={listPending}
         appearanceError={appearanceError}
         sectionDesignSaving={sectionDesignSaving}
         sectionDesignError={sectionDesignError}
@@ -1036,9 +1137,11 @@ function WebsitePageContent() {
         projectColors={designSettings.customColors}
         onAddColor={addProjectColor}
         onContentChange={updateWorkingContent}
+        onCustomizeComposition={customizeActiveComposition}
+        onResetComposition={resetActiveComposition}
         onAppearanceChange={(appearance) =>
           selected &&
-          setAppearanceOverride({ sectionId: selected.id, appearance })
+          setAppearanceOverride({ sectionId: selected.id, appearance: activeAppearanceTarget ? replaceScopedSectionAppearance(workingAppearanceOwner as WebsiteSectionAppearanceEnvelope, activeAppearanceTarget.scope, appearance) : appearance })
         }
         onSectionDesignChange={(defaults) =>
           void saveSectionDesignDefaults(defaults)
@@ -1077,13 +1180,15 @@ function WebsitePageContent() {
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
         selectedChild={
-          selectedChild && selectedChild.sectionId === selected?.id
+          selectedChild && selectedChild.sectionId === selected?.id && activeCompositionTarget && sameCompositionScope(selectedChild.compositionScope, activeCompositionTarget.scope)
             ? selectedChild.reference
             : null
         }
         panelMode={drawerMode === "appearance" ? "appearance" : "content"}
         showModeSwitch={false}
         appearanceDirty={appearanceDirty}
+        contentDirty={contentDirty}
+        compositionPending={listPending}
         appearanceError={appearanceError}
         sectionDesignSaving={sectionDesignSaving}
         sectionDesignError={sectionDesignError}
@@ -1091,9 +1196,11 @@ function WebsitePageContent() {
         projectColors={designSettings.customColors}
         onAddColor={addProjectColor}
         onContentChange={updateWorkingContent}
+        onCustomizeComposition={customizeActiveComposition}
+        onResetComposition={resetActiveComposition}
         onAppearanceChange={(appearance) =>
           selected &&
-          setAppearanceOverride({ sectionId: selected.id, appearance })
+          setAppearanceOverride({ sectionId: selected.id, appearance: activeAppearanceTarget ? replaceScopedSectionAppearance(workingAppearanceOwner as WebsiteSectionAppearanceEnvelope, activeAppearanceTarget.scope, appearance) : appearance })
         }
         onSectionDesignChange={(defaults) =>
           void saveSectionDesignDefaults(defaults)
@@ -1242,7 +1349,7 @@ function WebsitePageContent() {
                 : null
             }
             selectedChild={
-              selectedChild?.sectionId === effectiveSelectedId
+              selectedChild?.sectionId === effectiveSelectedId && activeCompositionTarget && sameCompositionScope(selectedChild.compositionScope, activeCompositionTarget.scope)
                 ? selectedChild.reference
                 : null
             }
@@ -1278,33 +1385,78 @@ function WebsitePageContent() {
       )}
 
       <DiscardChangesDialog
-        open={pendingSelection !== null || pendingMode !== null}
+        open={pendingSelection !== null || pendingMode !== null || pendingPreviewMode !== null}
         onCancel={() => {
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
+          setPendingPreviewMode(null);
           setPendingChildSelection(null);
         }}
+        saving={listPending}
+        onSave={() => void (async () => {
+          if (!await saveEditorChanges()) return;
+          if (pendingSelection) setSelectedId(pendingSelection);
+          if (pendingMode) setMode(pendingMode);
+          if (pendingDrawerMode) applyDrawerMode(pendingDrawerMode);
+          if (pendingPreviewMode) {
+            setPreviewMode(pendingPreviewMode.viewport);
+            setSelectedChild(null);
+            setInlineEditingTarget(null);
+          }
+          if (pendingChildSelection) {
+            setSelectedChild({
+              sectionId: pendingChildSelection.sectionId,
+              compositionScope: pendingChildSelection.compositionScope,
+              reference: pendingChildSelection.reference,
+            });
+            const pendingSection = workingSections.find(
+              ({ id }) => id === pendingChildSelection.sectionId,
+            );
+            const pendingFlow = pendingSection && (pendingSection.type === "blank" || pendingSection.type === "hero")
+              ? resolveEditorCompositionTarget(pendingSection, previewMode).composition.childFlow
+              : undefined;
+            const pendingElement = pendingChildSelection.reference.kind === "element"
+              ? findSectionElement(pendingFlow, pendingChildSelection.reference.id)
+              : undefined;
+            if (pendingChildSelection.requestCanvasScroll && pendingElement && !pendingElement.isHidden) {
+              setCanvasSelectionRequest({
+                kind: "element",
+                id: pendingElement.id,
+                sectionId: pendingChildSelection.sectionId,
+                requestId: ++canvasSelectionRequestId.current,
+              });
+            }
+          }
+          setPendingSelection(null);
+          setPendingMode(null);
+          setPendingDrawerMode(null);
+          setPendingPreviewMode(null);
+          setPendingChildSelection(null);
+        })()}
         onDiscard={() => {
           if (pendingSelection) setSelectedId(pendingSelection);
           if (pendingMode) setMode(pendingMode);
           if (pendingDrawerMode) applyDrawerMode(pendingDrawerMode);
+          if (pendingPreviewMode) {
+            setPreviewMode(pendingPreviewMode.viewport);
+            setSelectedChild(null);
+          }
           if (pendingSelection || pendingMode) {
             setInlineEditingTarget(null);
           }
           if (pendingChildSelection) {
             setSelectedChild({
               sectionId: pendingChildSelection.sectionId,
+              compositionScope: pendingChildSelection.compositionScope,
               reference: pendingChildSelection.reference,
             });
             const pendingSection = workingSections.find(
               ({ id }) => id === pendingChildSelection.sectionId,
             );
-            const pendingFlow = (
-              pendingSection?.content as
-                | { childFlow?: SectionChildFlow }
-                | undefined
-            )?.childFlow;
+            const pendingFlow = pendingSection && (pendingSection.type === "blank" || pendingSection.type === "hero")
+              ? resolveEditorCompositionTarget(pendingSection, previewMode).composition.childFlow
+              : undefined;
             const pendingElement =
               pendingChildSelection.reference.kind === "element"
                 ? findSectionElement(
@@ -1328,6 +1480,7 @@ function WebsitePageContent() {
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
+          setPendingPreviewMode(null);
           setPendingChildSelection(null);
           setContentOverride(null);
           setAppearanceOverride(null);
@@ -1817,11 +1970,9 @@ function PreviewCanvas({
                           const section = draft.sections.find(
                             ({ id }) => id === sectionId,
                           );
-                          const flow = (
-                            section?.content as
-                              | { childFlow?: SectionChildFlow }
-                              | undefined
-                          )?.childFlow;
+                          const flow = section && (section.type === "blank" || section.type === "hero")
+                            ? resolveEditorCompositionTarget(section, previewMode).composition.childFlow
+                            : undefined;
                           if (flow)
                             onChildFlowChange(
                               sectionId,
@@ -1837,11 +1988,9 @@ function PreviewCanvas({
                           const section = draft.sections.find(
                             ({ id }) => id === sectionId,
                           );
-                          const flow = (
-                            section?.content as
-                              | { childFlow?: SectionChildFlow }
-                              | undefined
-                          )?.childFlow;
+                          const flow = section && (section.type === "blank" || section.type === "hero")
+                            ? resolveEditorCompositionTarget(section, previewMode).composition.childFlow
+                            : undefined;
                           if (!flow) return;
                           const next = updateSectionTextDocument(
                             flow,
@@ -1941,6 +2090,8 @@ function SectionInspector({
   panelMode,
   showModeSwitch,
   appearanceDirty,
+  contentDirty,
+  compositionPending,
   appearanceError,
   sectionDesignSaving,
   sectionDesignError,
@@ -1948,6 +2099,8 @@ function SectionInspector({
   projectColors,
   onAddColor,
   onContentChange,
+  onCustomizeComposition,
+  onResetComposition,
   onAppearanceChange,
   onSectionDesignChange,
 }: {
@@ -1964,6 +2117,8 @@ function SectionInspector({
   panelMode: SectionPanelMode;
   showModeSwitch: boolean;
   appearanceDirty: boolean;
+  contentDirty: boolean;
+  compositionPending: boolean;
   appearanceError: string | null;
   sectionDesignSaving: boolean;
   sectionDesignError: string | null;
@@ -1971,6 +2126,8 @@ function SectionInspector({
   projectColors: ProjectColor[];
   onAddColor: (value: string) => Promise<ProjectColor>;
   onContentChange: (content: Record<string, unknown>) => void;
+  onCustomizeComposition: () => void;
+  onResetComposition: () => void;
   onAppearanceChange: (appearance: WebsiteSectionAppearance) => void;
   onSectionDesignChange: (defaults: SectionDesignDefaults) => void;
 }) {
@@ -1978,8 +2135,14 @@ function SectionInspector({
   const capability = capabilities
     ? sectionCapability(capabilities, selected.type)
     : undefined;
-  const childFlow = (workingContent as { childFlow?: SectionChildFlow })
-    .childFlow;
+  const compositionTarget = selected.type === "blank" || selected.type === "hero"
+    ? resolveEditorCompositionTarget({ ...selected, content: workingContent } as WebsiteSection, targetViewport)
+    : null;
+  const childFlow = compositionTarget?.composition.childFlow;
+  const authoringViewport = authoredPropertyViewport();
+  const changeSharedFlow = (flow: SectionChildFlow) => {
+    if (compositionTarget) onContentChange(replaceScopedComposition(workingContent, compositionTarget.scope, { childFlow: flow }));
+  };
   const selectedElement =
     selectedChild?.kind === "element"
       ? findSectionElement(childFlow, selectedChild.id)
@@ -2011,6 +2174,14 @@ function SectionInspector({
       ?.allowedColorIds ?? [];
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
+      {compositionTarget && <SectionCompositionControls
+        viewport={targetViewport}
+        source={compositionTarget.scope.kind === "custom" ? "custom" : "shared"}
+        dirty={contentDirty}
+        pending={compositionPending}
+        onCustomize={onCustomizeComposition}
+        onReset={onResetComposition}
+      />}
       <div className="hidden shrink-0 border-b border-border xl:mb-4 xl:block xl:px-0 xl:pb-3 xl:pt-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -2068,16 +2239,13 @@ function SectionInspector({
                 : "Customize this Section's presentation."}
         </Text>
       </div>
-      {(selectedText ?? selectedDate ?? selectedAccordion ?? selectedSchedule ?? selectedPeople ?? selectedDivider ?? selectedMedia) && childFlow && <GenericBlockOuterSpacingEditor element={(selectedText ?? selectedDate ?? selectedAccordion ?? selectedSchedule ?? selectedPeople ?? selectedDivider ?? selectedMedia)!} viewport={targetViewport} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} />}
+      {(selectedText ?? selectedDate ?? selectedAccordion ?? selectedSchedule ?? selectedPeople ?? selectedDivider ?? selectedMedia) && childFlow && <GenericBlockOuterSpacingEditor element={(selectedText ?? selectedDate ?? selectedAccordion ?? selectedSchedule ?? selectedPeople ?? selectedDivider ?? selectedMedia)!} viewport={authoringViewport} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />}
       {selectedAccordion && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
           <AccordionElementEditor
             element={selectedAccordion}
             onChange={(element) =>
-              onContentChange({
-                ...workingContent,
-                childFlow: updateSectionElement(childFlow, element),
-              })
+              changeSharedFlow(updateSectionElement(childFlow, element))
             }
           />
         </div>
@@ -2086,10 +2254,7 @@ function SectionInspector({
           <ScheduleElementEditor
             element={selectedSchedule}
             onChange={(element) =>
-              onContentChange({
-                ...workingContent,
-                childFlow: updateSectionElement(childFlow, element),
-              })
+              changeSharedFlow(updateSectionElement(childFlow, element))
             }
           />
         </div>
@@ -2103,13 +2268,10 @@ function SectionInspector({
             hideHeading
             itemMediaEnabled
             onChange={(element) =>
-              onContentChange({
-                ...workingContent,
-                childFlow: updateSectionElement(
+              changeSharedFlow(updateSectionElement(
                   childFlow,
                   element as typeof selectedPeople,
-                ),
-              })
+                ))
             }
           />
         </div>
@@ -2118,7 +2280,7 @@ function SectionInspector({
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <DateElementEditor
               element={selectedDate}
-              viewport={targetViewport}
+              viewport={authoringViewport}
               templateKey={templateKey}
               library={capabilities.designLibrary}
               allowedFontIds={textFontIds}
@@ -2127,10 +2289,7 @@ function SectionInspector({
               context={selected.resolvedDesignContext}
               onAddColor={onAddColor}
               onChange={(element) =>
-                onContentChange({
-                  ...workingContent,
-                  childFlow: updateSectionElement(childFlow, element),
-                })
+                changeSharedFlow(updateSectionElement(childFlow, element))
               }
             />
           </ColorPreviewScopeContext>
@@ -2140,7 +2299,7 @@ function SectionInspector({
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <TextElementEditor
               element={selectedText}
-              viewport={targetViewport}
+              viewport={authoringViewport}
               library={capabilities.designLibrary}
               allowedFontIds={textFontIds}
               allowedColorIds={textColorIds}
@@ -2154,7 +2313,7 @@ function SectionInspector({
                   appearance,
                 );
                 if (next)
-                  onContentChange({ ...workingContent, childFlow: next });
+                  changeSharedFlow(next);
               }}
             />
           </ColorPreviewScopeContext>
@@ -2171,10 +2330,7 @@ function SectionInspector({
               projectColors={projectColors}
               onAddColor={onAddColor}
               onChange={(element) =>
-                onContentChange({
-                  ...workingContent,
-                  childFlow: updateSectionElement(childFlow, element),
-                })
+                changeSharedFlow(updateSectionElement(childFlow, element))
               }
             />
           </ColorPreviewScopeContext>
@@ -2184,15 +2340,12 @@ function SectionInspector({
           <MediaElementEditor
             element={selectedMedia}
             eventId={eventId}
-            viewport={targetViewport}
+            viewport={authoringViewport}
             mode={panelMode}
             resolvedMedia={resolvedMedia}
             onMediaResolved={onMediaResolved}
             onChange={(element) =>
-              onContentChange({
-                ...workingContent,
-                childFlow: updateSectionElement(childFlow, element),
-              })
+              changeSharedFlow(updateSectionElement(childFlow, element))
             }
           />
         </div>
@@ -2201,7 +2354,7 @@ function SectionInspector({
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <GroupElementEditor
               group={selectedGroup}
-              viewport={targetViewport}
+              viewport={authoringViewport}
               resolvedMedia={resolvedMedia}
               onMediaResolved={onMediaResolved}
               templateKey={templateKey}
@@ -2210,14 +2363,11 @@ function SectionInspector({
               projectColors={projectColors}
               onAddColor={onAddColor}
               onChange={(group) =>
-                onContentChange({
-                  ...workingContent,
-                  childFlow: updateSectionElement(childFlow, group),
-                })
+                changeSharedFlow(updateSectionElement(childFlow, group))
               }
               onUngroup={() => {
                 const next = ungroupSectionElement(childFlow, selectedGroup.id);
-                onContentChange({ ...workingContent, childFlow: next });
+                changeSharedFlow(next);
               }}
             />
           </ColorPreviewScopeContext>
@@ -2225,10 +2375,12 @@ function SectionInspector({
       ) : panelMode === "content" ? (
         <div className="min-h-0 flex-1">
           <SectionEditor
-            viewport={targetViewport}
+            viewport={authoringViewport}
             section={selected}
             content={workingContent}
             onChange={onContentChange}
+            appearance={workingAppearance}
+            onAppearanceChange={onAppearanceChange}
             resolvedMedia={resolvedMedia}
             onMediaResolved={onMediaResolved}
           />
@@ -2241,7 +2393,7 @@ function SectionInspector({
                 appearance={workingAppearance}
                 templateKey={templateKey}
                 sectionCapability={capability}
-                targetViewport={targetViewport}
+                targetViewport={authoringViewport}
                 error={appearanceError}
                 library={capabilities!.designLibrary}
                 projectColors={projectColors}
@@ -2337,26 +2489,29 @@ function EditorError({
 function GenericBlockOuterSpacingEditor({ element, viewport, onChange }: { element: Exclude<WebsiteElement, { type: "compositionGroup" }>; viewport: ResponsiveViewport; onChange: (element: WebsiteElement) => void }) {
   const appearance = ("appearance" in element ? element.appearance : undefined) as { outerSpacing?: FourSidedSpacing; responsive?: Partial<Record<"tablet" | "mobile", { outerSpacing?: FourSidedSpacing }>> } | undefined;
   const effective = resolveFourSidedSpacing(appearance?.outerSpacing, viewport === "desktop" ? undefined : appearance?.responsive?.[viewport]?.outerSpacing);
-  const update = (side: keyof FourSidedSpacing, value: SpacingPreset) => {
+  const update = (changes: Partial<Record<keyof FourSidedSpacing, SpacingPreset>>) => {
     const next = structuredClone(element) as WebsiteElement & { appearance?: typeof appearance };
     const nextAppearance = { ...appearance };
-    if (viewport === "desktop") {
-      const outerSpacing = { ...nextAppearance.outerSpacing };
-      if (value === "none") delete outerSpacing[side]; else outerSpacing[side] = value;
-      if (Object.keys(outerSpacing).length) nextAppearance.outerSpacing = outerSpacing; else delete nextAppearance.outerSpacing;
-    } else {
-      const responsive = { ...nextAppearance.responsive };
-      const branch = { ...responsive[viewport] };
-      const outerSpacing = { ...branch.outerSpacing };
-      if (value === (nextAppearance.outerSpacing?.[side] ?? "none")) delete outerSpacing[side]; else outerSpacing[side] = value;
-      if (Object.keys(outerSpacing).length) branch.outerSpacing = outerSpacing; else delete branch.outerSpacing;
-      if (Object.keys(branch).length) responsive[viewport] = branch; else delete responsive[viewport];
-      if (Object.keys(responsive).length) nextAppearance.responsive = responsive; else delete nextAppearance.responsive;
+    for (const [sideKey, value] of Object.entries(changes)) {
+      const side = sideKey as keyof FourSidedSpacing;
+      if (viewport === "desktop") {
+        const outerSpacing = { ...nextAppearance.outerSpacing };
+        if (value === "none") delete outerSpacing[side]; else outerSpacing[side] = value;
+        if (Object.keys(outerSpacing).length) nextAppearance.outerSpacing = outerSpacing; else delete nextAppearance.outerSpacing;
+      } else {
+        const responsive = { ...nextAppearance.responsive };
+        const branch = { ...responsive[viewport] };
+        const outerSpacing = { ...branch.outerSpacing };
+        if (value === (nextAppearance.outerSpacing?.[side] ?? "none")) delete outerSpacing[side]; else outerSpacing[side] = value;
+        if (Object.keys(outerSpacing).length) branch.outerSpacing = outerSpacing; else delete branch.outerSpacing;
+        if (Object.keys(branch).length) responsive[viewport] = branch; else delete responsive[viewport];
+        if (Object.keys(responsive).length) nextAppearance.responsive = responsive; else delete nextAppearance.responsive;
+      }
     }
     if (Object.keys(nextAppearance).length) next.appearance = nextAppearance; else delete next.appearance;
     onChange(next);
   };
-  return <div className="border-b border-border px-1 pb-5"><p className="mb-2 text-sm font-semibold">Outer spacing · {viewport}</p><FourSidedSpacingControl spacing={effective} subject="Block" kind="Outer" onChange={update} /></div>;
+  return <div className="border-b border-border px-1 pb-5"><p className="mb-2 text-sm font-semibold">Outer spacing</p><FourSidedSpacingControl spacing={effective} kind="Outer" onChange={update} /></div>;
 }
 
 function EmptyEditor() {

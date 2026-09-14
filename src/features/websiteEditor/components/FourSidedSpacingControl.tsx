@@ -1,8 +1,20 @@
+import { ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { Select } from "../../../components/ui/Select";
 import { SPACING_PRESETS, type FourSidedSpacing, type SpacingPreset } from "../../websiteElements/spacing";
-type Side = "top" | "right" | "bottom" | "left";
-const label = (value: string) => value === "none" ? "None" : value.replace(/^./, (letter) => letter.toUpperCase());
-export function FourSidedSpacingControl({ spacing, subject, kind = "Inner", onChange }: { spacing?: FourSidedSpacing; subject: string; kind?: "Inner" | "Outer"; onChange: (side: Side, value: SpacingPreset) => void }) {
-  const current = (side: Side): SpacingPreset => spacing?.[side] ?? "none";
-  const control = (side: Side, className: string) => { const value = current(side); const next = SPACING_PRESETS[(SPACING_PRESETS.indexOf(value) + 1) % SPACING_PRESETS.length]; return <button type="button" className={`flex items-center justify-center rounded-sm border border-border bg-surface text-[10px] font-semibold uppercase tracking-wide text-foreground-muted outline-none transition-colors hover:border-accent/50 hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-accent/40 ${className}`} aria-label={`${label(side)} ${kind.toLowerCase()} spacing: ${label(value)}. Click to use next value.`} title={`${label(side)}: ${label(value)} · Click to cycle`} onClick={() => onChange(side, next)}><span><span className="block text-sm xl:text-xs!">{label(side)}</span><span className="block text-[9px] font-normal normal-case tracking-normal opacity-75">{label(value)}</span></span></button>; };
-  return <div className="grid grid-cols-[4.5rem_minmax(7rem,1fr)_4.5rem] grid-rows-[3rem_6rem_3rem] gap-2" aria-label={`${kind} spacing sides`}>{control("top", "col-start-2 row-start-1")}{control("left", "col-start-1 row-start-2")}<div className="col-start-2 row-start-2 grid place-items-center rounded-sm border-2 border-foreground-muted/45 bg-foreground-muted/10 text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground-muted">{subject}</div>{control("right", "col-start-3 row-start-2")}{control("bottom", "col-start-2 row-start-3")}</div>;
+import { spacingAxisChanges, spacingAxisValue, spacingSideChanges, type SpacingChanges, type SpacingSide } from "./spacingControlModel";
+
+const sideLabels: Record<SpacingSide, string> = { top: "Top", right: "Right", bottom: "Bottom", left: "Left" };
+const axisLabels = { vertical: "Vertical spacing", horizontal: "Horizontal spacing" } as const;
+const presetLabel = (value: SpacingPreset) => value === "none" ? "None" : value.toUpperCase();
+
+export function FourSidedSpacingControl({ spacing, kind = "Inner", options = SPACING_PRESETS, defaultExpanded = false, onChange }: { spacing?: FourSidedSpacing; kind?: "Inner" | "Outer"; options?: readonly SpacingPreset[]; defaultExpanded?: boolean; onChange: (changes: SpacingChanges) => void }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const selectOptions = options.map((value) => ({ value, label: presetLabel(value) }));
+  const row = (label: string, value: SpacingPreset | "mixed", change: (value: SpacingPreset) => void) => <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] items-center gap-3"><span className="text-sm text-foreground">{label}</span><Select aria-label={label} value={value} options={value === "mixed" ? [{ value: "mixed", label: "Mixed", disabled: true }, ...selectOptions] : selectOptions} onChange={(next) => change(next as SpacingPreset)} /></div>;
+  return <div className="space-y-2" aria-label={`${kind} spacing controls`}>
+    {(["vertical", "horizontal"] as const).map((axis) => <div key={axis}>{row(axisLabels[axis], spacingAxisValue(spacing, axis), (value) => onChange(spacingAxisChanges(axis, value)))}</div>)}
+    <button type="button" className="flex min-h-8 w-full items-center gap-1 rounded-sm text-left text-sm text-foreground-muted outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent/40" aria-expanded={expanded} onClick={() => setExpanded((current) => !current)}>Customize sides<ChevronRight className={`transition-transform ${expanded ? "rotate-90" : ""}`} size={16} aria-hidden="true" /></button>
+    {expanded && <div className="space-y-2 border-t border-border pt-2">{(Object.keys(sideLabels) as SpacingSide[]).map((side) => <div key={side}>{row(sideLabels[side], spacing?.[side] ?? "none", (value) => onChange(spacingSideChanges(side, value)))}</div>)}</div>}
+  </div>;
 }

@@ -5,7 +5,7 @@ import { genericTextSectionChildFlowSchema, textSectionChildFlowSchema } from '.
 const appearance = { headingAlignment: 'inherit', bodyAlignment: 'inherit', backgroundTreatment: 'inherit', emphasis: 'inherit' }
 const blank = (id: string, editorName: string) => ({
   id, type: 'blank', displayName: 'Section', editorName, sortOrder: 10, isEnabled: true,
-  content: { childFlow: { elements: [], order: [] } }, appearance, designDefaults: {}, resolvedDesignContext: null,
+  content: { semantic: {}, compositions: { shared: { childFlow: { elements: [], order: [] } } } }, appearance, designDefaults: {}, resolvedDesignContext: null,
   appearanceOptions: null, mediaCapability: null, itemMediaCapability: null, presentationCapability: null,
 })
 const draft = (sections: unknown[]) => ({
@@ -27,7 +27,7 @@ describe('repeatable Blank Section hydration', () => {
     expect(() => normalizeWebsiteDraftFromApi(draft([missingName]))).toThrow()
     expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('one', 'Section 1'), editorName: 1 }]))).toThrow()
     expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('one', 'Section 1'), lifecycle: 'multiple' }]))).toThrow()
-    expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('one', 'Section 1'), content: { childFlow: [] } }]))).toThrow()
+    expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('one', 'Section 1'), content: { semantic: {}, compositions: { shared: { childFlow: [] } } } }]))).toThrow()
   })
 
   it('keeps generic-only and specialized flow contracts distinct', () => {

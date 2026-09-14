@@ -26,8 +26,9 @@ import { DecorativeStrengthControl } from "./DecorativeStrengthControl";
 import { decorativeHelpers, decorativeLabel } from "./decorativeAppearanceOptions";
 import { applySectionBackgroundColor, legacySectionBackgroundState } from "../sectionBackgroundAuthoring";
 import { resolveHeroContentPosition, type HeroContentPosition } from "../../websiteRenderer/heroContentPosition";
-import { resolveInnerSpacing, type InnerSpacing, type InnerSpacingPreset } from "../../websiteElements/group";
+import { resolveInnerSpacing, type InnerSpacing } from "../../websiteElements/group";
 import { FourSidedSpacingControl as InnerSpacingControl } from "./FourSidedSpacingControl";
+import type { SpacingChanges } from "./spacingControlModel";
 import { ContentPositionControl } from "./ContentPositionControl";
 
 export function AppearancePanel({
@@ -155,25 +156,20 @@ export function AppearancePanel({
   );
 }
 
-function BlankInnerSpacingControls({ appearance, targetViewport, onChange }: { appearance: WebsiteSectionAppearance; targetViewport: ResponsiveViewport; onChange: (appearance: WebsiteSectionAppearance) => void }) {
-  const effectiveSpacing = resolveInnerSpacing(appearance.innerSpacing, targetViewport === 'desktop' ? undefined : appearance.responsive?.[targetViewport]?.innerSpacing)
-  const setSide = (side: keyof InnerSpacing, value: InnerSpacingPreset) => {
-    if (targetViewport === 'desktop') {
-      const innerSpacing = { ...appearance.innerSpacing }
-      if (value === 'none') delete innerSpacing[side]; else innerSpacing[side] = value
-      const next = { ...appearance }
-      if (Object.keys(innerSpacing).length) next.innerSpacing = innerSpacing; else delete next.innerSpacing
-      return onChange(next)
+function BlankInnerSpacingControls({ appearance, onChange }: { appearance: WebsiteSectionAppearance; targetViewport: ResponsiveViewport; onChange: (appearance: WebsiteSectionAppearance) => void }) {
+  const effectiveSpacing = resolveInnerSpacing(appearance.innerSpacing, undefined)
+  const setSpacing = (changes: SpacingChanges) => {
+    const next = structuredClone(appearance)
+    const owner = next
+    const innerSpacing = { ...owner.innerSpacing }
+    for (const [side, value] of Object.entries(changes)) {
+      if (value === 'none') delete innerSpacing[side as keyof InnerSpacing]
+      else innerSpacing[side as keyof InnerSpacing] = value!
     }
-    const responsive = { ...appearance.responsive }
-    const override = { ...responsive[targetViewport] }
-    const innerSpacing = { ...override.innerSpacing }
-    if (value === (appearance.innerSpacing?.[side] ?? 'none')) delete innerSpacing[side]; else innerSpacing[side] = value
-    if (Object.keys(innerSpacing).length) override.innerSpacing = innerSpacing; else delete override.innerSpacing
-    if (Object.keys(override).length) responsive[targetViewport] = override; else delete responsive[targetViewport]
-    onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
+    if (Object.keys(innerSpacing).length) owner.innerSpacing = innerSpacing; else delete owner.innerSpacing
+    onChange(pruneResponsiveAppearance(next))
   }
-  return <InspectorSection title="Layout"><fieldset><legend className="mb-2 text-sm font-semibold">Inner spacing · {targetViewport}</legend><InnerSpacingControl spacing={effectiveSpacing} subject="Section" onChange={setSide} /></fieldset></InspectorSection>
+  return <InspectorSection title="Layout"><fieldset><legend className="mb-2 text-sm font-semibold">Inner spacing</legend><InnerSpacingControl spacing={effectiveSpacing} onChange={setSpacing} /></fieldset></InspectorSection>
 }
 
 function HeroSurfaceControls({ appearance, targetViewport, onChange }: { appearance: WebsiteSectionAppearance; targetViewport: ResponsiveViewport; onChange: (appearance: WebsiteSectionAppearance) => void }) {
@@ -215,33 +211,21 @@ function HeroSurfaceControls({ appearance, targetViewport, onChange }: { appeara
     else delete responsive[targetViewport]
     onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
   }
-  const effectiveSpacing = resolveInnerSpacing(appearance.innerSpacing, targetViewport === 'desktop' ? undefined : appearance.responsive?.[targetViewport]?.innerSpacing)
-  const setSpacingSide = (side: keyof InnerSpacing, value: string) => {
-    if (targetViewport === 'desktop') {
-      const innerSpacing = { ...appearance.innerSpacing }
-      if (value === 'none') delete innerSpacing[side]
-      else innerSpacing[side] = value as InnerSpacingPreset
-      const next = { ...appearance }
-      if (Object.keys(innerSpacing).length) next.innerSpacing = innerSpacing
-      else delete next.innerSpacing
-      return onChange(next)
-    }
-    const responsive = { ...appearance.responsive }
-    const override = { ...responsive[targetViewport] }
-    const innerSpacing = { ...override.innerSpacing }
-    const desktopValue = appearance.innerSpacing?.[side] ?? 'none'
-    if (value === desktopValue) delete innerSpacing[side]
-    else innerSpacing[side] = value as InnerSpacingPreset
-    if (Object.keys(innerSpacing).length) override.innerSpacing = innerSpacing
-    else delete override.innerSpacing
-    if (Object.keys(override).length) responsive[targetViewport] = override
-    else delete responsive[targetViewport]
-    onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
-  }
+  const effectiveSpacing = resolveInnerSpacing(appearance.innerSpacing, undefined)
   return <InspectorSection title="Hero">
     <fieldset><legend className="mb-2 text-sm font-semibold">Height</legend><div className="grid grid-cols-2 gap-2">{(['auto', 'screen'] as const).map((value) => <Button key={value} size="sm" variant="secondary" type="button" aria-pressed={(appearance.height ?? 'auto') === value} className={(appearance.height ?? 'auto') === value ? 'border-accent! border-2 bg-surface-muted' : ''} onClick={() => setHeight(value)}>{value === 'auto' ? 'Automatic' : 'Screen'}</Button>)}</div></fieldset>
     <fieldset><div className="mb-2 flex items-center justify-between gap-2"><legend className="text-sm font-semibold">Content position</legend>{activePosition !== undefined && <InspectorResetAction onClick={resetPosition} />}</div><ContentPositionControl value={effectivePosition} onChange={setPosition} />{targetViewport !== 'desktop' && <p className="mt-2 text-xs text-foreground-muted">{activePosition === undefined ? 'Using Desktop position' : `${targetViewport[0].toUpperCase() + targetViewport.slice(1)} override`}</p>}</fieldset>
-    <fieldset><legend className="mb-2 text-sm font-semibold">Inner spacing · {targetViewport}</legend><InnerSpacingControl spacing={effectiveSpacing} subject="Hero" onChange={setSpacingSide} /></fieldset>
+    <fieldset><legend className="mb-2 text-sm font-semibold">Inner spacing</legend><InnerSpacingControl spacing={effectiveSpacing} onChange={(changes) => {
+      const next = structuredClone(appearance)
+      const owner = next
+      const innerSpacing = { ...owner.innerSpacing }
+      for (const [side, value] of Object.entries(changes)) {
+        if (value === 'none') delete innerSpacing[side as keyof InnerSpacing]
+        else innerSpacing[side as keyof InnerSpacing] = value!
+      }
+      if (Object.keys(innerSpacing).length) owner.innerSpacing = innerSpacing; else delete owner.innerSpacing
+      onChange(pruneResponsiveAppearance(next))
+    }} /></fieldset>
     <fieldset><div className="flex items-center justify-between gap-3"><legend className="text-sm font-semibold">Image opacity</legend><span className="text-xs tabular-nums text-foreground-muted">{appearance.backgroundImageOpacity ?? 100}%</span></div><input className="mt-2 w-full cursor-pointer accent-accent" type="range" aria-label="Background image opacity" min={0} max={100} step={5} value={appearance.backgroundImageOpacity ?? 100} onChange={(event) => setOpacity(Number(event.target.value))} /></fieldset>
   </InspectorSection>
 }

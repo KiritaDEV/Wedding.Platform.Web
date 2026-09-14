@@ -1,7 +1,7 @@
 import { apiRequest, ensureCsrfCookie } from '../../lib/api'
 import type { ApiResource } from '../../lib/api'
 import { normalizeWebsiteDraftFromApi } from './schemas'
-import type { SectionDesignDefaults, WebsiteDesignSettings, WebsiteDraft, WebsiteSectionAppearance } from './types'
+import type { SectionDesignDefaults, WebsiteDesignSettings, WebsiteDraft, WebsiteSectionAppearance, WebsiteSectionAppearanceEnvelope } from './types'
 import { canonicalizeSectionChildFlowText, type SectionChildFlow } from './sectionChildFlow'
 
 function projectPath(eventId: string, projectId: string): string {
@@ -42,14 +42,35 @@ export function updateWebsiteSectionContent(eventId: string, projectId: string, 
 }
 
 export function canonicalizeWebsiteSectionContentForApi(content: Record<string, unknown>): Record<string, unknown> {
-  const childFlow = content.childFlow as SectionChildFlow | undefined
-  const canonicalContent: Record<string, unknown> = childFlow ? { ...content, childFlow: canonicalizeSectionChildFlowText(childFlow) } : { ...content }
-  if (canonicalContent.backgroundMedia === '') canonicalContent.backgroundMedia = null
+  const canonicalContent = structuredClone(content)
+  removeAuthoredResponsiveState(canonicalContent)
+  const compositions = canonicalContent.compositions as { shared?: { childFlow?: SectionChildFlow }; custom?: Record<string, { childFlow?: SectionChildFlow }> } | undefined
+  if (compositions?.shared?.childFlow) compositions.shared.childFlow = canonicalizeSectionChildFlowText(compositions.shared.childFlow)
+  Object.values(compositions?.custom ?? {}).forEach((composition) => { if (composition.childFlow) composition.childFlow = canonicalizeSectionChildFlowText(composition.childFlow) })
   return canonicalContent
 }
 
-export function updateWebsiteSectionAppearance(eventId: string, projectId: string, sectionId: string, appearance: WebsiteSectionAppearance) {
-  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/appearance`, { appearance })
+function removeAuthoredResponsiveState(value: unknown): void {
+  if (Array.isArray(value)) {
+    value.forEach(removeAuthoredResponsiveState)
+    return
+  }
+  if (!value || typeof value !== 'object') return
+  const record = value as Record<string, unknown>
+  delete record.responsive
+  Object.values(record).forEach(removeAuthoredResponsiveState)
+}
+
+export function updateWebsiteSectionAppearance(eventId: string, projectId: string, sectionId: string, appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope) {
+  const canonicalAppearance = structuredClone(appearance)
+  removeAuthoredResponsiveState(canonicalAppearance)
+  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/appearance`, { appearance: canonicalAppearance })
+}
+
+export function updateWebsiteSectionPresentation(eventId: string, projectId: string, sectionId: string, content: Record<string, unknown>, appearance: WebsiteSectionAppearanceEnvelope) {
+  const canonicalAppearance = structuredClone(appearance)
+  removeAuthoredResponsiveState(canonicalAppearance)
+  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/presentation`, { content: canonicalizeWebsiteSectionContentForApi(content), appearance: canonicalAppearance })
 }
 
 export function updateWebsiteSectionDesignDefaults(eventId: string, projectId: string, sectionId: string, designDefaults: SectionDesignDefaults) {

@@ -9,7 +9,7 @@ export function ClassicFilipinianaGallery({
   mode,
 }: {
   sectionId: string;
-  content: GalleryContent;
+  content: GalleryContent["semantic"];
   mode: "editor" | "public";
 }) {
   return (
@@ -18,7 +18,7 @@ export function ClassicFilipinianaGallery({
       heading={
         <EditableText
           sectionId={sectionId}
-          path={["heading"]}
+          path={["semantic", "heading"]}
           value={content.heading}
           fallback="Gallery"
           placeholder="Add heading"
@@ -47,7 +47,7 @@ export function ClassicFilipinianaRsvp({
   content,
 }: {
   sectionId: string;
-  content: RsvpContent;
+  content: RsvpContent["semantic"];
 }) {
   return (
     <ContentSection
@@ -55,7 +55,7 @@ export function ClassicFilipinianaRsvp({
       heading={
         <EditableText
           sectionId={sectionId}
-          path={["heading"]}
+          path={["semantic", "heading"]}
           value={content.heading}
           fallback="Kindly Respond"
           placeholder="Add heading"
@@ -66,7 +66,7 @@ export function ClassicFilipinianaRsvp({
       <p className="mx-auto max-w-lg whitespace-pre-line">
         <EditableText
           sectionId={sectionId}
-          path={["description"]}
+          path={["semantic", "description"]}
           value={content.description}
           fallback="We would be honored to celebrate this day with you."
           placeholder="Add description"
@@ -80,7 +80,7 @@ export function ClassicFilipinianaRsvp({
       >
         <EditableText
           sectionId={sectionId}
-          path={["buttonLabel"]}
+          path={["semantic", "buttonLabel"]}
           value={content.buttonLabel}
           fallback="RSVP"
           placeholder="Add button label"

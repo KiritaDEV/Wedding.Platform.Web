@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { WebsiteDraft, WebsiteSection } from '../websiteEditor/types'
+import type { WebsiteDraft, WebsiteSection, WebsiteSectionAppearance } from '../websiteEditor/types'
 import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRenderer'
 import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
 
@@ -9,14 +9,14 @@ const event = { id: 'event', name: 'Alex & Sam', eventDate: '2027-01-02', type: 
 function blank(content: Record<string, unknown>, backgroundTreatment: 'inherit' | 'accent' = 'inherit'): WebsiteSection {
   return {
     id: 'blank-id', type: 'blank', displayName: 'Section', editorName: 'Private planning notes', sortOrder: 10, isEnabled: true,
-    content, appearance: { headingAlignment: 'inherit', bodyAlignment: 'inherit', backgroundTreatment, emphasis: 'inherit' },
+    content: { semantic: {}, compositions: { shared: content } }, appearance: { shared: { headingAlignment: 'inherit', bodyAlignment: 'inherit', backgroundTreatment, emphasis: 'inherit' } },
     designDefaults: {}, resolvedDesignContext: null, appearanceOptions: null, mediaCapability: null, itemMediaCapability: null, presentationCapability: null,
   } as WebsiteSection
 }
 
-function decoratedBlank(decorativeAppearance: NonNullable<WebsiteSection['appearance']['decorativeAppearance']>): WebsiteSection {
+function decoratedBlank(decorativeAppearance: NonNullable<WebsiteSectionAppearance['decorativeAppearance']>): WebsiteSection {
   const section = blank({ childFlow: { elements: [], order: [] } });
-  section.appearance.decorativeAppearance = decorativeAppearance;
+  if (section.type === 'blank') section.appearance.shared.decorativeAppearance = decorativeAppearance;
   return section;
 }
 
@@ -36,6 +36,28 @@ const templates = [
 ] as const
 
 describe.each(templates)('%s Blank Section', (templateKey, Renderer) => {
+  it('renders the exact target composition without cross-device fallback', () => {
+    const textComposition = (id: string, text: string) => ({ childFlow: { elements: [{ id, type: 'text' as const, editorName: 'Text 1', document: { type: 'doc' as const, children: [{ type: 'paragraph' as const, children: [{ text }] }] } }], order: [{ kind: 'element' as const, id }] } })
+    const section = blank(textComposition('shared', 'Shared'))
+    section.content = { semantic: {}, compositions: { shared: textComposition('shared', 'Shared'), custom: { desktop: textComposition('desktop', 'Desktop'), mobile: textComposition('mobile', 'Mobile') } } }
+    const render = (targetViewport: 'desktop' | 'tablet' | 'mobile') => renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, section)} mode="public" targetViewport={targetViewport} />)
+    expect(render('desktop')).toContain('Desktop')
+    expect(render('desktop')).not.toContain('Shared')
+    expect(render('tablet')).toContain('Shared')
+    expect(render('tablet')).not.toContain('Desktop')
+    expect(render('mobile')).toContain('Mobile')
+    expect(render('mobile')).not.toContain('Shared')
+  })
+
+  it('uses the resolved composition for target-specific renderability', () => {
+    const empty = { childFlow: { elements: [], order: [] } }
+    const mobile = { childFlow: { elements: [{ id: 'mobile', type: 'text' as const, editorName: 'Text 1', document: { type: 'doc' as const, children: [{ type: 'paragraph' as const, children: [{ text: 'Mobile only' }] }] } }], order: [{ kind: 'element' as const, id: 'mobile' }] } }
+    const section = blank(empty)
+    section.content = { semantic: {}, compositions: { shared: empty, custom: { mobile } } }
+    expect(renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, section)} mode="public" targetViewport="desktop" />)).not.toContain('data-preview-section="blank-id"')
+    expect(renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, section)} mode="public" targetViewport="tablet" />)).not.toContain('data-preview-section="blank-id"')
+    expect(renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, section)} mode="public" targetViewport="mobile" />)).toContain('Mobile only')
+  })
   it('shows a selectable editor-only empty boundary and omits a default empty public Section', () => {
     const section = blank({ childFlow: { elements: [], order: [] } })
     const editor = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, section)} mode="editor" selectedSectionId={section.id} />)

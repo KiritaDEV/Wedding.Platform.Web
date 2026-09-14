@@ -5,8 +5,8 @@ import { Dialog, DialogFooter, DialogHeader } from "../../../components/ui/Dialo
 import { IconButton } from "../../../components/ui/IconButton";
 import { Input } from "../../../components/ui/Input";
 import { Textarea } from "../../../components/ui/Textarea";
-import type { WebsiteSection } from "../types";
-import type { ResolvedWebsiteMedia, ResponsiveViewport, SectionMedia } from "../types";
+import type { WebsiteSection, WebsiteSectionAppearance } from "../types";
+import type { ResolvedWebsiteMedia, ResponsiveViewport } from "../types";
 import { useEventWorkspace } from "../../events/workspace/EventWorkspaceContext";
 import { MediaPickerDialog } from "./MediaPickerDialog";
 import { FocalPointEditor } from "./FocalPointEditor";
@@ -20,6 +20,8 @@ type EditorProps = {
   section: WebsiteSection;
   content: Record<string, unknown>;
   onChange: (content: Record<string, unknown>) => void;
+  appearance?: WebsiteSectionAppearance;
+  onAppearanceChange?: (appearance: WebsiteSectionAppearance) => void;
   resolvedMedia: Record<string, ResolvedWebsiteMedia>;
   onMediaResolved: (media: ResolvedWebsiteMedia) => void;
   viewport?: ResponsiveViewport;
@@ -32,6 +34,7 @@ type Field = {
 };
 
 function SimpleEditor(props: EditorProps & { fields: Field[] }) {
+  const semantic = props.content.semantic as Record<string, unknown>;
   return (
     <EditorForm>
       {props.section.mediaCapability?.mode === "single" && <SectionMediaEditor {...props} />}
@@ -42,9 +45,9 @@ function SimpleEditor(props: EditorProps & { fields: Field[] }) {
           id={`${props.section.id}-${field.name}`}
           multiline={field.multiline}
           note={field.note}
-          value={String(props.content[field.name] ?? "")}
+          value={String(semantic[field.name] ?? "")}
           onChange={(value) =>
-            props.onChange({ ...props.content, [field.name]: value })
+            props.onChange({ ...props.content, semantic: { ...semantic, [field.name]: value } })
           }
         />
       ))}
@@ -53,9 +56,8 @@ function SimpleEditor(props: EditorProps & { fields: Field[] }) {
 }
 
 function SectionMediaEditor(props: EditorProps) {
-  const mediaKey = props.section.type === "hero" ? "backgroundMedia" : "media";
-  const media = (props.content[mediaKey] ?? null) as SectionMedia;
-  return <BackgroundMediaEditor ownerId={props.section.id} viewport={props.viewport ?? "desktop"} media={media} resolvedMedia={props.resolvedMedia} onMediaResolved={props.onMediaResolved} onChange={(next) => props.onChange({ ...props.content, [mediaKey]: next })} />;
+  const media = props.appearance?.backgroundMedia ?? null;
+  return <BackgroundMediaEditor ownerId={props.section.id} viewport={props.viewport ?? "desktop"} media={media} resolvedMedia={props.resolvedMedia} onMediaResolved={props.onMediaResolved} onChange={(backgroundMedia) => props.onAppearanceChange?.({ ...props.appearance!, backgroundMedia })} />;
 }
 
 export function PeopleEditor(props: EditorProps & { hideHeading?: boolean; itemMediaEnabled?: boolean }) {
@@ -102,13 +104,13 @@ export function PeopleEditor(props: EditorProps & { hideHeading?: boolean; itemM
         <ItemActions label={group.name.trim() || "group"} index={groupIndex} length={groups.length} onRemove={() => changeGroups(groups.filter((_, current) => current !== groupIndex))} onMove={(target) => moveGroup(groupIndex, target)} />
       </div>)}
     </ItemList>
-    <MediaPickerDialog open={pickerPersonId !== null} eventId={event.id} selectedAssetId={findPerson(pickerPersonId)?.media?.assetId} onClose={() => setPickerPersonId(null)} onSelect={(asset) => { const personId = pickerPersonId; if (!personId) return; props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web }); updatePerson(personId, (person) => ({ ...person, media: { assetId: asset.id } })); setPickerPersonId(null); }} />
+    <MediaPickerDialog open={pickerPersonId !== null} eventId={event.id} selectedAssetId={findPerson(pickerPersonId)?.media?.assetId ?? undefined} onClose={() => setPickerPersonId(null)} onSelect={(asset) => { const personId = pickerPersonId; if (!personId) return; props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web }); updatePerson(personId, (person) => ({ ...person, media: { assetId: asset.id } })); setPickerPersonId(null); }} />
     <PersonFocalDialog person={findPerson(focalPersonId)} media={props.resolvedMedia} onClose={() => setFocalPersonId(null)} onChange={({ point: focalPoint, zoom }) => { if (focalPersonId) updatePerson(focalPersonId, (person) => person.media ? { ...person, media: { ...person.media, focalPoint, zoom } } : person); }} />
   </EditorForm>;
 }
 
 function PersonMediaEditor({ person, resolvedMedia, onChoose, onAdjust, onRemove }: { person: PeoplePerson; resolvedMedia: Record<string, ResolvedWebsiteMedia>; onChoose: () => void; onAdjust: () => void; onRemove: () => void }) {
-  const asset = person.media ? resolvedMedia[person.media.assetId] : undefined;
+  const asset = person.media?.assetId ? resolvedMedia[person.media.assetId] : undefined;
   return <section className="mt-3 rounded-md border border-border bg-surface-muted p-3">
     <h4 className="text-xs font-semibold">Photo</h4>
     {asset && person.media ? <div className="mt-2 flex gap-3"><ZoomedMediaImage className="size-16 rounded-full" height={asset.web.height} reference={person.media} src={asset.web.url} width={asset.web.width} /><div className="min-w-0 flex-1"><p className="truncate text-xs text-foreground-muted">{asset.originalFilename}</p><div className="mt-2 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={onChoose}>Change</Button><Button size="sm" type="button" variant="secondary" onClick={onAdjust}>Adjust image</Button><Button size="sm" type="button" variant="ghost" onClick={onRemove}>Remove</Button></div></div></div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No photo selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={onChoose}>Choose from Media</Button></div>}
@@ -117,7 +119,7 @@ function PersonMediaEditor({ person, resolvedMedia, onChoose, onAdjust, onRemove
 
 function PersonFocalDialog({ person, media, onClose, onChange }: { person?: PeoplePerson; media: Record<string, ResolvedWebsiteMedia>; onClose: () => void; onChange: (framing: { point: { x: number; y: number }; zoom: number }) => void }) {
   const reference = person?.media;
-  const asset = reference ? media[reference.assetId] : undefined;
+  const asset = reference?.assetId ? media[reference.assetId] : undefined;
   return <Dialog open={Boolean(person && asset)} onClose={onClose} titleId="person-focal-title" size="sm">
     <DialogHeader title="Adjust image" titleId="person-focal-title" description={`Position and frame ${person?.name || "this person's"} photo.`} onClose={onClose} />
     {asset && reference && <div className="mt-4"><FocalPointEditor url={asset.web.url} point={reference.focalPoint ?? { x: 0.5, y: 0.5 }} zoom={reference.zoom} onChange={onChange} /></div>}

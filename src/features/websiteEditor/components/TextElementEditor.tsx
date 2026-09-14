@@ -153,9 +153,9 @@ export function TextElementEditor(props: Props) {
       <Field label="Font weight">
         <IconChoices label="Font weight" value={String(appearance.fontWeight ?? 400)} options={TEXT_FONT_WEIGHTS.filter((weight) => fontCapabilities.weights.includes(weight)).map((weight) => ({ value: String(weight), label: weight === 400 ? "Normal" : weight === 600 ? "Semi-bold" : "Bold", icon: <Bold size={15} /> }))} onChange={(value) => update(setTextFontWeight(appearance, effectiveFontFamilyId, Number(value) as TextFontWeight))} />
       </Field>
-      <Field label={`Base font size · ${props.viewport}`}>
+      <Field label="Font size">
         <IconChoices
-          label={`Base font size · ${props.viewport}`}
+          label="Font size"
           value={responsiveValue("fontSize") ?? "m"}
           options={TEXT_SIZES.map((value, index) => ({
             value,
@@ -218,9 +218,9 @@ export function TextElementEditor(props: Props) {
           { value: "capitalize", label: "Capitalize", icon: <span className="text-sm leading-none">Ab</span> },
         ]} onChange={(value) => update(selectTextGlobalAppearanceProperty(appearance, "textTransform", value as TextAppearance["textTransform"], "none"))} />
       </Field>
-      <Field label={`Alignment · ${props.viewport}`}>
+      <Field label="Alignment">
         <IconChoices
-          label={`Alignment · ${props.viewport}`}
+          label="Alignment"
           value={responsiveValue("alignment") ?? "start"}
           options={TEXT_ALIGNMENTS.map((value) => ({
             value,
