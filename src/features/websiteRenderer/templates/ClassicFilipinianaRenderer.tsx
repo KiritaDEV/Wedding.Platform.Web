@@ -17,7 +17,7 @@ import {
   ClassicSectionDivider,
 } from "./classicFilipiniana/decorations";
 import { resolveSectionDesignTokens } from "../../websiteTemplates/design/catalogs";
-import { SectionDecorativeLayers } from "../SectionDecorativeLayers";
+import { SectionSurfaceDecoration } from "../SectionSurfaceDecoration";
 import { BlankSectionRenderer } from "../BlankSectionRenderer";
 import { isBlankSectionRenderable, isHeroSectionRenderable } from "../blankSectionRenderability";
 import { HeroSectionRenderer } from "../HeroSectionRenderer";
@@ -130,7 +130,7 @@ function ClassicSection({
   );
   return (
     <section
-      className={`${appearance.sectionClass} relative cursor-default font-[family-name:var(--cf-body-font)] transition-shadow ${section.type === "blank" ? "isolate" : ""} ${selected ? "z-10" : ""}`}
+      className={`${appearance.sectionClass} relative isolate cursor-default font-[family-name:var(--cf-body-font)] transition-shadow ${selected ? "z-10" : ""}`}
       style={
         {
           ...appearance.sectionStyle,
@@ -166,7 +166,7 @@ function ClassicSection({
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {section.type === "blank" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} /><div className="relative z-10">{showLeadingDivider && <ClassicSectionDivider />}<Section
+      {section.type === "hero" ? <>{showLeadingDivider && <ClassicSectionDivider />}<Section
         section={section}
         eventDate={eventDate}
         mode={mode}
@@ -177,7 +177,7 @@ function ClassicSection({
         selectedElementId={selectedElementId}
         onElementSelect={onElementSelect}
         onElementEdit={onElementEdit}
-      /></div></> : <>{showLeadingDivider && <ClassicSectionDivider />}<Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={designSettings.customColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /></>}
+      /></> : <SectionSurfaceDecoration templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} library={library} projectColors={designSettings.customColors} sectionId={section.id} mode={mode}>{showLeadingDivider && <ClassicSectionDivider />}<Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={designSettings.customColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /></SectionSurfaceDecoration>}
     </section>
   );
 }

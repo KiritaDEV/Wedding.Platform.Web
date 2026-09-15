@@ -105,6 +105,34 @@ describe("Section renderer boundary", () => {
     expect(boundaryClass).not.toMatch(/(?:^|\s)(?:p|px|py|pt|pr|pb|pl)-/);
   });
 
+  it.each(["gallery", "rsvp"] as const)("hosts %s decoration on the outer Section surface in both renderers", (type) => {
+    const content = type === "gallery"
+      ? { heading: "Gallery", items: [] }
+      : { heading: "RSVP", description: "Join us", buttonLabel: "Reply" };
+    for (const template of ["classic", "modern"] as const) {
+      const value = section(type, type, content);
+      value.appearance = { ...appearance, decorativeAppearance: { background: { overlay: "soft" }, frame: { style: "fine" } } };
+      const markup = render(template, [value], "mobile", "editor");
+      expect(markup).toContain("relative isolate");
+      expect(markup).toContain("data-section-decoration");
+      expect(markup).toContain('data-section-foreground="true" class="relative z-10"');
+      expect(markup).toContain("z-[4]");
+      expect(markup).toContain("z-[20]");
+      expect(markup).toContain("pointer-events-none absolute inset-0 overflow-hidden");
+      expect(markup).toContain('aria-hidden="true"');
+      expect(markup.indexOf("data-section-decoration")).toBeLessThan(markup.indexOf("data-section-content-inset"));
+    }
+  });
+
+  it.each(["desktop", "tablet", "mobile"] as const)("keeps Hero Frame on the full-bleed shell at %s", (viewport) => {
+    const value = hero();
+    value.appearance = { ...(value.appearance as WebsiteSection["appearance"]), decorativeAppearance: { frame: { style: "fine" } } } as WebsiteSection["appearance"];
+    const markup = render("classic", [value], viewport, "editor");
+    expect(markup.indexOf("data-section-full-bleed")).toBeLessThan(markup.indexOf('data-section-decoration-phase="frame"'));
+    expect(markup.indexOf("data-hero-foreground")).toBeLessThan(markup.indexOf('data-section-decoration-phase="frame"'));
+    expect(markup).not.toContain("data-section-content-inset");
+  });
+
   it.each(["classic", "modern"] as const)("keeps %s immersive Hero media outside the ordinary content inset", (template) => {
     const markup = render(template, [hero()]);
     expect(markup).toContain("data-section-full-bleed");
@@ -275,6 +303,7 @@ describe("Section renderer boundary", () => {
     expect(markup).toContain("data-hero-background-image");
     expect(markup).toContain('data-section-child-element="portrait"');
     expect(markup).toContain('data-hero-content-cluster="true" style="width:100%;max-width:100%"');
+    expect(markup).toContain('data-section-child-width="container"');
     expect(markup).toContain("overflow-x-clip");
     expect(markup).not.toContain("overflow-hidden min-h-[100svh]");
   });

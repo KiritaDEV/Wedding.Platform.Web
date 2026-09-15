@@ -8,7 +8,6 @@ export const APPEARANCE_CONTROL_IDS = [
   'presentation',
   'mediaPlacement',
   'mediaSize',
-  'frameStyle',
   'cornerStyle',
   'shadowStyle',
   'overlayStrength',
@@ -70,7 +69,7 @@ const designColorSchema = z.object({
   origin: z.literal('template'),
   allowedProjectRoles: z.array(z.enum(['heading', 'body', 'accent'])),
   allowedElementRoles: z.array(z.enum(['headingColor', 'textColor', 'accentColor'])),
-  allowedContainerRoles: z.array(z.enum(['headingColor', 'bodyColor', 'accentColor', 'backgroundColor'])),
+  allowedContainerRoles: z.array(z.enum(['headingColor', 'bodyColor', 'accentColor', 'backgroundColor', 'frameColor'])),
 }).strict()
 
 const typographyRoleSchema = z.enum(['heading', 'body'])
@@ -252,8 +251,9 @@ export const sectionCapabilitySchema = z.object({
     textures: z.array(z.enum(['none', 'paper', 'fabric', 'grain'])),
     patterns: z.array(z.enum(['none', 'botanical', 'geometric', 'heritage'])),
     overlays: z.array(z.enum(['none', 'soft', 'warm', 'deep'])),
-    frames: z.array(z.enum(['none', 'fine', 'ornamental', 'corners'])),
+    frames: z.array(z.enum(['none', 'fine', 'ornamental'])),
     backgroundColorIds: z.array(z.string().min(1)).min(1),
+    frameColorIds: z.array(z.string().min(1)).min(1),
   }).strict().nullable(),
 }).strict()
 
@@ -333,6 +333,9 @@ export const templateCapabilitiesSchema = z.object({
   }
   capabilities.sections.forEach((section, sectionIndex) => {
     validateContextDefaults(section.contextDefaults, ['sections', sectionIndex, 'contextDefaults'])
+    section.decorativeAppearance?.frameColorIds.forEach((id, colorIndex) => {
+      if (!colors.get(id)?.allowedContainerRoles.includes('frameColor')) context.addIssue({ code: 'custom', message: 'Illegal Frame color', path: ['sections', sectionIndex, 'decorativeAppearance', 'frameColorIds', colorIndex] })
+    })
     section.presentations.forEach((presentation, presentationIndex) => {
       if (presentation.contextDefaults) validateContextDefaults(presentation.contextDefaults, ['sections', sectionIndex, 'presentations', presentationIndex, 'contextDefaults'])
     })

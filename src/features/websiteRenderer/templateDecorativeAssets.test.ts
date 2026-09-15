@@ -42,10 +42,7 @@ describe("decorative asset registries", () => {
       );
     expect(classicDecorativeAssets.mappings.pattern.heritage).toBeNull();
     expect(modernDecorativeAssets.mappings.pattern.geometric).not.toBeNull();
-    expect(classicDecorativeAssets.mappings.mediaFrame.ornamentalCorners).toEqual({
-      type: "asset",
-      assetId: "classic-media-frame-ornamental-corner-01",
-    });
+    expect(classicDecorativeAssets.mappings.mediaFrame).toEqual({});
     expect(modernDecorativeAssets.mappings.mediaFrame).toEqual({});
   });
   it("keeps pending and missing assets non-rendering", () => {
@@ -65,11 +62,13 @@ describe("decorative asset registries", () => {
         "desktop",
       ),
     ).toBeNull();
+    expect(resolveDecorativeAsset("classic-filipiniana-v1", "frame", "ornamental", "desktop"))
+      .toBe("/template-assets/classic-filipiniana/frames/classic-media-frame-ornamental-corner-01.png");
     expect(
       resolveDecorativeAsset(
         "classic-filipiniana-v1",
         "frame",
-        "ornamental",
+        "corners",
         "desktop",
       ),
     ).toBeNull();
@@ -181,37 +180,14 @@ describe("decorative asset registries", () => {
 });
 
 describe("decorative execution helpers", () => {
-  it("resolves Classic Corners as one generic contained frame image", () => {
-    const corners = resolveDecorativeExecution(
-      "classic-filipiniana-v1",
-      "frame",
-      "corners",
-      "mobile",
-    );
-    expect(corners?.type).toBe("asset");
-    if (corners?.type !== "asset") return;
-    expect(corners.source).toBe(
-      "/template-assets/classic-filipiniana/frames/corners-01.png",
-    );
-    expect(corners.execution.position).toBe("center");
-    expect(corners.execution.position).not.toBe("fourCorners");
-    const style = getDecorativeAssetStyle(corners);
-    expect(style.backgroundImage).toBe(
-      'url("/template-assets/classic-filipiniana/frames/corners-01.png")',
-    );
-    expect(style.backgroundSize).toBe("contain");
-    expect(style.backgroundPosition).toBe("center");
-    expect(style.backgroundRepeat).toBe("no-repeat");
-    expect(style.opacity).toBe(0.65);
-  });
-  it("resolves the active Classic ornamental Media Frame as a tinted four-corner mask", () => {
+  it("resolves the active Classic ornamental Section Frame as a tinted four-corner mask", () => {
     const definition = classicDecorativeAssets.assets.find(
       ({ id }) => id === "classic-media-frame-ornamental-corner-01",
     );
     expect(definition).toMatchObject({
       status: "active",
       kind: "frame",
-      semanticIntent: "ornamentalCorners",
+      semanticIntent: "ornamental",
       execution: {
         renderMode: "mask",
         position: "fourCorners",
@@ -221,8 +197,8 @@ describe("decorative execution helpers", () => {
     });
     const resolved = resolveDecorativeExecution(
       "classic-filipiniana-v1",
-      "mediaFrame",
-      "ornamentalCorners",
+      "frame",
+      "ornamental",
       "desktop",
     );
     expect(resolved?.type).toBe("asset");
@@ -237,7 +213,7 @@ describe("decorative execution helpers", () => {
     });
     expect(classicDecorativeAssets.mappings.frame.ornamental).toEqual({
       type: "asset",
-      assetId: "classic-ornamental-01",
+      assetId: "classic-media-frame-ornamental-corner-01",
     });
   });
   it.each([
@@ -441,12 +417,27 @@ describe("decorative execution helpers", () => {
         getDecorativeCssFrameStyle(classic.execution, classic.tint).borderWidth,
       ).toBe("1px");
   });
-  it("defines four distinct zero-flow corner placements", () => {
-    expect(DECORATIVE_CORNER_PLACEMENTS.map(({ key }) => key)).toEqual([
-      "top-left",
-      "top-right",
-      "bottom-right",
-      "bottom-left",
+  it.each([
+    ["classic-filipiniana-v1", "fine", 1, 0.42],
+    ["classic-filipiniana-v1", "ornamental", null, 0.6],
+    ["modern-editorial-v1", "fine", 2, 0.28],
+  ] as const)("resolves defaults and absolute overrides for %s %s", (templateKey, style, baseWidth, defaultOpacity) => {
+    const inherited = resolveDecorativeExecution(templateKey, "frame", style, "desktop");
+    expect(inherited?.execution.opacity).toBe(defaultOpacity);
+    for (const strength of [0, 25, 50, 100]) {
+      const resolved = resolveDecorativeExecution(templateKey, "frame", style, "desktop", undefined, { size: 200, strength, tint: "#123456" });
+      expect(resolved?.execution.opacity).toBe(strength / 100);
+      expect(resolved?.tint).toBe("#123456");
+      if (resolved?.type === "cssFrame") expect(resolved.execution.baseThicknessPx).toBe(baseWidth! * 2);
+      if (resolved?.type === "asset") expect(resolved.execution.cornerBaseSize).toEqual({ minimumPx: 96, fluidVw: 16, maximumPx: 224 });
+    }
+  });
+  it("reflects the top-left source into four complete, inward-facing corner orientations", () => {
+    expect(DECORATIVE_CORNER_PLACEMENTS).toEqual([
+      { key: "top-left", style: { top: 0, left: 0, transform: "none", transformOrigin: "center" } },
+      { key: "top-right", style: { top: 0, right: 0, transform: "scaleX(-1)", transformOrigin: "center" } },
+      { key: "bottom-right", style: { right: 0, bottom: 0, transform: "scale(-1, -1)", transformOrigin: "center" } },
+      { key: "bottom-left", style: { bottom: 0, left: 0, transform: "scaleY(-1)", transformOrigin: "center" } },
     ]);
   });
 });

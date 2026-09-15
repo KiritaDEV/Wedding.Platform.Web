@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { SectionChildFlowRenderer } from "./SectionChildFlowRenderer";
+import { sectionChildWidth } from "./sectionChildWidth";
 import { WebsiteElementFrame } from "./WebsiteElementFrame";
 
 // These callback tests inspect the returned element tree without mounting React.
@@ -20,6 +21,25 @@ const props = {
 };
 
 describe("SectionChildFlowRenderer canvas selection", () => {
+  it("classifies intrinsic text-like children separately from container-sized children", () => {
+    expect(sectionChildWidth(props.flow.elements[0])).toBe("intrinsic");
+    expect(sectionChildWidth({ id: "date", type: "date", editorName: "Date 1" })).toBe("intrinsic");
+    expect(sectionChildWidth({ id: "divider", type: "divider", editorName: "Divider 1" })).toBe("container");
+    expect(sectionChildWidth({ id: "group", type: "compositionGroup", editorName: "Group 1", children: [] })).toBe("container");
+    expect(sectionChildWidth({ id: "media", type: "media", editorName: "Media 1", items: [] })).toBe("container");
+  });
+
+  it("applies semantic child widths only when the containing renderer opts in", () => {
+    const intrinsic = renderToStaticMarkup(<SectionChildFlowRenderer {...props} specialized={null} mode="public" semanticChildWidths inlineAlignment="center" />);
+    expect(intrinsic).toContain('data-section-root-flow="true" class="flex flex-col" style="align-items:center"');
+    expect(intrinsic).toContain('data-section-child-width="intrinsic"');
+    expect(intrinsic).toContain('width:fit-content');
+
+    const unchangedDefault = renderToStaticMarkup(<SectionChildFlowRenderer {...props} specialized={null} mode="public" />);
+    expect(unchangedDefault).toContain('data-section-child-width="container"');
+    expect(unchangedDefault).toContain('width:100%');
+  });
+
   it("omits empty and unresolved root Media frames publicly but keeps editor affordances", () => {
     const flow = {
       elements: [

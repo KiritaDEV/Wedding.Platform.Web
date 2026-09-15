@@ -14,7 +14,7 @@ import {
   ModernEditorialRsvp,
 } from "./modernEditorial/sections";
 import { resolveSectionDesignTokens } from "../../websiteTemplates/design/catalogs";
-import { SectionDecorativeLayers } from "../SectionDecorativeLayers";
+import { SectionSurfaceDecoration } from "../SectionSurfaceDecoration";
 import { BlankSectionRenderer } from "../BlankSectionRenderer";
 import { isBlankSectionRenderable, isHeroSectionRenderable } from "../blankSectionRenderability";
 import { HeroSectionRenderer } from "../HeroSectionRenderer";
@@ -122,7 +122,7 @@ function ModernSection({
   );
   return (
     <section
-      className={`${appearance.sectionClass} relative cursor-default border-b border-[var(--me-border)] font-[family-name:var(--me-body-font)] transition-shadow ${section.type === "blank" ? "isolate" : ""} ${selected ? "z-10" : ""}`}
+      className={`${appearance.sectionClass} relative isolate cursor-default border-b border-[var(--me-border)] font-[family-name:var(--me-body-font)] transition-shadow ${selected ? "z-10" : ""}`}
       style={
         {
           ...appearance.sectionStyle,
@@ -158,7 +158,7 @@ function ModernSection({
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {section.type === "blank" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} /><div className="relative z-10"><Section
+      {section.type === "hero" ? <Section
         section={section}
         eventDate={eventDate}
         mode={mode}
@@ -169,7 +169,7 @@ function ModernSection({
         selectedElementId={selectedElementId}
         onElementSelect={onElementSelect}
         onElementEdit={onElementEdit}
-      /></div></> : <Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={projectColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />}
+      /> : <SectionSurfaceDecoration templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} library={library} projectColors={projectColors} sectionId={section.id} mode={mode}><Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={projectColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /></SectionSurfaceDecoration>}
     </section>
   );
 }

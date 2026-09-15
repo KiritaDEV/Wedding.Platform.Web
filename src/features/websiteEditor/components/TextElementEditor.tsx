@@ -28,17 +28,21 @@ import {
   type TextAppearance,
   type TextFontWeight,
 } from "../../websiteElements/text";
-import { applyTextStylePreset, curatedTextColors, resolveTextStyle, textStylePreset, TEXT_STYLE_IDS, type TextStyleId } from "../../websiteElements/textStylePresets";
+import {
+  applyTextStylePreset,
+  curatedTextColors,
+  resolveTextStyle,
+  textStylePreset,
+  TEXT_STYLE_IDS,
+  type TextStyleId,
+} from "../../websiteElements/textStylePresets";
 import { Select } from "../../../components/ui/Select";
 import type { TextElement } from "../../websiteElements/types";
 import type { ResponsiveViewport } from "../types";
 import { FontPicker } from "./FontPicker";
 import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import { ElementEffectsControl } from "./ElementEffectsControl";
-import {
-  dispatchTextCommand,
-  type TextCommand,
-} from "../textCommands";
+import { dispatchTextCommand, type TextCommand } from "../textCommands";
 
 type Props = {
   element: TextElement;
@@ -61,7 +65,8 @@ const labels = (values: readonly string[]) =>
 export function TextElementEditor(props: Props) {
   const appearance = props.element.appearance ?? {};
   const templateKey = props.templateKey ?? "classic-filipiniana-v1";
-  const effectiveFontFamilyId = appearance.fontFamilyId ?? props.context?.bodyFontId;
+  const effectiveFontFamilyId =
+    appearance.fontFamilyId ?? props.context?.bodyFontId;
   const fontCapabilities = textFontCapabilities(effectiveFontFamilyId);
   const update = (next: TextAppearance) => {
     const allowed = {
@@ -105,8 +110,13 @@ export function TextElementEditor(props: Props) {
     else delete next[key];
     update(next);
   };
-  const effectiveResponsive = resolveTextResponsiveAppearance(appearance, props.viewport, { fontSize: "m", alignment: "start" });
-  const responsiveValue = (key: "fontSize" | "alignment") => effectiveResponsive[key];
+  const effectiveResponsive = resolveTextResponsiveAppearance(
+    appearance,
+    props.viewport,
+    { fontSize: "m", alignment: "start" },
+  );
+  const responsiveValue = (key: "fontSize" | "alignment") =>
+    effectiveResponsive[key];
   const setResponsive = (key: "fontSize" | "alignment", value: string) =>
     props.viewport === "desktop"
       ? setGlobal(key, value)
@@ -118,16 +128,50 @@ export function TextElementEditor(props: Props) {
             value as never,
           ),
         );
-  const colors = curatedTextColors(props.library, props.allowedColorIds, props.context, appearance.colorId);
-  const style = resolveTextStyle(appearance, templateKey, props.library, props.context, props.allowedColorIds);
+  const colors = curatedTextColors(
+    props.library,
+    props.allowedColorIds,
+    props.context,
+    appearance.colorId,
+  );
+  const style = resolveTextStyle(
+    appearance,
+    templateKey,
+    props.library,
+    props.context,
+    props.allowedColorIds,
+  );
   return (
     <div
-      className="space-y-4"
+      className="space-y-4 pt-5"
       data-text-element-editor
       data-editor-mode="appearance"
     >
       <Field label="Text Style">
-        <Select value={style} options={[...TEXT_STYLE_IDS.map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) })), { value: "custom", label: "Custom", disabled: true }]} onChange={(value) => update(applyTextStylePreset(appearance, textStylePreset(value as TextStyleId, templateKey, props.library, props.context, props.allowedColorIds)))} />
+        <Select
+          value={style}
+          options={[
+            ...TEXT_STYLE_IDS.map((value) => ({
+              value,
+              label: value[0].toUpperCase() + value.slice(1),
+            })),
+            { value: "custom", label: "Custom", disabled: true },
+          ]}
+          onChange={(value) =>
+            update(
+              applyTextStylePreset(
+                appearance,
+                textStylePreset(
+                  value as TextStyleId,
+                  templateKey,
+                  props.library,
+                  props.context,
+                  props.allowedColorIds,
+                ),
+              ),
+            )
+          }
+        />
       </Field>
       <Field label="Font family">
         <FontPicker
@@ -151,7 +195,27 @@ export function TextElementEditor(props: Props) {
         />
       </Field>
       <Field label="Font weight">
-        <IconChoices label="Font weight" value={String(appearance.fontWeight ?? 400)} options={TEXT_FONT_WEIGHTS.filter((weight) => fontCapabilities.weights.includes(weight)).map((weight) => ({ value: String(weight), label: weight === 400 ? "Normal" : weight === 600 ? "Semi-bold" : "Bold", icon: <Bold size={15} /> }))} onChange={(value) => update(setTextFontWeight(appearance, effectiveFontFamilyId, Number(value) as TextFontWeight))} />
+        <IconChoices
+          label="Font weight"
+          value={String(appearance.fontWeight ?? 400)}
+          options={TEXT_FONT_WEIGHTS.filter((weight) =>
+            fontCapabilities.weights.includes(weight),
+          ).map((weight) => ({
+            value: String(weight),
+            label:
+              weight === 400 ? "Normal" : weight === 600 ? "Semi-bold" : "Bold",
+            icon: <Bold size={15} />,
+          }))}
+          onChange={(value) =>
+            update(
+              setTextFontWeight(
+                appearance,
+                effectiveFontFamilyId,
+                Number(value) as TextFontWeight,
+              ),
+            )
+          }
+        />
       </Field>
       <Field label="Font size">
         <IconChoices
@@ -181,7 +245,16 @@ export function TextElementEditor(props: Props) {
             label: labels([value])[0].label,
             icon: <LineHeightIcon value={value} />,
           }))}
-          onChange={(value) => update(selectTextGlobalAppearanceProperty(appearance, "lineHeight", value as TextAppearance["lineHeight"], "normal"))}
+          onChange={(value) =>
+            update(
+              selectTextGlobalAppearanceProperty(
+                appearance,
+                "lineHeight",
+                value as TextAppearance["lineHeight"],
+                "normal",
+              ),
+            )
+          }
         />
       </Field>
       <Field label="Letter spacing">
@@ -207,16 +280,55 @@ export function TextElementEditor(props: Props) {
               </span>
             ),
           }))}
-          onChange={(value) => update(selectTextGlobalAppearanceProperty(appearance, "letterSpacing", value as TextAppearance["letterSpacing"], "normal"))}
+          onChange={(value) =>
+            update(
+              selectTextGlobalAppearanceProperty(
+                appearance,
+                "letterSpacing",
+                value as TextAppearance["letterSpacing"],
+                "normal",
+              ),
+            )
+          }
         />
       </Field>
       <Field label="Case">
-        <IconChoices label="Text case" value={appearance.textTransform ?? "none"} options={[
-          { value: "none", label: "Original case", icon: <span className="text-sm leading-none">Aa</span> },
-          { value: "uppercase", label: "Uppercase", icon: <span className="text-sm leading-none">AA</span> },
-          { value: "lowercase", label: "Lowercase", icon: <span className="text-sm leading-none">aa</span> },
-          { value: "capitalize", label: "Capitalize", icon: <span className="text-sm leading-none">Ab</span> },
-        ]} onChange={(value) => update(selectTextGlobalAppearanceProperty(appearance, "textTransform", value as TextAppearance["textTransform"], "none"))} />
+        <IconChoices
+          label="Text case"
+          value={appearance.textTransform ?? "none"}
+          options={[
+            {
+              value: "none",
+              label: "Original case",
+              icon: <span className="text-sm leading-none">Aa</span>,
+            },
+            {
+              value: "uppercase",
+              label: "Uppercase",
+              icon: <span className="text-sm leading-none">AA</span>,
+            },
+            {
+              value: "lowercase",
+              label: "Lowercase",
+              icon: <span className="text-sm leading-none">aa</span>,
+            },
+            {
+              value: "capitalize",
+              label: "Capitalize",
+              icon: <span className="text-sm leading-none">Ab</span>,
+            },
+          ]}
+          onChange={(value) =>
+            update(
+              selectTextGlobalAppearanceProperty(
+                appearance,
+                "textTransform",
+                value as TextAppearance["textTransform"],
+                "none",
+              ),
+            )
+          }
+        />
       </Field>
       <Field label="Alignment">
         <IconChoices
@@ -238,18 +350,50 @@ export function TextElementEditor(props: Props) {
         />
       </Field>
       <Field label="Color">
-        <WebsiteColorSwatchControl key={props.element.id} previewTarget={`${props.element.id}:color`}
+        <WebsiteColorSwatchControl
+          key={props.element.id}
+          previewTarget={`${props.element.id}:color`}
           label="Text color"
           colorId={appearance.colorId}
           allowedTemplateColorIds={colors.map(({ id }) => id)}
           templateColors={colors}
           projectColors={props.projectColors}
-          inheritLabel={colors.find(({ id }) => id === props.context?.bodyColorId)?.displayName ?? "Default"}
+          inheritLabel={
+            colors.find(({ id }) => id === props.context?.bodyColorId)
+              ?.displayName ?? "Default"
+          }
           onChange={(value) => setGlobal("colorId", value)}
           onAddColor={props.onAddColor}
         />
       </Field>
-      <ElementEffectsControl elementId={props.element.id} shadowLabel="Text Shadow" state={{ shadow: appearance.textShadow, shadowColorId: appearance.textShadowColorId, glow: appearance.glow, glowColorId: appearance.glowColorId }} colors={colors} projectColors={props.projectColors} onAddColor={props.onAddColor} onEffectChange={(effect, value) => update(setTextEffect(appearance, effect === "shadow" ? "textShadow" : "glow", value))} onColorChange={(field, value) => setGlobal(field === "shadowColorId" ? "textShadowColorId" : "glowColorId", value)} />
+      <ElementEffectsControl
+        elementId={props.element.id}
+        shadowLabel="Text Shadow"
+        state={{
+          shadow: appearance.textShadow,
+          shadowColorId: appearance.textShadowColorId,
+          glow: appearance.glow,
+          glowColorId: appearance.glowColorId,
+        }}
+        colors={colors}
+        projectColors={props.projectColors}
+        onAddColor={props.onAddColor}
+        onEffectChange={(effect, value) =>
+          update(
+            setTextEffect(
+              appearance,
+              effect === "shadow" ? "textShadow" : "glow",
+              value,
+            ),
+          )
+        }
+        onColorChange={(field, value) =>
+          setGlobal(
+            field === "shadowColorId" ? "textShadowColorId" : "glowColorId",
+            value,
+          )
+        }
+      />
       {props.viewport === "mobile" && (
         <>
           <Field label="Formatting">
@@ -292,13 +436,46 @@ export function TextElementEditor(props: Props) {
   );
 }
 
-export function IconChoices({ label, value, options, onChange }: { label: string; value: string; options: Array<{ value: string; label: string; icon: React.ReactNode }>; onChange: (value: string) => void }) {
-  return <div role="group" aria-label={label} className="flex flex-wrap gap-2">{options.map((option) => <button key={option.value || "inherit"} type="button" aria-label={option.label} title={option.label} aria-pressed={value === option.value} onClick={() => onChange(option.value)} className={`grid size-10 place-items-center rounded-md border outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 ${value === option.value ? "border-accent bg-accent text-accent-foreground" : "border-border bg-background text-foreground-muted hover:bg-surface-muted"}`}>{option.icon}<span className="sr-only">{option.label}</span></button>)}</div>;
+export function IconChoices({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string; icon: React.ReactNode }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
+      {options.map((option) => (
+        <button
+          key={option.value || "inherit"}
+          type="button"
+          aria-label={option.label}
+          title={option.label}
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`grid size-10 place-items-center rounded-md border outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 ${value === option.value ? "border-accent bg-accent text-accent-foreground" : "border-border bg-background text-foreground-muted hover:bg-surface-muted"}`}
+        >
+          {option.icon}
+          <span className="sr-only">{option.label}</span>
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export function LineHeightIcon({ value }: { value: string }) {
   const gap = value === "tight" ? 2 : value === "relaxed" ? 6 : 4;
-  return <span aria-hidden="true" className="flex w-5 flex-col" style={{ gap }}>{[16, 20, 14].map((width, index) => <span key={index} className="block h-px bg-current" style={{ width }} />)}</span>;
+  return (
+    <span aria-hidden="true" className="flex w-5 flex-col" style={{ gap }}>
+      {[16, 20, 14].map((width, index) => (
+        <span key={index} className="block h-px bg-current" style={{ width }} />
+      ))}
+    </span>
+  );
 }
 
 function Field({

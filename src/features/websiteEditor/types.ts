@@ -44,7 +44,12 @@ export type SectionDecorativeAppearance = {
     colorId?: string
     customColor?: string
   }
-  frame?: { style?: 'none' | 'fine' | 'ornamental' | 'corners' }
+  frame?: {
+    style?: 'none' | 'fine' | 'ornamental'
+    size?: number
+    strength?: number
+    colorId?: string
+  }
 }
 export type SectionEmphasis = 'inherit' | 'standard' | 'featured' | 'subtle'
 export type MediaSpacingValue = 'none' | 'small' | 'medium' | 'large'
@@ -73,7 +78,6 @@ export type WebsiteSectionAppearance = {
   presentation?: string
   mediaPlacement?: string
   mediaSize?: string
-  frameStyle?: string
   cornerStyle?: string
   shadowStyle?: string
   overlayStrength?: number
@@ -107,7 +111,6 @@ export type ResponsiveMediaControls = {
 export type WebsiteSectionMediaControls = {
   mediaPlacements?: MediaControlOptionGroup
   mediaSizes?: MediaControlOptionGroup
-  frameStyles?: MediaControlOptionGroup
   cornerStyles?: MediaControlOptionGroup
   shadowStyles?: MediaControlOptionGroup
   overlayStrength?: { default: number; min: number; max: number; step: number }

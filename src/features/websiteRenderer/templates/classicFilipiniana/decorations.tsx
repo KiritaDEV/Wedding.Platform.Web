@@ -4,7 +4,6 @@ import { getTemplateAsset } from '../assets'
 const divider = getTemplateAsset('classic-filipiniana-v1', 'section-divider')
 const sprig = getTemplateAsset('classic-filipiniana-v1', 'botanical-sprig')
 const foundation = getTemplateAsset('classic-filipiniana-v1', 'foundation-ornament')
-const frameCorner = getTemplateAsset('classic-filipiniana-v1', 'frame-corner')
 
 function mask(src: string): CSSProperties {
   return {
@@ -25,14 +24,4 @@ export function ClassicFoundationOrnament({ className = '' }: { className?: stri
 
 export function ClassicBotanicalSprig({ className = '' }: { className?: string }) {
   return <span aria-hidden="true" className={`block bg-[var(--cf-secondary)] opacity-55 ${className}`} style={mask(sprig.src)} />
-}
-
-export function ClassicFrameCorners() {
-  const corner = 'absolute size-16 bg-[var(--cf-accent)] opacity-90 sm:size-20'
-  return <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-[3]">
-    <span className={`${corner} left-1 top-1`} style={mask(frameCorner.src)} />
-    <span className={`${corner} right-1 top-1 rotate-90`} style={mask(frameCorner.src)} />
-    <span className={`${corner} bottom-1 right-1 rotate-180`} style={mask(frameCorner.src)} />
-    <span className={`${corner} bottom-1 left-1 -rotate-90`} style={mask(frameCorner.src)} />
-  </span>
 }

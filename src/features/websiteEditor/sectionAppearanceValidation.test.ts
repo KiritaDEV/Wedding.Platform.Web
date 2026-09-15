@@ -4,7 +4,7 @@ import type { WebsiteSectionAppearance } from './types'
 import { sectionAppearanceCapabilityIssues } from './schemas'
 
 const control = (id: string) => ({ id, label: id, type: 'option', scope: 'responsive', default: 'allowed', options: [{ key: 'allowed', displayName: 'Allowed' }], viewports: { tablet: { default: 'allowed', options: [{ key: 'allowed', displayName: 'Allowed' }] }, mobile: { default: 'allowed', options: [{ key: 'allowed', displayName: 'Allowed' }] } } })
-const capability = { id: 'hero', appearanceControls: ['headingAlignment', 'bodyAlignment', 'mediaPlacement', 'mediaSize', 'mediaContentGap', 'frameStyle', 'cornerStyle', 'shadowStyle'].map(control), presentations: [], contextDefaults: { typography: [], colors: [] } } as unknown as SectionCapability
+const capability = { id: 'hero', appearanceControls: ['headingAlignment', 'bodyAlignment', 'mediaPlacement', 'mediaSize', 'mediaContentGap', 'cornerStyle', 'shadowStyle'].map(control), presentations: [], contextDefaults: { typography: [], colors: [] } } as unknown as SectionCapability
 const base = { headingAlignment: 'allowed', bodyAlignment: 'allowed', backgroundTreatment: 'plain', emphasis: 'standard', mediaPlacement: 'allowed' } as unknown as WebsiteSectionAppearance
 
 describe('Section appearance capability validation', () => {

@@ -82,7 +82,6 @@ const capabilityBoundAppearanceFields = [
   'mediaSize',
   'mediaContentGap',
   'mediaSpacing',
-  'frameStyle',
   'cornerStyle',
   'shadowStyle',
 ] as const
@@ -146,7 +145,7 @@ export function validateSectionContent(type: string, content: Record<string, unk
   }).safeParse(content) : { success: false as const, error: null }
 }
 
-const sectionAppearanceSchema = z.object({
+export const sectionAppearanceSchema = z.object({
     backgroundMedia: backgroundMediaSchema,
     headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),
     bodyAlignment: z.enum(['inherit', 'left', 'center', 'right']),
@@ -161,13 +160,17 @@ const sectionAppearanceSchema = z.object({
         colorId: nonEmptyString.optional(),
         customColor: opaqueHexColorSchema.optional(),
       }).strict().optional(),
-      frame: z.object({ style: z.enum(['none', 'fine', 'ornamental', 'corners']).optional() }).strict().optional(),
+      frame: z.object({
+        style: z.enum(['none', 'fine', 'ornamental']).optional(),
+        size: z.number().int().min(50).max(200).optional(),
+        strength: z.number().int().min(0).max(100).optional(),
+        colorId: nonEmptyString.optional(),
+      }).strict().optional(),
     }).strict().optional(),
     emphasis: z.enum(['inherit', 'standard', 'featured', 'subtle']),
     presentation: nonEmptyString.optional(),
     mediaPlacement: nonEmptyString.optional(),
     mediaSize: nonEmptyString.optional(),
-    frameStyle: nonEmptyString.optional(),
     cornerStyle: nonEmptyString.optional(),
     shadowStyle: nonEmptyString.optional(),
     overlayStrength: z.number().min(0).max(1).optional(),
@@ -226,7 +229,6 @@ const sectionSchema = z.object({
       mediaControls: z.object({
         mediaPlacements: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
         mediaSizes: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
-        frameStyles: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
         cornerStyles: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
         shadowStyles: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
         overlayStrength: z.object({ default: z.number(), min: z.number(), max: z.number(), step: z.number().positive() }).strict().optional(),
@@ -421,6 +423,24 @@ const draftSchema = draftCommonSchema.extend({
     }
     if (capability && (!presentation || capability.presentations.some((option) => option.id === presentation))) {
       validateCapabilityBoundAppearance(capability, appearance, index, context)
+    }
+    const decorative = appearance.decorativeAppearance
+    if (decorative && !capability?.decorativeAppearance) {
+      context.addIssue({ code: 'custom', message: 'Decorative appearance is not supported by this Template and Section', path: ['sections', index, 'appearance', 'decorativeAppearance'] })
+    } else if (decorative && capability?.decorativeAppearance) {
+      for (const [field, allowed] of [
+        ['texture', capability.decorativeAppearance.textures],
+        ['pattern', capability.decorativeAppearance.patterns],
+        ['overlay', capability.decorativeAppearance.overlays],
+      ] as const) {
+        const value = decorative.background?.[field]
+        if (value !== undefined && !allowed.includes(value as never)) context.addIssue({ code: 'custom', message: `Decorative ${field} is not supported by this Template and Section`, path: ['sections', index, 'appearance', 'decorativeAppearance', 'background', field] })
+      }
+      const frame = decorative.frame?.style
+      if (frame !== undefined && !capability.decorativeAppearance.frames.includes(frame)) context.addIssue({ code: 'custom', message: 'Decorative Frame is not supported by this Template and Section', path: ['sections', index, 'appearance', 'decorativeAppearance', 'frame', 'style'] })
+      const frameColorId = decorative.frame?.colorId
+      const allowedFrameColorIds = new Set([...capability.decorativeAppearance.frameColorIds, ...draft.designSettings.customColors.map(({ id }) => id)])
+      if (frameColorId !== undefined && !allowedFrameColorIds.has(frameColorId)) context.addIssue({ code: 'custom', message: 'Decorative Frame color is not supported by this Website', path: ['sections', index, 'appearance', 'decorativeAppearance', 'frame', 'colorId'] })
     }
     })
   })

@@ -50,9 +50,10 @@ export type DecorativeAssetExecution = {
   position?: DecorativeAssetPosition;
   tintToken?: DecorativeTintToken;
   repeat?: { x: boolean; y: boolean };
+  cornerBaseSize?: { minimumPx: number; fluidVw: number; maximumPx: number };
 };
 export type DecorativeCssFrameExecution = {
-  thickness: "hairline" | "thin";
+  baseThicknessPx: number;
   inset: "small" | "medium";
   opacity: number;
   tintToken: DecorativeTintToken;
@@ -98,6 +99,12 @@ export type ResolvedDecorativeAsset = {
 export type ResolvedDecorativeExecution =
   | ResolvedDecorativeAsset
   | { type: "cssFrame"; execution: DecorativeCssFrameExecution; tint: string };
+
+export type DecorativeExecutionOverrides = {
+  size?: number;
+  strength?: number;
+  tint?: string;
+};
 
 const pending = (
   definition: Omit<TemplateDecorativeAssetDefinition, "status">,
@@ -166,51 +173,18 @@ export const classicDecorativeAssets: TemplateDecorativeAssetRegistry = {
         repeat: { x: true, y: true },
       },
     },
-    pending({
-      id: "classic-ornamental-01",
-      kind: "frame",
-      semanticIntent: "ornamental",
-      sourcePath:
-        "/template-assets/classic-filipiniana/frames/ornamental-desktop-01.svg",
-      responsiveVariants: {
-        desktop:
-          "/template-assets/classic-filipiniana/frames/ornamental-desktop-01.svg",
-        mobile:
-          "/template-assets/classic-filipiniana/frames/ornamental-mobile-01.svg",
-      },
-      execution: {
-        renderMode: "mask",
-        opacity: 0.55,
-        size: "fullFrame",
-        position: "center",
-        tintToken: "decorative",
-      },
-    }),
-    {
-      id: "classic-corners-01",
-      status: "active",
-      kind: "frame",
-      semanticIntent: "corners",
-      sourcePath: "/template-assets/classic-filipiniana/frames/corners-01.png",
-      execution: {
-        renderMode: "image",
-        opacity: 0.65,
-        blendMode: "normal",
-        size: "fullFrame",
-        position: "center",
-      },
-    },
     {
       id: "classic-media-frame-ornamental-corner-01",
       status: "active",
       kind: "frame",
-      semanticIntent: "ornamentalCorners",
+      semanticIntent: "ornamental",
       sourcePath:
         "/template-assets/classic-filipiniana/frames/classic-media-frame-ornamental-corner-01.png",
       execution: {
         renderMode: "mask",
         opacity: 0.6,
         size: "corners",
+        cornerBaseSize: { minimumPx: 48, fluidVw: 8, maximumPx: 112 },
         position: "fourCorners",
         tintToken: "decorative",
       },
@@ -233,21 +207,15 @@ export const classicDecorativeAssets: TemplateDecorativeAssetRegistry = {
       fine: {
         type: "cssFrame",
         execution: {
-          thickness: "hairline",
+          baseThicknessPx: 1,
           inset: "medium",
           opacity: 0.42,
           tintToken: "decorative",
         },
       },
-      ornamental: { type: "asset", assetId: "classic-ornamental-01" },
-      corners: { type: "asset", assetId: "classic-corners-01" },
+      ornamental: { type: "asset", assetId: "classic-media-frame-ornamental-corner-01" },
     },
-    mediaFrame: {
-      ornamentalCorners: {
-        type: "asset",
-        assetId: "classic-media-frame-ornamental-corner-01",
-      },
-    },
+    mediaFrame: {},
   },
   overlays: {
     none: null,
@@ -299,19 +267,6 @@ export const modernDecorativeAssets: TemplateDecorativeAssetRegistry = {
         repeat: { x: true, y: true },
       },
     }),
-    pending({
-      id: "modern-corners-01",
-      kind: "frame",
-      semanticIntent: "corners",
-      sourcePath: "/template-assets/modern-editorial/frames/corners-01.svg",
-      execution: {
-        renderMode: "mask",
-        opacity: 0.5,
-        size: "corners",
-        position: "fourCorners",
-        tintToken: "accent",
-      },
-    }),
   ],
   mappings: {
     texture: {
@@ -329,13 +284,12 @@ export const modernDecorativeAssets: TemplateDecorativeAssetRegistry = {
       fine: {
         type: "cssFrame",
         execution: {
-          thickness: "thin",
+          baseThicknessPx: 2,
           inset: "small",
           opacity: 0.28,
           tintToken: "muted",
         },
       },
-      corners: { type: "asset", assetId: "modern-corners-01" },
     },
     mediaFrame: {},
   },
@@ -379,6 +333,7 @@ export function resolveDecorativeExecution(
   semanticIntent: string | undefined,
   viewport: ResponsiveViewport,
   authoredStrength?: number,
+  overrides?: DecorativeExecutionOverrides,
 ): ResolvedDecorativeExecution | null {
   if (!semanticIntent) return null;
   const registry = decorativeAssetRegistries[templateKey];
@@ -387,10 +342,23 @@ export function resolveDecorativeExecution(
   if (mapping.type === "cssFrame")
     return {
       type: "cssFrame",
-      execution: mapping.execution,
-      tint: registry.tintTokens[mapping.execution.tintToken],
+      execution: {
+        ...mapping.execution,
+        baseThicknessPx: mapping.execution.baseThicknessPx * ((overrides?.size ?? 100) / 100),
+        opacity: overrides?.strength === undefined ? mapping.execution.opacity : overrides.strength / 100,
+      },
+      tint: overrides?.tint ?? registry.tintTokens[mapping.execution.tintToken],
     };
-  return resolveDecorativeExecutionById(templateKey, mapping.assetId, viewport, authoredStrength);
+  const resolved = resolveDecorativeExecutionById(templateKey, mapping.assetId, viewport, authoredStrength);
+  if (!resolved) return null;
+  const execution = { ...resolved.execution };
+  if (overrides?.strength !== undefined) execution.opacity = overrides.strength / 100;
+  if (execution.cornerBaseSize && overrides?.size !== undefined) {
+    const scale = overrides.size / 100;
+    const { minimumPx, fluidVw, maximumPx } = execution.cornerBaseSize;
+    execution.cornerBaseSize = { minimumPx: minimumPx * scale, fluidVw: fluidVw * scale, maximumPx: maximumPx * scale };
+  }
+  return { ...resolved, execution, tint: overrides?.tint ?? resolved.tint };
 }
 
 export function resolveDecorativeExecutionById(templateKey: string, assetId: string, viewport: ResponsiveViewport = "desktop", authoredStrength?: number, tintTokens?: Partial<Record<DecorativeTintToken, string>>): ResolvedDecorativeAsset | null {
@@ -430,6 +398,15 @@ export function resolveDecorativeDefaultStrength(
     registry.assets.find(({ id }) => id === mapping.assetId)?.execution.strength
       ?.default ?? 50
   );
+}
+
+export function resolveFrameDefaults(templateKey: string, semanticIntent: string | undefined): { size: number; strength: number; tint: string } {
+  const registry = decorativeAssetRegistries[templateKey];
+  const mapping = semanticIntent ? registry?.mappings.frame[semanticIntent] : null;
+  if (!registry || !mapping) return { size: 100, strength: 100, tint: 'currentColor' };
+  if (mapping.type === 'cssFrame') return { size: 100, strength: Math.round(mapping.execution.opacity * 100), tint: registry.tintTokens[mapping.execution.tintToken] };
+  const asset = registry.assets.find(({ id }) => id === mapping.assetId);
+  return { size: 100, strength: Math.round((asset?.execution.opacity ?? 1) * 100), tint: asset?.execution.tintToken ? registry.tintTokens[asset.execution.tintToken] : 'currentColor' };
 }
 
 export function resolveDecorativeAsset(

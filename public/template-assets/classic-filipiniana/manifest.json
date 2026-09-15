@@ -74,36 +74,12 @@
       "sha256": "7238f2b97af20553906be190efb2cf5fb16c234e62b1095df8993a5f1ccb9539"
     },
     {
-      "id": "classic-corners-01",
-      "template": "classic-filipiniana-v1",
-      "semanticIntent": "corners",
-      "kind": "frame",
-      "repositoryPath": "/template-assets/classic-filipiniana/frames/corners-01.png",
-      "behavior": "single contained full-frame image",
-      "responsiveRelationship": "base source used for desktop, tablet, and mobile",
-      "source": {
-        "provider": null,
-        "url": null,
-        "author": null,
-        "license": null,
-        "licenseUrl": null
-      },
-      "intakeDate": "2026-08-31",
-      "originalFilename": null,
-      "repositoryFilename": "corners-01.png",
-      "modifications": null,
-      "scalable": false,
-      "repeatable": false,
-      "tintable": false,
-      "sha256": "32add499e31fe8adcfa918d9169d642605653a020178bc58d474c18b039fd022"
-    },
-    {
       "id": "classic-media-frame-ornamental-corner-01",
       "template": "classic-filipiniana-v1",
-      "semanticIntent": "ornamentalCorners",
+      "semanticIntent": "ornamental",
       "kind": "frame",
       "repositoryPath": "/template-assets/classic-filipiniana/frames/classic-media-frame-ornamental-corner-01.png",
-      "behavior": "single tinted mask asset rotated into four media-frame corners",
+      "behavior": "single directional tinted mask asset reflected into four Section-frame corners",
       "responsiveRelationship": "base source used for desktop, tablet, and mobile",
       "source": {
         "provider": null,

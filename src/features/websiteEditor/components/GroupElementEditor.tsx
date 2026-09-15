@@ -20,7 +20,10 @@ import {
 } from "../../websiteElements/group";
 import type { CompositionGroup } from "../../websiteElements/types";
 import type { ResponsiveViewport } from "../types";
-import type { SectionCapability, TemplateDesignLibrary } from "../../websiteCapabilities/types";
+import type {
+  SectionCapability,
+  TemplateDesignLibrary,
+} from "../../websiteCapabilities/types";
 import type { ProjectColor } from "../../websiteColors/projectColors";
 import { InspectorResetAction, InspectorSection } from "./InspectorPrimitives";
 import {
@@ -39,7 +42,11 @@ import { BackgroundMediaEditor } from "./BackgroundMediaEditor";
 import { FourSidedSpacingControl as InnerSpacingControl } from "./FourSidedSpacingControl";
 import { ContentPositionControl } from "./ContentPositionControl";
 import type { HeroContentPosition } from "../../websiteRenderer/heroContentPosition";
-import { resolveFourSidedSpacing, type FourSidedSpacing, type SpacingPreset } from "../../websiteElements/spacing";
+import {
+  resolveFourSidedSpacing,
+  type FourSidedSpacing,
+  type SpacingPreset,
+} from "../../websiteElements/spacing";
 
 const label = (value: string) =>
   value === "none"
@@ -83,7 +90,13 @@ export function GroupElementEditor({
   const layout = group.layout ?? {};
   const effective = resolveGroupLayout(layout, viewport);
   const set = <
-    K extends "width" | "direction" | "gap" | "alignment" | "division" | "contentPosition",
+    K extends
+      | "width"
+      | "direction"
+      | "gap"
+      | "alignment"
+      | "division"
+      | "contentPosition",
   >(
     key: K,
     value: GroupLayout[K] | undefined,
@@ -97,32 +110,58 @@ export function GroupElementEditor({
     });
   const effectiveDirection = effective.direction ?? "vertical";
   const appearance = group.appearance ?? {};
-  const effectiveOuterSpacing = resolveFourSidedSpacing(appearance.outerSpacing, viewport === "desktop" ? undefined : appearance.responsive?.[viewport]?.outerSpacing);
-  const updateOuterSpacing = (changes: Partial<Record<keyof FourSidedSpacing, SpacingPreset>>) => {
+  const effectiveOuterSpacing = resolveFourSidedSpacing(
+    appearance.outerSpacing,
+    viewport === "desktop"
+      ? undefined
+      : appearance.responsive?.[viewport]?.outerSpacing,
+  );
+  const updateOuterSpacing = (
+    changes: Partial<Record<keyof FourSidedSpacing, SpacingPreset>>,
+  ) => {
     const nextAppearance = structuredClone(appearance);
     for (const [sideKey, value] of Object.entries(changes)) {
       const side = sideKey as keyof FourSidedSpacing;
       if (viewport === "desktop") {
         const spacing = { ...nextAppearance.outerSpacing };
-        if (value === "none") delete spacing[side]; else spacing[side] = value;
-        if (Object.keys(spacing).length) nextAppearance.outerSpacing = spacing; else delete nextAppearance.outerSpacing;
+        if (value === "none") delete spacing[side];
+        else spacing[side] = value;
+        if (Object.keys(spacing).length) nextAppearance.outerSpacing = spacing;
+        else delete nextAppearance.outerSpacing;
       } else {
         const responsive = { ...nextAppearance.responsive };
         const branch = { ...responsive[viewport] };
         const spacing = { ...branch.outerSpacing };
-        if (value === (nextAppearance.outerSpacing?.[side] ?? "none")) delete spacing[side]; else spacing[side] = value;
-        if (Object.keys(spacing).length) branch.outerSpacing = spacing; else delete branch.outerSpacing;
-        if (Object.keys(branch).length) responsive[viewport] = branch; else delete responsive[viewport];
-        if (Object.keys(responsive).length) nextAppearance.responsive = responsive; else delete nextAppearance.responsive;
+        if (value === (nextAppearance.outerSpacing?.[side] ?? "none"))
+          delete spacing[side];
+        else spacing[side] = value;
+        if (Object.keys(spacing).length) branch.outerSpacing = spacing;
+        else delete branch.outerSpacing;
+        if (Object.keys(branch).length) responsive[viewport] = branch;
+        else delete responsive[viewport];
+        if (Object.keys(responsive).length)
+          nextAppearance.responsive = responsive;
+        else delete nextAppearance.responsive;
       }
     }
     const next = { ...group };
-    if (Object.keys(nextAppearance).length) next.appearance = nextAppearance; else delete next.appearance;
+    if (Object.keys(nextAppearance).length) next.appearance = nextAppearance;
+    else delete next.appearance;
     onChange(next);
   };
-  const updatePadding = (changes: Partial<Record<"top" | "right" | "bottom" | "left", SpacingPreset>>) => {
+  const updatePadding = (
+    changes: Partial<
+      Record<"top" | "right" | "bottom" | "left", SpacingPreset>
+    >,
+  ) => {
     let nextLayout = layout;
-    for (const [side, value] of Object.entries(changes)) nextLayout = selectGroupPaddingSide(nextLayout, viewport, side as "top" | "right" | "bottom" | "left", value!);
+    for (const [side, value] of Object.entries(changes))
+      nextLayout = selectGroupPaddingSide(
+        nextLayout,
+        viewport,
+        side as "top" | "right" | "bottom" | "left",
+        value!,
+      );
     onChange({
       ...group,
       layout: nextLayout,
@@ -142,7 +181,11 @@ export function GroupElementEditor({
           />
         </Field>
         <Field label="Outer spacing">
-          <InnerSpacingControl kind="Outer" spacing={effectiveOuterSpacing} onChange={updateOuterSpacing} />
+          <InnerSpacingControl
+            kind="Outer"
+            spacing={effectiveOuterSpacing}
+            onChange={updateOuterSpacing}
+          />
         </Field>
         <Field label="Inner spacing">
           <InnerSpacingControl
@@ -167,7 +210,16 @@ export function GroupElementEditor({
             )
           }
         />
-        <Field label="Content position"><ContentPositionControl value={(effective.contentPosition ?? "center") as HeroContentPosition} onChange={(contentPosition) => set("contentPosition", contentPosition)} /></Field>
+        <Field label="Content position">
+          <ContentPositionControl
+            value={
+              (effective.contentPosition ?? "center") as HeroContentPosition
+            }
+            onChange={(contentPosition) =>
+              set("contentPosition", contentPosition)
+            }
+          />
+        </Field>
         <CompactField
           label="Child alignment"
           value={effective.alignment ?? "stretch"}
@@ -235,17 +287,54 @@ export function GroupElementEditor({
           />
         </Field>
       </InspectorSection>
-      {onMediaResolved && <InspectorSection title="Background Image">
-        <BackgroundMediaEditor title="Background Image" ownerId={group.id} viewport={viewport} media={group.backgroundMedia} resolvedMedia={resolvedMedia} onMediaResolved={onMediaResolved} onChange={(backgroundMedia) => onChange(setGroupBackgroundMedia(group, backgroundMedia))} />
-        {group.backgroundMedia && <Field label="Image Opacity">
-          <div className="flex items-center gap-3"><input aria-label="Group background image opacity" className="w-full accent-accent" type="range" min="0" max="100" step="1" value={group.appearance?.backgroundImageOpacity ?? 100} onChange={(event) => onChange(setGroupBackgroundImageOpacity(group, Number(event.target.value)))} /><span className="w-10 text-right tabular-nums">{group.appearance?.backgroundImageOpacity ?? 100}%</span></div>
-        </Field>}
-      </InspectorSection>}
+      {onMediaResolved && (
+        <InspectorSection title="Background Image">
+          <BackgroundMediaEditor
+            title="Background Image"
+            ownerId={group.id}
+            viewport={viewport}
+            media={group.backgroundMedia}
+            resolvedMedia={resolvedMedia}
+            onMediaResolved={onMediaResolved}
+            onChange={(backgroundMedia) =>
+              onChange(setGroupBackgroundMedia(group, backgroundMedia))
+            }
+          />
+          {group.backgroundMedia && (
+            <Field label="Image Opacity">
+              <div className="flex items-center gap-3">
+                <input
+                  aria-label="Group background image opacity"
+                  className="w-full accent-accent"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={group.appearance?.backgroundImageOpacity ?? 100}
+                  onChange={(event) =>
+                    onChange(
+                      setGroupBackgroundImageOpacity(
+                        group,
+                        Number(event.target.value),
+                      ),
+                    )
+                  }
+                />
+                <span className="w-10 text-right tabular-nums">
+                  {group.appearance?.backgroundImageOpacity ?? 100}%
+                </span>
+              </div>
+            </Field>
+          )}
+        </InspectorSection>
+      )}
       {templateKey && capability && library && onAddColor && (
         <InspectorSection title="Background">
           <div>
             <p className="mb-1.5 text-xs font-medium">Background Color</p>
-            <WebsiteColorSwatchControl key={group.id} previewTarget={`${group.id}:backgroundColor`}
+            <WebsiteColorSwatchControl
+              key={group.id}
+              previewTarget={`${group.id}:backgroundColor`}
               label="Group background color"
               inheritLabel="No Background"
               colorId={group.appearance?.backgroundColorId}
@@ -266,9 +355,7 @@ export function GroupElementEditor({
               kind === "texture" ? "textureStrength" : "patternStrength";
             const strength = background?.[strengthField];
             const decorationOptions =
-              capability[
-                kind === "texture" ? "textures" : "patterns"
-              ];
+              capability[kind === "texture" ? "textures" : "patterns"];
             return (
               <div key={kind} className="space-y-3">
                 <div>

@@ -19,12 +19,18 @@ export function getDecorativeAssetStyle(asset: ResolvedDecorativeAsset): CSSProp
 }
 
 export function getDecorativeCssFrameStyle(execution: DecorativeCssFrameExecution, tint: string): CSSProperties {
-  return { inset: execution.inset === 'small' ? '12px' : '20px', borderStyle: 'solid', borderWidth: execution.thickness === 'hairline' ? '1px' : '2px', borderColor: tint, opacity: execution.opacity }
+  return { inset: execution.inset === 'small' ? '12px' : '20px', borderStyle: 'solid', borderWidth: `${execution.baseThicknessPx}px`, borderColor: tint, opacity: execution.opacity }
+}
+
+export function resolveDecorativeCornerSize(execution: DecorativeAssetExecution): string {
+  const base = execution.cornerBaseSize
+  if (!base) return sizeValues[execution.size ?? 'auto']
+  return `min(50%, clamp(${base.minimumPx}px, ${base.fluidVw}vw, ${base.maximumPx}px))`
 }
 
 export const DECORATIVE_CORNER_PLACEMENTS = [
-  { key: 'top-left', style: { top: 0, left: 0 } },
-  { key: 'top-right', style: { top: 0, right: 0, transform: 'rotate(90deg)' } },
-  { key: 'bottom-right', style: { right: 0, bottom: 0, transform: 'rotate(180deg)' } },
-  { key: 'bottom-left', style: { bottom: 0, left: 0, transform: 'rotate(270deg)' } },
+  { key: 'top-left', style: { top: 0, left: 0, transform: 'none', transformOrigin: 'center' } },
+  { key: 'top-right', style: { top: 0, right: 0, transform: 'scaleX(-1)', transformOrigin: 'center' } },
+  { key: 'bottom-right', style: { right: 0, bottom: 0, transform: 'scale(-1, -1)', transformOrigin: 'center' } },
+  { key: 'bottom-left', style: { bottom: 0, left: 0, transform: 'scaleY(-1)', transformOrigin: 'center' } },
 ] as const

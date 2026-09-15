@@ -10,7 +10,7 @@ const capability = {
   contextDefaults: { typography: [], colors: [] },
   allowedElementTypes: [], maximumElementCount: 20, compositionGroups: null,
   decorativeAppearance: {
-    textures: ["none", "paper"], patterns: ["none", "botanical"], overlays: ["none", "soft"], frames: ["none", "fine"], backgroundColorIds: [],
+    textures: ["none", "paper"], patterns: ["none", "botanical"], overlays: ["none", "soft"], frames: ["none", "fine"], backgroundColorIds: [], frameColorIds: ["frame-color"],
   },
 } as unknown as SectionCapability;
 const library = { colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } as unknown as TemplateDesignLibrary;
@@ -29,5 +29,31 @@ describe("Blank decorative appearance controls", () => {
     const html = renderToStaticMarkup(<AppearancePanel appearance={{ ...appearance, decorativeAppearance: { background: { texture: "paper", pattern: "botanical" } } }} templateKey="classic-filipiniana-v1" sectionCapability={capability} targetViewport="desktop" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={vi.fn()} />);
     expect(html).toContain("Texture Strength");
     expect(html).toContain("Pattern Strength");
+  });
+
+  it.each([
+    ["classic-filipiniana-v1", "fine", "42% · Theme"],
+    ["classic-filipiniana-v1", "ornamental", "60% · Theme"],
+    ["modern-editorial-v1", "fine", "28% · Theme"],
+  ] as const)("shows generic controls for %s %s and Theme defaults without authoring values", (templateKey, style, strengthLabel) => {
+    const styleCapability = { ...capability, decorativeAppearance: { ...capability.decorativeAppearance!, frames: ["none", "fine", "ornamental"] } } as unknown as SectionCapability;
+    const html = renderToStaticMarkup(<AppearancePanel appearance={{ ...appearance, decorativeAppearance: { frame: { style } } }} templateKey={templateKey} sectionCapability={styleCapability} targetViewport="desktop" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={vi.fn()} />);
+    for (const label of ["Frame Size", "Frame Strength", "Frame Color", "100% · Theme", strengthLabel]) expect(html).toContain(label);
+  });
+
+  it("hides generic controls when the Frame is none", () => {
+    const html = renderToStaticMarkup(<AppearancePanel appearance={{ ...appearance, decorativeAppearance: { frame: { style: "none" } } }} templateKey="classic-filipiniana-v1" sectionCapability={capability} targetViewport="desktop" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={vi.fn()} />);
+    for (const label of ["Frame Size", "Frame Strength", "Frame Color"]) expect(html).not.toContain(label);
+  });
+});
+
+describe.each(["gallery", "rsvp"])("%s decorative appearance controls", (id) => {
+  it("exposes the generic Section Frame control", () => {
+    const onChange = vi.fn();
+    const sectionCapability = { ...capability, id } as unknown as SectionCapability;
+    const html = renderToStaticMarkup(<AppearancePanel appearance={appearance} templateKey="classic-filipiniana-v1" sectionCapability={sectionCapability} targetViewport="mobile" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={onChange} />);
+    for (const label of ["Texture", "Pattern", "Overlay", "Frame"]) expect(html).toContain(label);
+    expect(html).not.toContain("Frame style");
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
