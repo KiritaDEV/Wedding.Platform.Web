@@ -1,0 +1,28 @@
+﻿name: Deploy DEV Web
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - kirita-dev-web
+
+    steps:
+      - name: Verify DEV Web deployment access
+        shell: powershell
+        run: |
+          $git = "C:\Program Files\Git\cmd\git.exe"
+          $node = "C:\Program Files\nodejs\node.exe"
+          $npm = "C:\Program Files\nodejs\npm.cmd"
+          $repo = "C:\Kirita\dev\web"
+
+          & $git -C $repo status
+          & $node --version
+          & $npm --version
