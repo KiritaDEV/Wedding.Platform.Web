@@ -6,6 +6,10 @@ on:
       - develop
   workflow_dispatch:
 
+concurrency:
+  group: kirita-dev-web
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on:
@@ -15,17 +19,30 @@ jobs:
       - kirita-dev-web
 
     steps:
-      - name: Verify DEV Web fetch access
+      - name: Deploy DEV Web
         shell: powershell
         run: |
           $git = "C:\Program Files\Git\cmd\git.exe"
+          $npm = "C:\Program Files\nodejs\npm.cmd"
           $repo = "C:\Kirita\dev\web"
+
+          if (-not (Test-Path "$repo\.env.dev")) {
+            Write-Error "Missing $repo\.env.dev"
+            exit 1
+          }
 
           & $git -C $repo fetch origin develop
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          Write-Host "Currently deployed:"
-          & $git -C $repo rev-parse HEAD
+          & $git -C $repo reset --hard origin/develop
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          Write-Host "Latest origin/develop:"
-          & $git -C $repo rev-parse origin/develop
+          Push-Location $repo
+
+          & $npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $npm run build -- --mode dev
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Pop-Location
