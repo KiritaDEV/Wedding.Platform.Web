@@ -3,12 +3,18 @@ import { describe, expect, it } from "vitest";
 import type { TemplateDesignLibrary } from "../websiteCapabilities/types";
 import type { TextElement } from "../websiteElements/types";
 import { TextElementRenderer } from "./TextElementRenderer";
+import { elementFontSizes } from "./elementTypography";
+import { TEXT_SIZES } from "../websiteElements/text";
 
 const library = { colors: [{ id: "body", displayName: "Body", value: "#112233" }, { id: "green", displayName: "Green", value: "#008000" }, { id: "blue", displayName: "Blue", value: "#0000FF" }], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as unknown as TemplateDesignLibrary;
 const base: TextElement = { id: "t", type: "text", editorName: "Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Hello ", marks: { bold: true } }, { text: "world" }] }] } };
 const render = (element: TextElement, viewport: "desktop" | "tablet" | "mobile" = "desktop") => renderToStaticMarkup(<TextElementRenderer element={element} viewport={viewport} templateKey="modern-editorial-v1" library={library} context={{ headingFontId: "inter", bodyFontId: "inter", headingColorId: "body", bodyColorId: "body", accentColorId: "body" }} />);
 
 describe("TextElementRenderer", () => {
+  it.each(TEXT_SIZES)("renders canonical %s with its unchanged CSS mapping", (fontSize) => {
+    expect(render({ ...base, appearance: { fontSize } })).toContain(`font-size:${elementFontSizes[fontSize]}`);
+  });
+
   it("renders the canonical document and inline marks", () => {
     const html = render(base);
     expect(html).toContain('data-website-element="text"');

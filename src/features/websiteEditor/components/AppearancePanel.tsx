@@ -9,6 +9,7 @@ import {
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "../../../components/ui/Button";
 import { IconButton } from "../../../components/ui/IconButton";
+import { Select } from "../../../components/ui/Select";
 import { Tooltip } from "../../../components/ui/Tooltip";
 import { SelectableCard } from "../../../components/ui/SelectableCard";
 import type {
@@ -39,18 +40,17 @@ import {
 } from "../responsiveAppearance";
 import { PresentationPicker } from "./PresentationPicker";
 import { InspectorResetAction, InspectorSection } from "./InspectorPrimitives";
-import { InspectorVisualChoiceGroup } from "./InspectorVisualChoice";
-import { resolveDecorativeDefaultStrength, resolveFrameDefaults } from "../../websiteRenderer/templateDecorativeAssets";
+import {
+  resolveDecorativeDefaultStrength,
+  resolveFrameDefaults,
+} from "../../websiteRenderer/templateDecorativeAssets";
 import type { ProjectColor } from "../../websiteColors/projectColors";
 import type { TemplateDesignLibrary } from "../../websiteCapabilities/types";
 import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import { NumericPercentageControl } from "./NumericPercentageControl";
 import { applyFrameProperty } from "../frameAppearanceAuthoring";
 import { DecorativeStrengthControl } from "./DecorativeStrengthControl";
-import {
-  decorativeHelpers,
-  decorativeLabel,
-} from "./decorativeAppearanceOptions";
+import { decorativeLabel } from "./decorativeAppearanceOptions";
 import {
   applySectionBackgroundColor,
   legacySectionBackgroundState,
@@ -66,6 +66,7 @@ import {
 import { FourSidedSpacingControl as InnerSpacingControl } from "./FourSidedSpacingControl";
 import type { SpacingChanges } from "./spacingControlModel";
 import { ContentPositionControl } from "./ContentPositionControl";
+import { HERO_MINIMUM_HEIGHT_MAX, HERO_MINIMUM_HEIGHT_MIN, HERO_MINIMUM_HEIGHT_STEP, setHeroHeightMode, setHeroMinimumHeight } from "../heroMinimumHeight";
 
 export function AppearancePanel({
   appearance,
@@ -386,12 +387,9 @@ function HeroSurfaceControls({
   targetViewport: ResponsiveViewport;
   onChange: (appearance: WebsiteSectionAppearance) => void;
 }) {
-  const setHeight = (height: "auto" | "screen") => {
-    const next = { ...appearance };
-    if (height === "auto") delete next.height;
-    else next.height = height;
-    onChange(next);
-  };
+  const heightMode = appearance.height ? "custom" : "automatic";
+  const setHeightMode = (mode: "automatic" | "custom") => onChange(setHeroHeightMode(appearance, mode));
+  const setHeightValue = (value: number) => onChange(setHeroMinimumHeight(appearance, value));
   const setOpacity = (value: number) => {
     const next = { ...appearance };
     if (value === 100) delete next.backgroundImageOpacity;
@@ -439,27 +437,40 @@ function HeroSurfaceControls({
     <InspectorSection title="Hero">
       <fieldset>
         <legend className="mb-2 text-sm xl:text-xs! font-semibold">
-          Height
+          Minimum height
         </legend>
         <div className="grid grid-cols-2 gap-2">
-          {(["auto", "screen"] as const).map((value) => (
+          {(["automatic", "custom"] as const).map((value) => (
             <Button
               key={value}
               size="sm"
               variant="secondary"
               type="button"
-              aria-pressed={(appearance.height ?? "auto") === value}
+              aria-pressed={heightMode === value}
               className={
-                (appearance.height ?? "auto") === value
+                heightMode === value
                   ? "border-accent! border-2 bg-surface-muted"
                   : ""
               }
-              onClick={() => setHeight(value)}
+              onClick={() => setHeightMode(value)}
             >
-              {value === "auto" ? "Automatic" : "Screen"}
+              {value === "automatic" ? "Automatic" : "Custom"}
             </Button>
           ))}
         </div>
+        {appearance.height ? <div className="mt-3">
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-xs font-medium" htmlFor="hero-minimum-height">Minimum</label>
+            <span className="text-xs tabular-nums text-foreground-muted">{appearance.height.value}svh</span>
+          </div>
+          <input id="hero-minimum-height" aria-label="Hero minimum height" className="mt-2 w-full cursor-pointer accent-accent" type="range" min={HERO_MINIMUM_HEIGHT_MIN} max={HERO_MINIMUM_HEIGHT_MAX} step={HERO_MINIMUM_HEIGHT_STEP} value={appearance.height.value} onChange={(event) => setHeightValue(Number(event.target.value))} />
+          <div className="mt-1 flex items-center justify-between gap-2 text-xs text-foreground-muted">
+            <span>25svh</span>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setHeightValue(100)}>100svh · Full screen</Button>
+            <span>150svh</span>
+          </div>
+          <p className="mt-2 text-xs text-foreground-muted">The Hero grows if its content needs more space.</p>
+        </div> : <p className="mt-2 text-xs text-foreground-muted">Height follows the Hero content.</p>}
       </fieldset>
       <fieldset>
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -545,22 +556,6 @@ export function SectionDecorativeAppearanceControls({
 }) {
   const decorative = sectionCapability.decorativeAppearance;
   if (!decorative) return null;
-  const helpers: Record<string, Record<string, string>> = {
-    texture: decorativeHelpers.texture,
-    pattern: decorativeHelpers.pattern,
-    overlay: {
-      none: "No tonal overlay",
-      soft: "Gentle tonal treatment",
-      warm: "Warmer tonal treatment",
-      deep: "Stronger tonal depth",
-    },
-    frame: {
-      none: "No decorative frame",
-      fine: "Subtle border treatment",
-      ornamental: "Decorative framed treatment",
-      corners: "Corner-focused decoration",
-    },
-  };
   const label = decorativeLabel;
   const updateDecoration = (
     group: "background" | "frame",
@@ -585,7 +580,6 @@ export function SectionDecorativeAppearanceControls({
     group: "background" | "frame",
     field: "texture" | "pattern" | "overlay" | "style",
     values: readonly string[],
-    helperKey: string,
   ) => {
     if (values.length === 0) return null;
     const value =
@@ -604,16 +598,12 @@ export function SectionDecorativeAppearanceControls({
             />
           )}
         </div>
-        <InspectorVisualChoiceGroup
-          label={`${sectionLabel} ${title.toLowerCase()}`}
-          layout="stack"
-          showIllustration={false}
-          value={value ?? ""}
+        <Select
+          aria-label={`${sectionLabel} ${title.toLowerCase()}`}
+          value={value ?? values[0] ?? ""}
           options={values.map((option) => ({
             value: option,
             label: label(option),
-            helper: helpers[helperKey][option],
-            illustration: null,
           }))}
           onChange={(next) => updateDecoration(group, field, next)}
         />
@@ -641,7 +631,10 @@ export function SectionDecorativeAppearanceControls({
     else delete next.decorativeAppearance;
     onChange(next);
   };
-  const updateFrameProperty = (field: "size" | "strength" | "colorId", value?: number | string) => {
+  const updateFrameProperty = (
+    field: "size" | "strength" | "colorId",
+    value?: number | string,
+  ) => {
     onChange(applyFrameProperty(appearance, field, value));
   };
   const texture =
@@ -699,13 +692,7 @@ export function SectionDecorativeAppearanceControls({
           )}
         </div>
         {decorative &&
-          choice(
-            "Texture",
-            "background",
-            "texture",
-            decorative.textures,
-            "texture",
-          )}
+          choice("Texture", "background", "texture", decorative.textures)}
         {decorative && texture !== "none" && (
           <DecorativeStrengthControl
             label="Texture Strength"
@@ -719,13 +706,7 @@ export function SectionDecorativeAppearanceControls({
           />
         )}
         {decorative &&
-          choice(
-            "Pattern",
-            "background",
-            "pattern",
-            decorative.patterns,
-            "pattern",
-          )}
+          choice("Pattern", "background", "pattern", decorative.patterns)}
         {decorative && pattern !== "none" && (
           <DecorativeStrengthControl
             label="Pattern Strength"
@@ -739,25 +720,52 @@ export function SectionDecorativeAppearanceControls({
           />
         )}
         {decorative &&
-          choice(
-            "Overlay",
-            "background",
-            "overlay",
-            decorative.overlays,
-            "overlay",
-          )}
+          choice("Overlay", "background", "overlay", decorative.overlays)}
       </InspectorSection>
       {decorative && decorative.frames.length > 0 && (
         <InspectorSection title="Decoration">
-          {choice("Frame", "frame", "style", decorative.frames, "frame")}
-          {frameStyle !== "none" && <>
-            <NumericPercentageControl label="Frame Size" subject="frame size" value={appearance.decorativeAppearance?.frame?.size} defaultValue={frameDefaults.size} minimum={50} maximum={200} step={5} defaultLabel="Theme" onChange={(value) => updateFrameProperty("size", value)} />
-            <NumericPercentageControl label="Frame Strength" subject="frame strength" value={appearance.decorativeAppearance?.frame?.strength} defaultValue={frameDefaults.strength} minimum={0} maximum={100} step={5} defaultLabel="Theme" onChange={(value) => updateFrameProperty("strength", value)} />
-            <div>
-              <p className="mb-1.5 text-xs font-medium">Frame Color</p>
-              <WebsiteColorSwatchControl previewTarget="frameColor" label={`${sectionLabel} frame color`} colorId={appearance.decorativeAppearance?.frame?.colorId} inheritLabel="Theme" inheritColor={frameDefaults.tint} allowedTemplateColorIds={decorative.frameColorIds} templateColors={library.colors} projectColors={projectColors} onChange={(value) => updateFrameProperty("colorId", value)} onAddColor={onAddColor} />
-            </div>
-          </>}
+          {choice("Frame", "frame", "style", decorative.frames)}
+          {frameStyle !== "none" && (
+            <>
+              <NumericPercentageControl
+                label="Frame Size"
+                subject="frame size"
+                value={appearance.decorativeAppearance?.frame?.size}
+                defaultValue={frameDefaults.size}
+                minimum={50}
+                maximum={200}
+                step={5}
+                defaultLabel="Theme"
+                onChange={(value) => updateFrameProperty("size", value)}
+              />
+              <NumericPercentageControl
+                label="Frame Strength"
+                subject="frame strength"
+                value={appearance.decorativeAppearance?.frame?.strength}
+                defaultValue={frameDefaults.strength}
+                minimum={0}
+                maximum={100}
+                step={5}
+                defaultLabel="Theme"
+                onChange={(value) => updateFrameProperty("strength", value)}
+              />
+              <div>
+                <p className="mb-1.5 text-xs font-medium">Frame Color</p>
+                <WebsiteColorSwatchControl
+                  previewTarget="frameColor"
+                  label={`${sectionLabel} frame color`}
+                  colorId={appearance.decorativeAppearance?.frame?.colorId}
+                  inheritLabel="Theme"
+                  inheritColor={frameDefaults.tint}
+                  allowedTemplateColorIds={decorative.frameColorIds}
+                  templateColors={library.colors}
+                  projectColors={projectColors}
+                  onChange={(value) => updateFrameProperty("colorId", value)}
+                  onAddColor={onAddColor}
+                />
+              </div>
+            </>
+          )}
         </InspectorSection>
       )}
     </div>

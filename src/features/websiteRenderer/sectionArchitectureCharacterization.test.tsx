@@ -71,10 +71,10 @@ function render(template: "classic" | "modern", sections: WebsiteSection[], view
   return renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, sections)} targetViewport={viewport} mode={mode} />);
 }
 
-function hero(height: "auto" | "screen" = "screen"): WebsiteSection {
+function hero(height: number | null = 100): WebsiteSection {
   return {
     ...section("hero", "hero", { backgroundMedia: { assetId: "image" }, childFlow: { elements: [{ id: "text", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Alex & Sam"  }] }] }}], order: [{ kind: "element", id: "text" }] } }),
-    appearance: { ...appearance, backgroundMedia: { assetId: "image" }, ...(height === "screen" ? { height } : {}) },
+    appearance: { ...appearance, backgroundMedia: { assetId: "image" }, ...(height === null ? {} : { height: { unit: "svh" as const, value: height } }) },
     mediaCapability: { mode: "single" },
     presentationCapability: null,
   } as WebsiteSection;
@@ -199,27 +199,56 @@ describe("Section renderer boundary", () => {
     }
   });
 
-  it.each(["classic", "modern"] as const)("uses safe viewport height for %s immersive Hero on every semantic viewport", (template) => {
+  it.each(["classic", "modern"] as const)("uses authored safe viewport minimum height for %s Hero on every semantic viewport", (template) => {
     for (const viewport of ["desktop", "tablet", "mobile"] as const) {
       const markup = render(template, [hero()], viewport);
-      expect(markup).toContain("min-h-[100svh]");
-      expect(markup).not.toContain("min-h-screen");
+      expect(markup).toContain("min-height:100svh");
     }
   });
 
   it.each(["classic", "modern"] as const)("does not make %s automatic Hero viewport-height", (template) => {
-    const markup = render(template, [hero("auto")]);
-    expect(markup).not.toContain("min-h-[100svh]");
-    expect(markup).not.toContain("min-h-screen");
+    const markup = render(template, [hero(null)]);
+    expect(markup).not.toContain("min-height:");
   });
 
-  it.each(["classic", "modern"] as const)("keeps %s screen height without resolved background media", (template) => {
+  it.each(["classic", "modern"] as const)("keeps %s authored minimum height without resolved background media", (template) => {
     const value = hero();
-    value.appearance = { ...appearance, height: "screen" };
+    value.appearance = { ...appearance, height: { unit: "svh", value: 100 } };
     const markup = render(template, [value]);
     expect(markup).toContain("data-hero-shell");
-    expect(markup).toContain("min-h-[100svh]");
+    expect(markup).toContain("min-height:100svh");
     expect(markup).not.toContain("data-hero-background-image");
+  });
+
+  it.each(["classic", "modern"] as const)("publishes an otherwise empty %s Hero only when it has an authored minimum height", (template) => {
+    const value = hero(null);
+    value.content = { semantic: {}, compositions: { shared: { childFlow: { elements: [], order: [] } } } };
+    value.appearance = { ...appearance };
+    expect(render(template, [value])).not.toContain('data-hero-shell="true"');
+    value.appearance = { ...appearance, height: { unit: "svh", value: 50 } };
+    expect(render(template, [value])).toContain('data-hero-shell="true"');
+  });
+
+  it.each(["classic", "modern"] as const)("keeps empty %s Hero Text editable without treating it as public content", (template) => {
+    const value = hero(null);
+    const emptyText = { id: "empty-text", type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "   " }] }] } };
+    value.content = { semantic: {}, compositions: { shared: { childFlow: { elements: [emptyText], order: [{ kind: "element", id: emptyText.id }] } } } };
+    value.appearance = { ...appearance };
+    const editor = render(template, [value], "desktop", "editor");
+    expect(editor).toContain('data-editor-website-element="empty-text"');
+    expect(render(template, [value])).not.toContain('data-hero-shell="true"');
+
+    value.appearance = { ...appearance, height: { unit: "svh", value: 50 } };
+    expect(render(template, [value])).toContain('data-hero-shell="true"');
+    value.appearance = { ...appearance, decorativeAppearance: { frame: { style: "fine" } } };
+    expect(render(template, [value])).toContain('data-hero-shell="true"');
+    value.appearance = { ...appearance, backgroundMedia: { assetId: "image" } };
+    expect(render(template, [value])).toContain('data-hero-background-image="true"');
+
+    const visibleText = { ...emptyText, document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Visible" }] }] } };
+    value.content = { semantic: {}, compositions: { shared: { childFlow: { elements: [visibleText], order: [{ kind: "element", id: visibleText.id }] } } } };
+    value.appearance = { ...appearance };
+    expect(render(template, [value])).toContain("Visible");
   });
 
   it.each(["classic", "modern"] as const)("applies sparse %s Hero image opacity to the image layer only", (template) => {
@@ -305,7 +334,7 @@ describe("Section renderer boundary", () => {
     expect(markup).toContain('data-hero-content-cluster="true" style="width:100%;max-width:100%"');
     expect(markup).toContain('data-section-child-width="container"');
     expect(markup).toContain("overflow-x-clip");
-    expect(markup).not.toContain("overflow-hidden min-h-[100svh]");
+    expect(markup).not.toContain("overflow-y");
   });
 
   it.each(["classic", "modern"] as const)("resolves %s Hero semantic media independently from composition media", (template) => {

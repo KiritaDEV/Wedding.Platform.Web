@@ -5,7 +5,7 @@ import {
   WEBSITE_ELEMENT_LIMITS,
   WEBSITE_LEAF_ELEMENT_TYPES,
 } from "./constants";
-import { normalizeTextContent, validateTextFontTuple } from "./text";
+import { normalizeTextContent, TEXT_SIZES, validateTextFontTuple } from "./text";
 import { normalizeEditorName } from "./blockIdentity";
 import { isUnsupportedVideoProviderUrl } from "./videoUrl";
 export const elementIdSchema = z
@@ -28,7 +28,7 @@ export const editorNameSchema = z.string()
   .refine((value) => value.length > 0, "Editor name is required.")
   .refine((value) => Array.from(value).length <= 80, "Editor name cannot exceed 80 characters.");
 const genericBlockShape = { ...baseShape, editorName: editorNameSchema };
-export const elementFontSizeSchema = z.enum(["xs", "s", "m", "l", "xl", "2xl", "3xl", "4xl", "5xl"]);
+export const elementFontSizeSchema = z.enum(TEXT_SIZES);
 export const textEffectStrengthSchema = z.enum(["none", "soft", "medium", "strong"]);
 export const elementLineSpacingSchema = z.enum(["tight", "normal", "relaxed"]);
 export const elementLetterSpacingSchema = z.enum(["tight", "normal", "wide"]);
@@ -103,7 +103,6 @@ export const dateElementSchema = z.object({
     format: z.enum(["long", "medium", "short", "numeric"]).optional(),
     showWeekday: z.boolean().optional(),
     alignment: textAlignmentSchema.optional(),
-    textStyle: z.enum(["display", "heading", "subheading", "eyebrow", "body", "caption"]).optional(),
     fontFamilyId: z.string().min(1).optional(),
     fontSize: elementFontSizeSchema.optional(),
     fontWeight: z.union([z.literal(400), z.literal(600), z.literal(700)]).optional(),

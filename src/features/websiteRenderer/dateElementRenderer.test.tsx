@@ -15,13 +15,14 @@ describe("Date block formatting", () => {
     expect(formatDateOnly("2026-12-22", { format: "numeric" })).toBe("12/22/2026");
   });
 
-  it("applies authored style, alignment, and color", () => {
-    const html = renderToStaticMarkup(<DateElementRenderer element={{ id: "date", type: "date", editorName: "Date 1", appearance: { format: "short", alignment: "end", textStyle: "body", colorId: "accent" } }} eventDate="2026-12-22" mode="public" viewport="desktop" templateKey="classic-filipiniana-v1" library={library} context={context} />);
+  it("applies authored typography, alignment, and color", () => {
+    const html = renderToStaticMarkup(<DateElementRenderer element={{ id: "date", type: "date", editorName: "Date 1", appearance: { format: "short", alignment: "end", fontSize: "m", fontWeight: 400, lineHeight: "normal", colorId: "accent" } }} eventDate="2026-12-22" mode="public" viewport="desktop" templateKey="classic-filipiniana-v1" library={library} context={context} />);
     expect(html).toContain("Dec 22, 2026");
     expect(html).toContain("text-align:end");
     expect(html).toContain("display:block");
     expect(html).toContain("font-size:1rem");
     expect(html).toContain("color:#abcdef");
+    expect(html).toContain('dateTime="2026-12-22"');
   });
 
   it("uses live color preview only in editor mode", () => {

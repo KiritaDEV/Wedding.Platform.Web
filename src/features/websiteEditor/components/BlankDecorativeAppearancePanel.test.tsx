@@ -21,6 +21,8 @@ describe("Blank decorative appearance controls", () => {
     const html = renderToStaticMarkup(<AppearancePanel appearance={appearance} templateKey="classic-filipiniana-v1" sectionCapability={capability} targetViewport="desktop" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={onChange} />);
     expect(html).toContain("Section background color");
     for (const label of ["Texture", "Pattern", "Overlay", "Frame"]) expect(html).toContain(label);
+    for (const label of ["Section texture", "Section pattern", "Section overlay", "Section frame"]) expect(html).toContain(`aria-label="${label}"`);
+    for (const helper of ["No texture", "No pattern", "No tonal overlay", "No decorative frame"]) expect(html).not.toContain(helper);
     for (const removed of ["Heading alignment", "Content alignment", "Use Template", ">Emphasis<", 'title="Standard"', 'title="Featured"', 'title="Subtle"', "Heading Font", "Body Font", "Heading Color", "Body Color", "Accent Color"]) expect(html).not.toContain(removed);
     expect(onChange).not.toHaveBeenCalled();
   });

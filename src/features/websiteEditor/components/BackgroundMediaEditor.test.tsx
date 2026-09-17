@@ -17,6 +17,9 @@ describe("BackgroundMediaEditor", () => {
     expect(html).toContain("Remove image");
     expect(html).not.toContain("Reset Mobile");
     expect(html).not.toContain("Using Desktop image");
+    expect(html).toContain('min="1"');
+    expect(html).toContain('max="3"');
+    expect(html).toContain("1× fills the Hero. Increase to zoom in.");
   });
 
   it("shows owner-level explicit none without device-specific actions", () => {

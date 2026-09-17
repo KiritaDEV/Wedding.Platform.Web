@@ -6,7 +6,6 @@ import type { ResolvedWebsiteMedia, SectionMedia } from "../types";
 import { FocalPointEditor } from "./FocalPointEditor";
 import { MediaPickerDialog } from "./MediaPickerDialog";
 import { removeBackgroundMediaForDevice, resolveBackgroundMediaForDevice, setBackgroundMediaDeviceFraming, type BackgroundMediaDevice, type BackgroundMediaReference } from "../../websiteMedia/backgroundMedia";
-import { useBackgroundMinimumZoom } from "../../websiteMedia/backgroundGeometry";
 
 export function BackgroundMediaEditor({ media, viewport = "desktop", ownerId, resolvedMedia, onMediaResolved, onChange, title = "Image" }: { media?: SectionMedia; viewport?: BackgroundMediaDevice; ownerId?: string; resolvedMedia: Record<string, ResolvedWebsiteMedia>; onMediaResolved: (media: ResolvedWebsiteMedia) => void; onChange: (media: SectionMedia) => void; title?: string }) {
   const event = useEventWorkspace();
@@ -19,11 +18,11 @@ export function BackgroundMediaEditor({ media, viewport = "desktop", ownerId, re
   const filename = chosenMatches ? chosen.originalFilename : resolved?.originalFilename;
   const point = effective?.focalPoint ?? { x: 0.5, y: 0.5 };
   const update = (patch: Parameters<typeof setBackgroundMediaDeviceFraming>[2]) => media && onChange(setBackgroundMediaDeviceFraming(media as BackgroundMediaReference, viewport, patch));
-  const minimumZoom = useBackgroundMinimumZoom(ownerId ? `${ownerId}:${viewport}` : undefined);
   return <section className="rounded-lg border border-border bg-surface-muted p-3">
     <h3 className="text-sm font-semibold">{title}</h3>
     {effective && url ? <div className="mt-3">
-      <FocalPointEditor url={url} sourceWidth={resolved?.web.width} sourceHeight={resolved?.web.height} allowZoomOut minimumZoom={minimumZoom} point={point} zoom={effective?.zoom} showReset={viewport === "desktop"} onChange={({ point: focalPoint, zoom }) => update({ focalPoint, zoom })} onPointChange={(focalPoint) => update({ focalPoint })} onZoomChange={(zoom) => update({ zoom })} />
+      <FocalPointEditor controlId={ownerId ? `${ownerId}-image-framing` : undefined} url={url} sourceWidth={resolved?.web.width} sourceHeight={resolved?.web.height} point={point} zoom={effective?.zoom} showReset={viewport === "desktop"} onChange={({ point: focalPoint, zoom }) => update({ focalPoint, zoom })} onPointChange={(focalPoint) => update({ focalPoint })} onZoomChange={(zoom) => update({ zoom })} />
+      <p className="mt-2 text-xs text-foreground-muted">1× fills the Hero. Increase to zoom in.</p>
       <p className="mt-1 truncate text-xs text-foreground-muted">{filename}</p>
       <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => { setChosen(null); onChange(removeBackgroundMediaForDevice(media as BackgroundMediaReference, viewport)); }}>Remove image</Button></div>
     </div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No image selected</p><div className="mt-2 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Change image</Button></div></div>}

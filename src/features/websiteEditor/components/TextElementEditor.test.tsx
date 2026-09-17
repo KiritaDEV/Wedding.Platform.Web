@@ -1,9 +1,12 @@
+import { Children, isValidElement, type ComponentProps, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { ResolvedDesignContext, TemplateDesignLibrary } from "../../websiteCapabilities/types";
 import type { TextElement } from "../../websiteElements/types";
-import { applyTextStylePreset, curatedTextColors, friendlyFontWeightOptions, resolveTextStyle, textStylePreset, withTextAppearance } from "../../websiteElements/textStylePresets";
+import { curatedTextColors, friendlyFontWeightOptions, withTextAppearance } from "../../websiteElements/textAppearance";
 import { TextElementEditor } from "./TextElementEditor";
+import { Select } from "../../../components/ui/Select";
+import { FONT_SIZE_OPTIONS } from "./fontSizeOptions";
 
 const context: ResolvedDesignContext = { headingFontId: "cormorant-garamond", bodyFontId: "inter", headingColorId: "primary", bodyColorId: "text", accentColorId: "accent" };
 const library = {
@@ -26,6 +29,21 @@ const base: TextElement = { id: "text-1", type: "text", editorName: "Text 1", do
 const renderEditor = (element: TextElement = base, viewport: "desktop" | "tablet" | "mobile" = "desktop") => renderToStaticMarkup(<TextElementEditor element={element} viewport={viewport} templateKey="classic-filipiniana-v1" context={context} library={library} allowedFontIds={["inter"]} allowedColorIds={["primary", "text", "muted", "accent", "shade"]} projectColors={[{ id: "project-red", value: "#ff0000" }]} onAddColor={vi.fn()} onAppearanceChange={vi.fn()} />);
 
 describe("TextElementEditor ownership", () => {
+  it("uses one compact Font size dropdown with every canonical option", () => {
+    const onAppearanceChange = vi.fn();
+    const tree = TextElementEditor({ element: base, viewport: "tablet", templateKey: "classic-filipiniana-v1", context, library, allowedFontIds: ["inter"], allowedColorIds: ["primary", "text", "muted", "accent", "shade"], projectColors: [], onAddColor: vi.fn(), onAppearanceChange });
+    const fontSize = findSelects(tree).find(({ props }) => props["aria-label"] === "Font size");
+    expect(fontSize?.props.options).toEqual(FONT_SIZE_OPTIONS);
+    expect(fontSize?.props.value).toBe("m");
+    fontSize?.props.onChange("7xl");
+    expect(onAppearanceChange).toHaveBeenCalledWith({ responsive: { tablet: { fontSize: "7xl" } } });
+
+    const reset = vi.fn();
+    const overridden = TextElementEditor({ element: { ...base, appearance: { responsive: { tablet: { fontSize: "7xl" } } } }, viewport: "tablet", templateKey: "classic-filipiniana-v1", context, library, allowedFontIds: ["inter"], allowedColorIds: ["primary", "text", "muted", "accent", "shade"], projectColors: [], onAddColor: vi.fn(), onAppearanceChange: reset });
+    findSelects(overridden).find(({ props }) => props["aria-label"] === "Font size")?.props.onChange("m");
+    expect(reset).toHaveBeenCalledWith(undefined);
+  });
+
   it("shows bounded block effects sparsely and hides inactive color controls", () => {
     const inactive = renderEditor(base);
     expect(inactive).toContain("Effects");
@@ -39,7 +57,7 @@ describe("TextElementEditor ownership", () => {
   });
   it("keeps content authoring out of the appearance-only inspector", () => {
     const html = renderEditor();
-    expect(html).toContain("Text Style");
+    expect(html).not.toContain("Text Style");
     expect(html).not.toContain('textarea');
     expect(html).not.toContain('value="Welcome"');
     expect(html).toContain("Font family");
@@ -49,7 +67,7 @@ describe("TextElementEditor ownership", () => {
 
   it("keeps typography and compact formatting in Appearance", () => {
     const html = renderEditor({ ...base, appearance: { fontFamilyId: "inter", fontWeight: 700, italic: true } });
-    expect(html).toContain("Text Style");
+    expect(html).not.toContain("Text Style");
     expect(html).toContain("Font family");
     expect(html).toContain('aria-label="Font weight"');
     expect(html).toContain("Bold");
@@ -61,8 +79,8 @@ describe("TextElementEditor ownership", () => {
   it("uses direct formatting toggles and the shared font-weight control on mobile", () => {
     const html = renderEditor({ ...base, appearance: { fontWeight: 700 } }, "mobile");
     expect(html).toContain('aria-label="Bold"');
-    expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('aria-label="Font weight"');
+    expect(html).toMatch(/aria-label="Font weight"[^>]*>[\s\S]*?>Bold</);
   });
 
   it("shows only weights supported by the selected family", () => {
@@ -70,6 +88,64 @@ describe("TextElementEditor ownership", () => {
     expect(friendlyFontWeightOptions("old-standard-tt")).toEqual([{ value: "400", label: "Normal" }, { value: "700", label: "Bold" }]);
     expect(friendlyFontWeightOptions("old-standard-tt").some(({ label }) => label === "Semi-bold")).toBe(false);
     expect(friendlyFontWeightOptions("inter")).toEqual([{ value: "400", label: "Normal" }, { value: "600", label: "Semi-bold" }, { value: "700", label: "Bold" }]);
+  });
+
+  it("uses the same compact font-weight dropdown as Date", () => {
+    const onAppearanceChange = vi.fn();
+    const tree = TextElementEditor({ element: base, viewport: "desktop", templateKey: "classic-filipiniana-v1", context, library, allowedFontIds: ["inter"], allowedColorIds: ["primary", "text", "muted", "accent", "shade"], projectColors: [], onAddColor: vi.fn(), onAppearanceChange });
+    const fontWeight = findSelects(tree).find(({ props }) => props["aria-label"] === "Font weight");
+    expect(fontWeight?.props.options).toEqual(friendlyFontWeightOptions("inter"));
+    expect(fontWeight?.props.value).toBe("400");
+    fontWeight?.props.onChange("700");
+    expect(onAppearanceChange).toHaveBeenCalledWith({
+      fontFamilyId: "inter",
+      fontWeight: 700,
+    });
+  });
+
+  it("uses a compact line-height dropdown", () => {
+    const tree = TextElementEditor({ element: base, viewport: "desktop", templateKey: "classic-filipiniana-v1", context, library, allowedFontIds: ["inter"], allowedColorIds: ["primary", "text", "muted", "accent", "shade"], projectColors: [], onAddColor: vi.fn(), onAppearanceChange: vi.fn() });
+    const lineHeight = findSelects(tree).find(({ props }) => props["aria-label"] === "Line height");
+    expect(lineHeight?.props.value).toBe("normal");
+    expect(lineHeight?.props.options).toEqual([
+      { value: "tight", label: "Tight" },
+      { value: "normal", label: "Normal" },
+      { value: "relaxed", label: "Relaxed" },
+    ]);
+  });
+
+  it("uses a compact letter-spacing dropdown", () => {
+    const tree = TextElementEditor({ element: base, viewport: "desktop", templateKey: "classic-filipiniana-v1", context, library, allowedFontIds: ["inter"], allowedColorIds: ["primary", "text", "muted", "accent", "shade"], projectColors: [], onAddColor: vi.fn(), onAppearanceChange: vi.fn() });
+    const letterSpacing = findSelects(tree).find(({ props }) => props["aria-label"] === "Letter spacing");
+    expect(letterSpacing?.props.value).toBe("normal");
+    expect(letterSpacing?.props.options).toEqual([
+      { value: "tight", label: "Tight" },
+      { value: "normal", label: "Normal" },
+      { value: "wide", label: "Wide" },
+    ]);
+  });
+
+  it("uses a compact text-case dropdown", () => {
+    const tree = TextElementEditor({ element: base, viewport: "desktop", templateKey: "classic-filipiniana-v1", context, library, allowedFontIds: ["inter"], allowedColorIds: ["primary", "text", "muted", "accent", "shade"], projectColors: [], onAddColor: vi.fn(), onAppearanceChange: vi.fn() });
+    const textCase = findSelects(tree).find(({ props }) => props["aria-label"] === "Text case");
+    expect(textCase?.props.value).toBe("none");
+    expect(textCase?.props.options).toEqual([
+      { value: "none", label: "Original case" },
+      { value: "uppercase", label: "Uppercase" },
+      { value: "lowercase", label: "Lowercase" },
+      { value: "capitalize", label: "Capitalize" },
+    ]);
+  });
+
+  it("uses a compact alignment dropdown", () => {
+    const tree = TextElementEditor({ element: base, viewport: "desktop", templateKey: "classic-filipiniana-v1", context, library, allowedFontIds: ["inter"], allowedColorIds: ["primary", "text", "muted", "accent", "shade"], projectColors: [], onAddColor: vi.fn(), onAppearanceChange: vi.fn() });
+    const alignment = findSelects(tree).find(({ props }) => props["aria-label"] === "Alignment");
+    expect(alignment?.props.value).toBe("start");
+    expect(alignment?.props.options).toEqual([
+      { value: "start", label: "Start" },
+      { value: "center", label: "Center" },
+      { value: "end", label: "End" },
+    ]);
   });
 
   it("curates semantic colors, hides unrelated shades, and retains project colors", () => {
@@ -84,14 +160,15 @@ describe("TextElementEditor ownership", () => {
     const html = renderEditor(base, viewport);
     expect(html).not.toContain("Reset");
     expect(html).not.toContain('aria-label="Inherited"');
-    expect(html.match(/aria-label="Normal"[^>]*aria-pressed="true"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html).toContain('aria-label="Line height"');
+    expect(html).toContain('aria-label="Letter spacing"');
     expect(html).toMatch(/aria-checked="true"[^>]*aria-label="Text"/);
   });
 
   it("displays authored global values instead of their effective defaults", () => {
     const html = renderEditor({ ...base, appearance: { lineHeight: "relaxed", letterSpacing: "wide", colorId: "accent" } });
-    expect(html).toMatch(/aria-label="Relaxed"[^>]*aria-pressed="true"/);
-    expect(html).toMatch(/aria-label="Wide"[^>]*aria-pressed="true"/);
+    expect(html).toMatch(/aria-label="Line height"[^>]*>[\s\S]*?>Relaxed</);
+    expect(html).toMatch(/aria-label="Letter spacing"[^>]*>[\s\S]*?>Wide</);
     expect(html).toMatch(/aria-checked="true"[^>]*aria-label="Accent"/);
   });
 
@@ -100,46 +177,19 @@ describe("TextElementEditor ownership", () => {
   });
 });
 
-describe("Text Style presets", () => {
-  it.each(["heading", "eyebrow", "body"] as const)("seeds ordinary appearance for %s without persisting preset identity", (style) => {
-    const appearance = textStylePreset(style, "classic-filipiniana-v1", library, context);
-    expect(appearance).not.toHaveProperty("role");
-    expect(appearance).not.toHaveProperty("preset");
-    expect(resolveTextStyle(appearance, "classic-filipiniana-v1", library, context)).toBe(style);
-  });
+function findSelects(node: ReactNode): Array<ReactElement<ComponentProps<typeof Select>>> {
+  if (Array.isArray(node)) return node.flatMap(findSelects);
+  if (!isValidElement(node)) return [];
+  const element = node as ReactElement<{ children?: ReactNode }>;
+  return [...(element.type === Select ? [element as ReactElement<ComponentProps<typeof Select>>] : []), ...Children.toArray(element.props.children).flatMap(findSelects)];
+}
 
-  it("does not persist empty appearance defaults for Body", () => {
-    expect(withTextAppearance(base, textStylePreset("body", "classic-filipiniana-v1", library, context))).toEqual(base);
-  });
-
-  it("detects manual divergence as Custom and resolves template-specific alignment", () => {
-    expect(resolveTextStyle({ ...textStylePreset("heading", "classic-filipiniana-v1", library, context), fontSize: "s" }, "classic-filipiniana-v1", library, context)).toBe("custom");
-    expect(resolveTextStyle({ ...textStylePreset("heading", "classic-filipiniana-v1", library, context), underline: true, responsive: { mobile: { fontSize: "s" } } }, "classic-filipiniana-v1", library, context)).toBe("heading");
-    expect(textStylePreset("heading", "classic-filipiniana-v1", library, context).alignment).toBe("center");
-    expect(textStylePreset("heading", "modern-editorial-v1", library, context).alignment).toBe("start");
-  });
-
-  it("merges Heading into base appearance without changing responsive or unrelated fields", () => {
-    const appearance = { fontFamilyId: "inter", underline: true, responsive: { tablet: { fontSize: "m" as const }, mobile: { alignment: "end" as const } } };
-    const merged = applyTextStylePreset(appearance, textStylePreset("heading", "classic-filipiniana-v1", library, context));
-    expect(merged.responsive).toEqual(appearance.responsive);
-    expect(merged.fontFamilyId).toBe("inter");
-    expect(merged.underline).toBe(true);
-    expect(resolveTextStyle(merged, "classic-filipiniana-v1", library, context)).toBe("heading");
-  });
-
-  it("keeps Body sparse while preserving responsive and unrelated fields", () => {
-    const heading = textStylePreset("heading", "classic-filipiniana-v1", library, context);
-    const appearance = { ...heading, italic: true, responsive: { tablet: { fontSize: "m" as const }, mobile: { alignment: "end" as const } } };
-    const body = applyTextStylePreset(appearance, textStylePreset("body", "classic-filipiniana-v1", library, context));
-    expect(body).toEqual({ italic: true, responsive: appearance.responsive });
-    expect(resolveTextStyle(body, "classic-filipiniana-v1", library, context)).toBe("body");
-  });
-
+describe("direct Text typography", () => {
   it.each(["tablet", "mobile"] as const)("shows effective Desktop font size and alignment on untouched %s controls", (viewport) => {
     const html = renderEditor({ ...base, appearance: { fontSize: "xl", alignment: "center" } }, viewport);
-    expect(html).toMatch(/aria-label="Xl"[^>]*aria-pressed="true"/);
-    expect(html).toMatch(/aria-label="Center"[^>]*aria-pressed="true"/);
+    expect(html).toContain("Heading · 36 px");
+    expect(html).toContain('aria-label="Font size"');
+    expect(html).toMatch(/aria-label="Alignment"[^>]*>[\s\S]*?>Center</);
     expect(html).not.toContain("Use desktop size");
     expect(html).not.toContain("Use desktop alignment");
   });

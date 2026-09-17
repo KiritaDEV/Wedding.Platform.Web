@@ -18,7 +18,6 @@ import {
 } from "../../websiteElements/divider";
 import type { DividerElement } from "../../websiteElements/types";
 import { InspectorSection } from "./InspectorPrimitives";
-import { InspectorVisualChoiceGroup } from "./InspectorVisualChoice";
 import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import { ElementEffectsControl } from "./ElementEffectsControl";
 import type { TextEffectStrength } from "../../websiteElements/text";
@@ -127,15 +126,13 @@ export function DividerElementEditor({
           />
         </Field>
         <Field label="Alignment">
-          <InspectorVisualChoiceGroup
-            label="Alignment"
-            layout="stack"
-            showIllustration={false}
+          <Select
+            aria-label="Alignment"
             value={appearance.alignment ?? "center"}
             options={[
-              { value: "start", label: "Left", illustration: null },
-              { value: "center", label: "Center", illustration: null },
-              { value: "end", label: "Right", illustration: null },
+              { value: "start", label: "Left" },
+              { value: "center", label: "Center" },
+              { value: "end", label: "Right" },
             ]}
             onChange={(value) => set("alignment", value)}
           />

@@ -89,8 +89,8 @@ export function resolveBackgroundMediaGeometry(container: MediaSize, source: Med
   const safeContainer = safeMediaSize(container);
   const safeSource = safeMediaSize(source);
   const safePoint = clampMediaPoint(point);
-  const minimumZoom = calculateBackgroundMinimumZoom(container, source);
-  const safeZoom = clampBackgroundZoom(zoom, minimumZoom);
+  const minimumZoom = 1;
+  const safeZoom = clampMediaZoom(zoom);
   const coverScale = Math.max(safeContainer.width / safeSource.width, safeContainer.height / safeSource.height);
   const width = safeSource.width * coverScale * safeZoom;
   const height = safeSource.height * coverScale * safeZoom;

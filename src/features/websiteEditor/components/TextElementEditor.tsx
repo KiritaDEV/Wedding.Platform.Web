@@ -1,7 +1,4 @@
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
   Bold,
   Italic,
   Strikethrough,
@@ -22,20 +19,14 @@ import {
   TEXT_ALIGNMENTS,
   TEXT_LETTER_SPACINGS,
   TEXT_LINE_HEIGHTS,
-  TEXT_SIZES,
-  TEXT_FONT_WEIGHTS,
   textFontCapabilities,
   type TextAppearance,
   type TextFontWeight,
 } from "../../websiteElements/text";
 import {
-  applyTextStylePreset,
   curatedTextColors,
-  resolveTextStyle,
-  textStylePreset,
-  TEXT_STYLE_IDS,
-  type TextStyleId,
-} from "../../websiteElements/textStylePresets";
+  friendlyFontWeightOptions,
+} from "../../websiteElements/textAppearance";
 import { Select } from "../../../components/ui/Select";
 import type { TextElement } from "../../websiteElements/types";
 import type { ResponsiveViewport } from "../types";
@@ -43,6 +34,7 @@ import { FontPicker } from "./FontPicker";
 import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import { ElementEffectsControl } from "./ElementEffectsControl";
 import { dispatchTextCommand, type TextCommand } from "../textCommands";
+import { FONT_SIZE_OPTIONS } from "./fontSizeOptions";
 
 type Props = {
   element: TextElement;
@@ -64,7 +56,6 @@ const labels = (values: readonly string[]) =>
 
 export function TextElementEditor(props: Props) {
   const appearance = props.element.appearance ?? {};
-  const templateKey = props.templateKey ?? "classic-filipiniana-v1";
   const effectiveFontFamilyId =
     appearance.fontFamilyId ?? props.context?.bodyFontId;
   const fontCapabilities = textFontCapabilities(effectiveFontFamilyId);
@@ -134,45 +125,12 @@ export function TextElementEditor(props: Props) {
     props.context,
     appearance.colorId,
   );
-  const style = resolveTextStyle(
-    appearance,
-    templateKey,
-    props.library,
-    props.context,
-    props.allowedColorIds,
-  );
   return (
     <div
       className="space-y-4 pt-5"
       data-text-element-editor
       data-editor-mode="appearance"
     >
-      <Field label="Text Style">
-        <Select
-          value={style}
-          options={[
-            ...TEXT_STYLE_IDS.map((value) => ({
-              value,
-              label: value[0].toUpperCase() + value.slice(1),
-            })),
-            { value: "custom", label: "Custom", disabled: true },
-          ]}
-          onChange={(value) =>
-            update(
-              applyTextStylePreset(
-                appearance,
-                textStylePreset(
-                  value as TextStyleId,
-                  templateKey,
-                  props.library,
-                  props.context,
-                  props.allowedColorIds,
-                ),
-              ),
-            )
-          }
-        />
-      </Field>
       <Field label="Font family">
         <FontPicker
           value={appearance.fontFamilyId ?? ""}
@@ -195,17 +153,10 @@ export function TextElementEditor(props: Props) {
         />
       </Field>
       <Field label="Font weight">
-        <IconChoices
-          label="Font weight"
+        <Select
+          aria-label="Font weight"
           value={String(appearance.fontWeight ?? 400)}
-          options={TEXT_FONT_WEIGHTS.filter((weight) =>
-            fontCapabilities.weights.includes(weight),
-          ).map((weight) => ({
-            value: String(weight),
-            label:
-              weight === 400 ? "Normal" : weight === 600 ? "Semi-bold" : "Bold",
-            icon: <Bold size={15} />,
-          }))}
+          options={friendlyFontWeightOptions(effectiveFontFamilyId)}
           onChange={(value) =>
             update(
               setTextFontWeight(
@@ -218,32 +169,20 @@ export function TextElementEditor(props: Props) {
         />
       </Field>
       <Field label="Font size">
-        <IconChoices
-          label="Font size"
+        <Select
+          aria-label="Font size"
           value={responsiveValue("fontSize") ?? "m"}
-          options={TEXT_SIZES.map((value, index) => ({
-            value,
-            label: labels([value])[0].label,
-            icon: (
-              <span
-                className="leading-none"
-                style={{ fontSize: `${11 + index * 2}px` }}
-              >
-                A
-              </span>
-            ),
-          }))}
+          options={FONT_SIZE_OPTIONS}
           onChange={(value) => setResponsive("fontSize", value)}
         />
       </Field>
       <Field label="Line height">
-        <IconChoices
-          label="Line height"
+        <Select
+          aria-label="Line height"
           value={appearance.lineHeight ?? "normal"}
           options={TEXT_LINE_HEIGHTS.map((value) => ({
             value,
             label: labels([value])[0].label,
-            icon: <LineHeightIcon value={value} />,
           }))}
           onChange={(value) =>
             update(
@@ -258,27 +197,12 @@ export function TextElementEditor(props: Props) {
         />
       </Field>
       <Field label="Letter spacing">
-        <IconChoices
-          label="Letter spacing"
+        <Select
+          aria-label="Letter spacing"
           value={appearance.letterSpacing ?? "normal"}
           options={TEXT_LETTER_SPACINGS.map((value) => ({
             value,
             label: labels([value])[0].label,
-            icon: (
-              <span
-                className="text-xs font-medium leading-none"
-                style={{
-                  letterSpacing:
-                    value === "tight"
-                      ? "-0.12em"
-                      : value === "wide"
-                        ? "0.22em"
-                        : "0",
-                }}
-              >
-                AV
-              </span>
-            ),
           }))}
           onChange={(value) =>
             update(
@@ -293,29 +217,25 @@ export function TextElementEditor(props: Props) {
         />
       </Field>
       <Field label="Case">
-        <IconChoices
-          label="Text case"
+        <Select
+          aria-label="Text case"
           value={appearance.textTransform ?? "none"}
           options={[
             {
               value: "none",
               label: "Original case",
-              icon: <span className="text-sm leading-none">Aa</span>,
             },
             {
               value: "uppercase",
               label: "Uppercase",
-              icon: <span className="text-sm leading-none">AA</span>,
             },
             {
               value: "lowercase",
               label: "Lowercase",
-              icon: <span className="text-sm leading-none">aa</span>,
             },
             {
               value: "capitalize",
               label: "Capitalize",
-              icon: <span className="text-sm leading-none">Ab</span>,
             },
           ]}
           onChange={(value) =>
@@ -331,20 +251,12 @@ export function TextElementEditor(props: Props) {
         />
       </Field>
       <Field label="Alignment">
-        <IconChoices
-          label="Alignment"
+        <Select
+          aria-label="Alignment"
           value={responsiveValue("alignment") ?? "start"}
           options={TEXT_ALIGNMENTS.map((value) => ({
             value,
             label: labels([value])[0].label,
-            icon:
-              value === "start" ? (
-                <AlignLeft size={17} />
-              ) : value === "center" ? (
-                <AlignCenter size={17} />
-              ) : (
-                <AlignRight size={17} />
-              ),
           }))}
           onChange={(value) => setResponsive("alignment", value)}
         />
@@ -433,48 +345,6 @@ export function TextElementEditor(props: Props) {
         </>
       )}
     </div>
-  );
-}
-
-export function IconChoices({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: Array<{ value: string; label: string; icon: React.ReactNode }>;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
-      {options.map((option) => (
-        <button
-          key={option.value || "inherit"}
-          type="button"
-          aria-label={option.label}
-          title={option.label}
-          aria-pressed={value === option.value}
-          onClick={() => onChange(option.value)}
-          className={`grid size-10 place-items-center rounded-md border outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 ${value === option.value ? "border-accent bg-accent text-accent-foreground" : "border-border bg-background text-foreground-muted hover:bg-surface-muted"}`}
-        >
-          {option.icon}
-          <span className="sr-only">{option.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-export function LineHeightIcon({ value }: { value: string }) {
-  const gap = value === "tight" ? 2 : value === "relaxed" ? 6 : 4;
-  return (
-    <span aria-hidden="true" className="flex w-5 flex-col" style={{ gap }}>
-      {[16, 20, 14].map((width, index) => (
-        <span key={index} className="block h-px bg-current" style={{ width }} />
-      ))}
-    </span>
   );
 }
 

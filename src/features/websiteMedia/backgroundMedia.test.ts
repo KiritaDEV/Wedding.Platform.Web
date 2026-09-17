@@ -22,4 +22,11 @@ describe("owned background media", () => {
     expect(backgroundMediaSchema.safeParse({ assetId, responsive: { mobile: { assetId: null } } }).success).toBe(false);
     expect(backgroundMediaSchema.safeParse({ assetId: null, zoom: 1.5 }).success).toBe(false);
   });
+
+  it("accepts only the canonical 1x through 3x background zoom range", () => {
+    expect(backgroundMediaSchema.safeParse({ assetId, zoom: 1 }).success).toBe(true);
+    expect(backgroundMediaSchema.safeParse({ assetId, zoom: 3 }).success).toBe(true);
+    expect(backgroundMediaSchema.safeParse({ assetId, zoom: .99 }).success).toBe(false);
+    expect(backgroundMediaSchema.safeParse({ assetId, zoom: 3.01 }).success).toBe(false);
+  });
 });

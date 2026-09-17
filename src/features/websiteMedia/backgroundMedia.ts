@@ -19,7 +19,7 @@ const focalPointSchema = z.object({ x: z.number().min(0).max(1), y: z.number().m
 const framingShape = {
   assetId: mediaIdSchema.nullable().optional(),
   focalPoint: focalPointSchema.optional(),
-  zoom: z.number().positive().max(3).optional(),
+  zoom: z.number().min(1).max(3).optional(),
 } as const;
 const rejectNoneWithFraming = (value: BackgroundMediaFraming, context: z.RefinementCtx) => {
   if (value.assetId === null && (value.focalPoint !== undefined || value.zoom !== undefined)) context.addIssue({ code: "custom", message: "An explicit no-image background cannot contain focal-point or zoom settings.", path: ["assetId"] });

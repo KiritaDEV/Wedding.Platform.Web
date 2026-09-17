@@ -56,6 +56,7 @@ export type MediaSpacingValue = 'none' | 'small' | 'medium' | 'large'
 export type MediaSpacing = { top: MediaSpacingValue; right: MediaSpacingValue; bottom: MediaSpacingValue; left: MediaSpacingValue }
 export type MediaContentGap = 'tight' | 'comfortable' | 'spacious' | 'generous'
 export type ResponsiveViewport = 'desktop' | 'tablet' | 'mobile'
+export type HeroMinimumHeight = { unit: 'svh'; value: number }
 export type WebsiteSectionResponsiveAppearance = {
   contentPosition?: import('../websiteRenderer/heroContentPosition').HeroContentPosition
   innerSpacing?: import('../websiteElements/group').InnerSpacing
@@ -86,7 +87,7 @@ export type WebsiteSectionAppearance = {
   mediaContentGap?: MediaContentGap
   responsive?: Partial<Record<'tablet' | 'mobile', WebsiteSectionResponsiveAppearance>>
   backgroundImageOpacity?: number
-  height?: 'auto' | 'screen'
+  height?: HeroMinimumHeight
 }
 export type WebsiteSectionAppearanceEnvelope = {
   shared: WebsiteSectionAppearance
