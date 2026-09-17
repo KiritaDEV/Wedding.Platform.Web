@@ -1,0 +1,48 @@
+﻿name: Deploy QA Web
+
+on:
+  push:
+    branches:
+      - qa
+  workflow_dispatch:
+
+concurrency:
+  group: kirita-qa-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - kirita-dev-web
+
+    steps:
+      - name: Deploy QA Web
+        shell: powershell
+        run: |
+          $git = "C:\Program Files\Git\cmd\git.exe"
+          $npm = "C:\Program Files\nodejs\npm.cmd"
+          $repo = "C:\Kirita\qa\web"
+
+          if (-not (Test-Path "$repo\.env.qa")) {
+            Write-Error "Missing $repo\.env.qa"
+            exit 1
+          }
+
+          & $git -C $repo fetch origin qa
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $git -C $repo reset --hard origin/qa
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Push-Location $repo
+
+          & $npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $npm run build -- --mode qa
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Pop-Location
