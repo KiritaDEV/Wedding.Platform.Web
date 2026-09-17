@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { CompositionGroup } from "../../websiteElements/types";
 import type { SectionChildFlow } from "../sectionChildFlow";
 import { GroupDisclosure, SectionChildList } from "./SectionChildList";
-import { addToGroup, applyStructureElementDrop, groupAddKinds, reorderGroupChildInFlow, reorderGroupChildren, reorderRootSectionElement } from "./sectionChildListHelpers";
+import { addToGroup, applyStructureElementDrop, deleteGroupChild, duplicateGroupChild, groupAddKinds, reorderGroupChildInFlow, reorderGroupChildren, reorderRootSectionElement } from "./sectionChildListHelpers";
 import { findSectionElement, genericTextSectionChildFlowSchema } from "../sectionChildFlow";
 
 const nestedGroup: CompositionGroup = {
@@ -295,6 +295,70 @@ describe("SectionChildList dense Group hierarchy", () => {
     const updated = onChange.mock.calls[0][0] as SectionChildFlow;
     const nested = updated.elements[0].type === "compositionGroup" && updated.elements[0].children[0].type === "compositionGroup" ? updated.elements[0].children[0] : null;
     expect(nested?.children.at(-1)).toMatchObject({ type: "text", editorName: "Text 2" });
+  });
+
+  it.each(["direct", "nested"] as const)("enforces Group capacity for %s add and duplicate operations", (placement) => {
+    const children = Array.from({ length: 20 }, (_, index) => ({
+      id: `capacity-${index}`,
+      type: "text" as const,
+      editorName: `Text ${index + 1}`,
+      document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: `Text ${index + 1}` }] }] },
+    }));
+    const target: CompositionGroup = { id: "capacity-group", type: "compositionGroup", editorName: "Capacity", children, layout: {} };
+    const owner: CompositionGroup = placement === "nested"
+      ? { id: "owner", type: "compositionGroup", editorName: "Owner", children: [target as CompositionGroup["children"][number]], layout: {} }
+      : target;
+    const candidate: SectionChildFlow = { elements: [owner], order: [{ kind: "element", id: owner.id }] };
+    const onChange = vi.fn();
+    const onSelect = vi.fn();
+    expect(addToGroup(target, "text", candidate, onChange, onSelect)).toBe(false);
+    expect(duplicateGroupChild(target, children[0].id, candidate, onChange, onSelect)).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(target.children).toHaveLength(20);
+
+    const available: CompositionGroup = { ...target, children: target.children.slice(0, 19) };
+    const availableOwner: CompositionGroup = placement === "nested" ? { ...owner, children: [available as CompositionGroup["children"][number]] } : available;
+    const availableFlow: SectionChildFlow = { elements: [availableOwner], order: [{ kind: "element", id: availableOwner.id }] };
+    expect(addToGroup(available, "text", availableFlow, onChange, onSelect)).toBe(true);
+    expect((findSectionElement(onChange.mock.calls.at(-1)![0], available.id) as CompositionGroup).children).toHaveLength(20);
+    onChange.mockClear();
+    onSelect.mockClear();
+    expect(duplicateGroupChild(available, available.children[0].id, availableFlow, onChange, onSelect)).toBe(true);
+    expect((findSectionElement(onChange.mock.calls[0][0], available.id) as CompositionGroup).children).toHaveLength(20);
+  });
+
+  it("duplicates a nested subtree immediately after its source and selects the regenerated root", () => {
+    const onChange = vi.fn();
+    const onSelect = vi.fn();
+    expect(duplicateGroupChild(topGroup, nestedGroup.id, flow, onChange, onSelect)).toBe(true);
+    const updated = findSectionElement(onChange.mock.calls[0][0], topGroup.id) as CompositionGroup;
+    const duplicate = updated.children[1];
+    expect(updated.children[0].id).toBe(nestedGroup.id);
+    expect(duplicate.type).toBe("compositionGroup");
+    expect(duplicate.id).not.toBe(nestedGroup.id);
+    expect(duplicate).toMatchObject({ editorName: "Group 2", isHidden: true, layout: nestedGroup.layout });
+    expect(duplicate.type === "compositionGroup" && duplicate.children[0].id).not.toBe(nestedGroup.children[0].id);
+    expect(onSelect).toHaveBeenCalledWith({ kind: "element", id: duplicate.id });
+  });
+
+  it.each([
+    ["next", "rich", "date"],
+    ["previous", "divider", "media"],
+    ["parent", "hidden-child", "nested-group"],
+  ] as const)("repairs selected nested deletion using the %s fallback", (_case, childId, expectedId) => {
+    const parent = childId === "hidden-child" ? nestedGroup : topGroup;
+    const onChange = vi.fn();
+    const onSelect = vi.fn();
+    expect(deleteGroupChild(parent, childId, flow, childId, onChange, onSelect)).toBe(true);
+    expect(findSectionElement(onChange.mock.calls[0][0], childId)).toBeUndefined();
+    expect(onSelect).toHaveBeenCalledWith({ kind: "element", id: expectedId });
+  });
+
+  it("preserves an unrelated valid selection when deleting a nested child", () => {
+    const onSelect = vi.fn();
+    expect(deleteGroupChild(topGroup, "rich", flow, "date", vi.fn(), onSelect)).toBe(true);
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("does not offer a third Group nesting level and keeps all non-Group child choices", () => {

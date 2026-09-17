@@ -4,6 +4,7 @@ import type { WebsiteElement } from '../websiteElements/types'
 import { resolveSectionComposition } from '../websiteEditor/sectionComposition'
 import { isElementRenderable } from './elementRenderability'
 import { resolveBackgroundMediaForDevice } from '../websiteMedia/backgroundMedia'
+import { textPlainText } from '../websiteElements/textDocument'
 
 export function hasIntentionalSectionSurface(section: WebsiteSection, targetViewport: ResponsiveViewport = 'desktop'): boolean {
   const appearance = resolveOwnedSectionAppearance(section.appearance, targetViewport)
@@ -25,11 +26,13 @@ export function isHeroSectionRenderable(section: WebsiteSection, templateKey: st
   const appearance = resolveOwnedSectionAppearance(section.appearance, targetViewport)
   const isRenderable = (element: WebsiteElement): boolean => element.type === 'compositionGroup'
     ? element.children.some(isRenderable)
+    : element.type === 'text'
+      ? textPlainText(element.document).length > 0
     : isElementRenderable(element, templateKey, 'public', media, eventDate)
   return resolveSectionComposition(section, targetViewport).composition.childFlow.elements.some(isRenderable)
     || Boolean(resolveBackgroundMediaForDevice(appearance.backgroundMedia, targetViewport)?.assetId)
     || hasIntentionalSectionSurface(section, targetViewport)
-    || resolveOwnedSectionAppearance(section.appearance, targetViewport).height === 'screen'
+    || Boolean(appearance.height)
 }
 
 export function isBlankSectionRenderable(

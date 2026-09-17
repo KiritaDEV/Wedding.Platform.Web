@@ -1,7 +1,7 @@
 import type { ResponsiveViewport } from "../websiteEditor/types";
 import { platformFont } from "../websiteFonts/platformFonts";
 
-export const TEXT_SIZES = ["xs", "s", "m", "l", "xl", "2xl", "3xl", "4xl", "5xl"] as const;
+export const TEXT_SIZES = ["xs", "s", "m", "l", "xl", "2xl", "3xl", "4xl", "5xl", "6xl", "7xl"] as const;
 export const TEXT_EFFECT_STRENGTHS = ["none", "soft", "medium", "strong"] as const;
 export const TEXT_LINE_HEIGHTS = ["tight", "normal", "relaxed"] as const;
 export const TEXT_LETTER_SPACINGS = ["tight", "normal", "wide"] as const;

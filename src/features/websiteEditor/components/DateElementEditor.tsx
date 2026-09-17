@@ -1,4 +1,3 @@
-import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { Select } from "../../../components/ui/Select";
 import type {
   ResolvedDesignContext,
@@ -15,30 +14,24 @@ import {
   TEXT_ALIGNMENTS,
   TEXT_LETTER_SPACINGS,
   TEXT_LINE_HEIGHTS,
-  TEXT_SIZES,
   type TextAppearance,
   type TextFontWeight,
 } from "../../websiteElements/text";
 import {
-  applyTextStylePreset,
   curatedTextColors,
   friendlyFontWeightOptions,
-  resolveTextStyle,
-  textStylePreset,
-  TEXT_STYLE_IDS,
-  type TextStyleId,
-} from "../../websiteElements/textStylePresets";
+} from "../../websiteElements/textAppearance";
 import type { ResponsiveViewport } from "../types";
 import { FontPicker } from "./FontPicker";
 import { InspectorSection } from "./InspectorPrimitives";
 import { InspectorVisualChoiceGroup } from "./InspectorVisualChoice";
-import { IconChoices, LineHeightIcon } from "./TextElementEditor";
 import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import {
   setTextEffect,
   type TextEffectStrength,
 } from "../../websiteElements/text";
 import { ElementEffectsControl } from "./ElementEffectsControl";
+import { FONT_SIZE_OPTIONS } from "./fontSizeOptions";
 
 type DateAppearance = NonNullable<DateElement["appearance"]>;
 type Props = {
@@ -54,19 +47,9 @@ type Props = {
   onChange: (element: DateElement) => void;
 };
 
-const styleLabels: Record<TextStyleId | "custom", string> = {
-  heading: "Heading",
-  subheading: "Subheading",
-  eyebrow: "Eyebrow",
-  body: "Body",
-  caption: "Caption",
-  custom: "Custom",
-};
-
 export function DateElementEditor({
   element,
   viewport,
-  templateKey,
   library,
   allowedFontIds,
   allowedColorIds,
@@ -76,15 +59,8 @@ export function DateElementEditor({
   onChange,
 }: Props) {
   const appearance = element.appearance ?? {};
-  const semanticStyle =
-    appearance.textStyle === "display"
-      ? "heading"
-      : (appearance.textStyle ?? "heading");
-  const inheritedFontId =
-    appearance.textStyle && appearance.textStyle !== "display"
-      ? context?.bodyFontId
-      : context?.headingFontId;
-  const inheritedFontSize = semanticStyle === "body" ? "m" : "l";
+  const inheritedFontId = context?.headingFontId;
+  const inheritedFontSize = "l";
   const effective = resolveTextResponsiveAppearance(appearance, viewport, {
     fontSize: inheritedFontSize,
     alignment: "start",
@@ -109,7 +85,7 @@ export function DateElementEditor({
       }) as DateAppearance,
     );
   const setWeight = (weight: TextFontWeight) => {
-    const semanticDefault = semanticStyle === "body" ? 400 : 600;
+    const semanticDefault = 600;
     const next = setTextFontWeight(
       appearance,
       effectiveFontId,
@@ -125,45 +101,6 @@ export function DateElementEditor({
     context,
     appearance.colorId,
   );
-  const hasTypographyOverrides = [
-    "fontSize",
-    "fontWeight",
-    "lineHeight",
-    "letterSpacing",
-    "alignment",
-    "colorId",
-    "textTransform",
-  ].some((key) => appearance[key as keyof DateAppearance] !== undefined);
-  const resolvedStyle =
-    appearance.textStyle === "display"
-      ? "heading"
-      : appearance.textStyle === undefined
-        ? hasTypographyOverrides
-          ? resolveTextStyle(
-              appearance,
-              templateKey,
-              library,
-              context,
-              allowedColorIds,
-            )
-          : "heading"
-        : resolveTextStyle(
-              appearance,
-              templateKey,
-              library,
-              context,
-              allowedColorIds,
-            ) === appearance.textStyle
-          ? appearance.textStyle
-          : "custom";
-  const selectStyle = (style: TextStyleId) => {
-    const next = applyTextStylePreset(
-      appearance,
-      textStylePreset(style, templateKey, library, context, allowedColorIds),
-    ) as DateAppearance;
-    next.textStyle = style;
-    update(next);
-  };
   return (
     <div className="space-y-5 pt-5" data-date-element-editor>
       <InspectorSection title="Date appearance">
@@ -207,23 +144,10 @@ export function DateElementEditor({
             />
           </Field>
         )}
-        <Field label="Text Style">
-          <Select
-            value={resolvedStyle}
-            options={[
-              ...TEXT_STYLE_IDS.map((value) => ({
-                value,
-                label: styleLabels[value],
-              })),
-              { value: "custom", label: styleLabels.custom, disabled: true },
-            ]}
-            onChange={(value) => selectStyle(value as TextStyleId)}
-          />
-        </Field>
         <Field label="Font family">
           <FontPicker
             value={appearance.fontFamilyId ?? ""}
-            role={appearance.textStyle ? "body" : "heading"}
+            role="heading"
             library={{
               ...library,
               fontFamilies: library.fontFamilies.filter(({ id }) =>
@@ -244,43 +168,26 @@ export function DateElementEditor({
         <Field label="Font weight">
           <Select
             aria-label="Font weight"
-            value={String(
-              appearance.fontWeight ?? (semanticStyle === "body" ? 400 : 600),
-            )}
+            value={String(appearance.fontWeight ?? 600)}
             options={friendlyFontWeightOptions(effectiveFontId)}
             onChange={(value) => setWeight(Number(value) as TextFontWeight)}
           />
         </Field>
         <Field label="Font size">
-          <IconChoices
-            label="Font size"
+          <Select
+            aria-label="Font size"
             value={effective.fontSize}
-            options={TEXT_SIZES.map((value, index) => ({
-              value,
-              label: title(value),
-              icon: (
-                <span
-                  className="leading-none"
-                  style={{ fontSize: `${11 + index * 2}px` }}
-                >
-                  A
-                </span>
-              ),
-            }))}
+            options={FONT_SIZE_OPTIONS}
             onChange={(value) => setResponsive("fontSize", value)}
           />
         </Field>
         <Field label="Line height">
-          <IconChoices
-            label="Line height"
-            value={
-              appearance.lineHeight ??
-              (semanticStyle === "body" ? "normal" : "tight")
-            }
+          <Select
+            aria-label="Line height"
+            value={appearance.lineHeight ?? "tight"}
             options={TEXT_LINE_HEIGHTS.map((value) => ({
               value,
               label: title(value),
-              icon: <LineHeightIcon value={value} />,
             }))}
             onChange={(value) =>
               update(
@@ -288,34 +195,19 @@ export function DateElementEditor({
                   appearance,
                   "lineHeight",
                   value as TextAppearance["lineHeight"],
-                  semanticStyle === "body" ? "normal" : "tight",
+                  "tight",
                 ) as DateAppearance,
               )
             }
           />
         </Field>
         <Field label="Letter spacing">
-          <IconChoices
-            label="Letter spacing"
+          <Select
+            aria-label="Letter spacing"
             value={appearance.letterSpacing ?? "normal"}
             options={TEXT_LETTER_SPACINGS.map((value) => ({
               value,
               label: title(value),
-              icon: (
-                <span
-                  className="text-xs font-medium leading-none"
-                  style={{
-                    letterSpacing:
-                      value === "tight"
-                        ? "-0.12em"
-                        : value === "wide"
-                          ? "0.22em"
-                          : "0",
-                  }}
-                >
-                  AV
-                </span>
-              ),
             }))}
             onChange={(value) =>
               update(
@@ -330,20 +222,12 @@ export function DateElementEditor({
           />
         </Field>
         <Field label="Alignment">
-          <IconChoices
-            label="Alignment"
+          <Select
+            aria-label="Alignment"
             value={effective.alignment}
             options={TEXT_ALIGNMENTS.map((value) => ({
               value,
               label: title(value),
-              icon:
-                value === "start" ? (
-                  <AlignLeft size={17} />
-                ) : value === "center" ? (
-                  <AlignCenter size={17} />
-                ) : (
-                  <AlignRight size={17} />
-                ),
             }))}
             onChange={(value) => setResponsive("alignment", value)}
           />

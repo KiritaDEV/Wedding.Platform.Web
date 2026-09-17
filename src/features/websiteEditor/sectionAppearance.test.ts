@@ -26,6 +26,20 @@ describe('Section appearance ownership', () => {
     expect(resolveSectionAppearance(envelope, 'tablet').appearance.decorativeAppearance?.frame?.colorId).toBe('shared')
   })
 
+  it('keeps Hero minimum height inside the exact selected appearance owner', () => {
+    const envelope: WebsiteSectionAppearanceEnvelope = {
+      shared: { ...base, height: { unit: 'svh', value: 75 } },
+      custom: {
+        desktop: { ...base, height: { unit: 'svh', value: 25 } },
+        tablet: { ...base, height: { unit: 'svh', value: 100 } },
+        mobile: { ...base, height: { unit: 'svh', value: 150 } },
+      },
+    }
+    expect(resolveSectionAppearance(envelope, 'desktop').appearance.height?.value).toBe(25)
+    expect(resolveSectionAppearance(envelope, 'tablet').appearance.height?.value).toBe(100)
+    expect(resolveSectionAppearance(envelope, 'mobile').appearance.height?.value).toBe(150)
+  })
+
   it('merges one dirty scope into the freshest envelope', () => {
     const fresh: WebsiteSectionAppearanceEnvelope = { shared: base, custom: { desktop: { ...base, backgroundTreatment: 'custom' }, mobile: base } }
     const next = mergeScopedSectionAppearance(fresh, { kind: 'custom', viewport: 'mobile' }, { ...base, decorativeAppearance: { background: { pattern: 'botanical' } } })

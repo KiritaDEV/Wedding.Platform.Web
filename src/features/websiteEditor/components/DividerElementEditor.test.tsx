@@ -22,7 +22,8 @@ describe("DividerElementEditor", () => {
   it("uses semantic width choices and keeps alignment available", () => {
     const html = renderToStaticMarkup(<DividerElementEditor {...props} element={{ id: "divider", type: "divider", editorName: "Divider 1", appearance: { width: "full" } }} />);
     expect(html).not.toContain('aria-label="Divider width"');
-    expect(html).toContain("Alignment");
+    expect(html).toContain('aria-label="Alignment"');
+    expect(html).toMatch(/aria-label="Alignment"[^>]*>[\s\S]*?>Center</);
     expect(html).toContain("Full");
   });
 

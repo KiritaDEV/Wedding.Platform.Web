@@ -24,13 +24,12 @@ export function HeroSectionRenderer({ section, composition, mode, viewport, temp
   const appearance = section.appearance as unknown as WebsiteSectionAppearance
   const reference = appearance.backgroundMedia
   const decoration = appearance.decorativeAppearance
-  const screen = appearance.height === 'screen'
   const hasChildren = composition.childFlow.elements.length > 0
   const contentPosition = resolveHeroContentPosition(appearance, viewport)
   const positionStyle = heroContentPositionStyle(contentPosition)
   const innerSpacing = resolveInnerSpacing(appearance.innerSpacing, viewport === 'desktop' ? undefined : appearance.responsive?.[viewport]?.innerSpacing)
 
-  return <div data-hero-shell data-section-full-bleed className={`relative isolate w-full overflow-x-clip ${screen ? 'min-h-[100svh]' : ''}`}>
+  return <div data-hero-shell data-section-full-bleed className="relative isolate w-full overflow-x-clip" style={{ minHeight: appearance.height ? `${appearance.height.value}${appearance.height.unit}` : undefined }}>
     <BackgroundMediaLayer ownerId={section.id} kind="hero" reference={reference} media={media} viewport={viewport} opacity={appearance.backgroundImageOpacity} />
     <SectionDecorativeLayers templateKey={templateKey} appearance={decoration} viewport={viewport} library={library} projectColors={projectColors} sectionId={section.id} mode={mode} phase="background" />
     <div data-hero-foreground data-hero-content-position={contentPosition} className="relative z-10 flex min-h-[inherit] w-full flex-col box-border" style={{ ...positionStyle, paddingTop: INNER_SPACING_CSS[innerSpacing.top ?? 'none'], paddingRight: INNER_SPACING_CSS[innerSpacing.right ?? 'none'], paddingBottom: INNER_SPACING_CSS[innerSpacing.bottom ?? 'none'], paddingLeft: INNER_SPACING_CSS[innerSpacing.left ?? 'none'] }}>

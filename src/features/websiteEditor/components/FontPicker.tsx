@@ -74,8 +74,6 @@ export function FontPicker({
 
   function choose(next: string) {
     onChange(next);
-    setOpen(false);
-    setQuery("");
   }
   function moveFocus(event: React.KeyboardEvent, direction: -1 | 1) {
     const options = Array.from(
@@ -113,7 +111,7 @@ export function FontPicker({
         onClick={() => setOpen((current) => !current)}
       >
         <span
-          className="min-w-0 flex-1 truncate text-sm lg:text-xs"
+          className="min-w-0 flex-1 truncate text-lg lg:text-base"
           style={value ? { fontFamily: platformFontStack(value) } : undefined}
         >
           {selected?.displayName ?? inheritedLabel}
@@ -269,7 +267,7 @@ function FontOption({
     >
       <span className="min-w-0 flex-1">
         <span
-          className="block truncate text-sm"
+          className="block truncate text-lg lg:text-base"
           style={font ? { fontFamily: platformFontStack(font.id) } : undefined}
         >
           {font?.displayName ?? label}

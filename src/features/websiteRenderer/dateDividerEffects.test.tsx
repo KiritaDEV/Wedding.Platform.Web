@@ -15,7 +15,7 @@ describe("Date and Divider effects", () => {
   });
   it("renders Date with Text recipes and unchanged semantic geometry", () => {
     const html = renderToStaticMarkup(<DateElementRenderer element={{ id: "date", type: "date", editorName: "Date 1", appearance: { colorId: "foreground", textShadow: "medium", textShadowColorId: "shadow", glow: "soft", glowColorId: "glow" } }} eventDate="2026-12-22" mode="public" viewport="desktop" templateKey="classic-filipiniana-v1" library={library} context={context} />);
-    expect(html).toContain("color:#FFFFFF"); expect(html).toContain("text-shadow:0 2px 4px #000000, 0 1px 2px #000000, 0 0 4px #FFD700"); expect(html).toContain('datetime="2026-12-22"'); expect(html).toContain("padding:0");
+    expect(html).toContain("color:#FFFFFF"); expect(html).toContain("text-shadow:0 2px 4px #000000, 0 1px 2px #000000, 0 0 4px #FFD700"); expect(html).toContain('dateTime="2026-12-22"'); expect(html).toContain("padding:0");
   });
   it("composes Divider shadow and glow as silhouette-following filters", () => {
     expect(resolveDropShadowEffects("medium", "#000000", "soft", "#FFD700")).toBe("drop-shadow(0 2px 4px #000000) drop-shadow(0 1px 2px #000000) drop-shadow(0 0 4px #FFD700)");

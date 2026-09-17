@@ -138,14 +138,14 @@ describe.each(templates)('%s Blank Section', (templateKey, Renderer) => {
     const content = { childFlow: { elements, order: [{ kind: 'element', id: 'root-date' }, { kind: 'element', id: 'outer' }] } }
     const html = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank(content))} mode="public" />)
     expect(html).toContain('<time')
-    expect(html.match(/<time[^>]*datetime="2027-01-02"/g)).toHaveLength(3)
+    expect(html.match(/<time[^>]*dateTime="2027-01-02"/g)).toHaveLength(3)
     expect(html.match(/Saturday, January 2, 2027/g)).toHaveLength(3)
     expect(html).not.toContain('Ceremony date')
     expect(html).not.toContain('Reception date')
     expect(html).not.toContain('Private nested name')
     const updated = renderToStaticMarkup(<Renderer event={{ ...event, eventDate: '2028-02-03' }} website={draft(templateKey, blank(content))} mode="public" />)
     expect(updated).toContain('Thursday, February 3, 2028')
-    expect(updated).toContain('datetime="2028-02-03"')
+    expect(updated).toContain('dateTime="2028-02-03"')
     expect(content.childFlow.elements).toEqual(elements)
   })
 

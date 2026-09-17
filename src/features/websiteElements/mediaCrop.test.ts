@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateBackgroundMinimumZoom, clampBackgroundZoom, clampMediaPoint, clampMediaZoom, resolveBackgroundMediaGeometry, resolveContainedMediaGeometry, resolveMediaAspectRatio, resolveMediaCropGeometry, resolveSourcePointFromViewport, resolveSourcePointInViewport, safeMediaSize } from "./mediaCrop";
+import { clampMediaPoint, clampMediaZoom, resolveBackgroundMediaGeometry, resolveContainedMediaGeometry, resolveMediaAspectRatio, resolveMediaCropGeometry, resolveSourcePointFromViewport, resolveSourcePointInViewport, safeMediaSize } from "./mediaCrop";
 
 describe("Media crop geometry", () => {
   it("uses one canonical authored and natural ratio mapping", () => {
@@ -30,49 +30,30 @@ describe("Media crop geometry", () => {
   });
 });
 
-describe("calculated background zoom-out", () => {
+describe("background cover geometry", () => {
   it.each([
-    [{ width: 1600, height: 900 }, { width: 1200, height: 700 }],
-    [{ width: 1600, height: 900 }, { width: 390, height: 844 }],
-    [{ width: 900, height: 1600 }, { width: 1200, height: 700 }],
-    [{ width: 900, height: 1600 }, { width: 390, height: 844 }],
-    [{ width: 1600, height: 900 }, { width: 800, height: 450 }],
-  ])("derives contain scale from cover scale for source %o and container %o", (source, container) => {
-    const minimum = calculateBackgroundMinimumZoom(container, source);
-    const cover = Math.max(container.width / source.width, container.height / source.height);
-    const contain = Math.min(container.width / source.width, container.height / source.height);
-    expect(minimum).toBeGreaterThan(0);
-    expect(minimum).toBeLessThanOrEqual(1);
-    expect(cover * minimum).toBeCloseTo(contain, 3);
-  });
-
-  it("keeps 1x as exact cover and clamps below the calculated minimum", () => {
-    const container = { width: 390, height: 844 };
-    const source = { width: 1600, height: 900 };
-    const minimum = calculateBackgroundMinimumZoom(container, source);
-    const cover = resolveBackgroundMediaGeometry(container, source, { x: .5, y: .5 }, 1);
-    expect(cover.width).toBeCloseTo(source.width * Math.max(container.width / source.width, container.height / source.height));
-    expect(cover.height).toBeCloseTo(source.height * Math.max(container.width / source.width, container.height / source.height));
-    expect(resolveBackgroundMediaGeometry(container, source, { x: 1, y: 0 }, minimum / 2).zoom).toBe(minimum);
-  });
-
-  it("centers a non-overflowing axis and clamps translations on overflowing axes", () => {
-    const container = { width: 390, height: 844 };
-    const source = { width: 1600, height: 900 };
-    const zoomedOut = resolveBackgroundMediaGeometry(container, source, { x: 0, y: 1 }, .8);
-    expect(zoomedOut.height).toBeLessThan(container.height);
-    expect(zoomedOut.top).toBeCloseTo((container.height - zoomedOut.height) / 2);
-    expect(zoomedOut.left).toBe(0);
-    const opposite = resolveBackgroundMediaGeometry(container, source, { x: 1, y: 0 }, .8);
-    expect(opposite.left).toBeCloseTo(container.width - opposite.width);
-    expect(clampBackgroundZoom(.01, zoomedOut.minimumZoom)).toBe(zoomedOut.minimumZoom);
+    [{ width: 320, height: 844 }, { width: 1600, height: 900 }],
+    [{ width: 320, height: 844 }, { width: 900, height: 1600 }],
+    [{ width: 768, height: 1024 }, { width: 1200, height: 1200 }],
+    [{ width: 1280, height: 800 }, { width: 1600, height: 900 }],
+    [{ width: 1440, height: 900 }, { width: 900, height: 1600 }],
+  ])("covers container %o with source %o for every supported zoom and focal point", (container, source) => {
+    for (const zoom of [.01, 1, 1.5, 3, 4]) for (const point of [{ x: .5, y: .5 }, { x: 0, y: 0 }, { x: 1, y: 1 }]) {
+      const geometry = resolveBackgroundMediaGeometry(container, source, point, zoom);
+      expect(geometry.zoom).toBeGreaterThanOrEqual(1);
+      expect(geometry.zoom).toBeLessThanOrEqual(3);
+      expect(geometry.left).toBeLessThanOrEqual(0);
+      expect(geometry.top).toBeLessThanOrEqual(0);
+      expect(geometry.left + geometry.width).toBeGreaterThanOrEqual(container.width);
+      expect(geometry.top + geometry.height).toBeGreaterThanOrEqual(container.height);
+    }
   });
 
   it.each([
     [{ width: 1440, height: 640 }, { width: 2400, height: 1600 }, { x: .5, y: .5 }, 1],
     [{ width: 1024, height: 700 }, { width: 2400, height: 1600 }, { x: .4, y: .6 }, 1.35],
     [{ width: 390, height: 844 }, { width: 1200, height: 1800 }, { x: .55, y: .45 }, 2.2],
-    [{ width: 390, height: 844 }, { width: 2400, height: 1600 }, { x: .5, y: .5 }, .8],
+    [{ width: 390, height: 844 }, { width: 2400, height: 1600 }, { x: .5, y: .5 }, 1],
   ])("centers source focal coordinates whenever both axes have sufficient overflow", (container, source, point, zoom) => {
     const geometry = resolveBackgroundMediaGeometry(container, source, point, zoom);
     const transformed = resolveSourcePointInViewport(geometry, point);

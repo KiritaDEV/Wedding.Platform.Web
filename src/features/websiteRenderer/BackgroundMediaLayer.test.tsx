@@ -13,6 +13,7 @@ describe("BackgroundMediaLayer", () => {
     expect(html).toContain('src="/wide.jpg"');
     expect(html).toContain('data-media-zoom="2.5"');
     expect(html).not.toContain("object-contain");
+    expect(html).not.toContain("data-background-minimum-zoom");
   });
 
   it("keeps Group clipping on its pointer-transparent background layer", () => {

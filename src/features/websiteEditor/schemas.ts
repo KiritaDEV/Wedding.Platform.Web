@@ -187,7 +187,7 @@ export const sectionAppearanceSchema = z.object({
       mobile: responsiveAppearanceSchema.optional(),
     }).strict().optional(),
     backgroundImageOpacity: z.number().int().min(0).max(100).optional(),
-    height: z.enum(['auto', 'screen']).optional(),
+    height: z.object({ unit: z.literal('svh'), value: z.number().int().min(25).max(150) }).strict().optional(),
     contentPosition: z.enum(['top-start', 'top-center', 'top-end', 'center-start', 'center', 'center-end', 'bottom-start', 'bottom-center', 'bottom-end']).optional(),
     innerSpacing: groupPaddingSchema.optional(),
   }).strict()

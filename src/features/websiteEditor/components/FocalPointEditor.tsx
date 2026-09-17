@@ -4,6 +4,7 @@ import { Button } from '../../../components/ui/Button'
 import { IconButton } from '../../../components/ui/IconButton'
 import { ZoomedMediaImage } from '../../websiteRenderer/ZoomedMediaImage'
 import { calculateBackgroundMinimumZoom, clampBackgroundZoom, clampMediaPoint, clampMediaZoom, resolveBackgroundMediaGeometry, resolveContainedMediaGeometry, resolveMediaAspectRatio, resolveMediaCropGeometry, resolveSourcePointFromViewport, resolveSourcePointInViewport, type MediaAspectRatio } from '../../websiteElements/mediaCrop'
+import { resetImageFraming } from './resetImageFraming'
 
 type ImageFraming = { point: { x: number; y: number }; zoom: number }
 
@@ -76,6 +77,6 @@ export function FocalPointEditor({ url, point, zoom = 1, controlId = "image-fram
         <IconButton type="button" size="sm" aria-label="Zoom in" disabled={disabled || effectiveZoom >= 3} onClick={() => { const next = clampZoom(effectiveZoom + 0.1); if (onZoomChange) onZoomChange(next); else onChange({ point, zoom: next }); }}><Plus size={16} /></IconButton>
       </div>
     </div>
-    {showReset && <Button className="mt-2" type="button" size="sm" variant="ghost" disabled={disabled} onClick={() => onChange({ point: { x: 0.5, y: 0.5 }, zoom: 1 })}>Reset image</Button>}
+    {showReset && <Button className="mt-2" type="button" size="sm" variant="ghost" disabled={disabled} onClick={() => onChange(resetImageFraming())}>Reset image</Button>}
   </div>
 }

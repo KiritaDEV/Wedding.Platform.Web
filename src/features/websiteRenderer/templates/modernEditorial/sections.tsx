@@ -14,6 +14,7 @@ export function ModernEditorialGallery({
   return (
     <EditorialSection
       number="08"
+      containLongContent
       heading={
         <EditableText
           sectionId={sectionId}
@@ -43,6 +44,7 @@ export function ModernEditorialRsvp({
   return (
     <EditorialSection
       number="10"
+      containLongContent
       heading={
         <EditableText
           sectionId={sectionId}
@@ -54,7 +56,7 @@ export function ModernEditorialRsvp({
         />
       }
     >
-      <p className="max-w-xl whitespace-pre-line text-lg">
+      <p className="w-full max-w-xl whitespace-pre-line text-lg [overflow-wrap:anywhere]">
         <EditableText
           sectionId={sectionId}
           path={["semantic", "description"]}
@@ -67,7 +69,7 @@ export function ModernEditorialRsvp({
       </p>
       <div
         data-rsvp-button
-        className="mt-10 inline-block border-2 border-[var(--me-theme-text)] px-8 py-4 text-xs font-bold uppercase tracking-[0.22em]"
+        className="mt-10 inline-block max-w-full whitespace-normal border-2 border-[var(--me-theme-text)] px-8 py-4 text-xs font-bold uppercase tracking-[0.22em] [overflow-wrap:anywhere]"
       >
         <EditableText
           sectionId={sectionId}
@@ -93,6 +95,7 @@ function EditorialSection({
   bodyParticipates = true,
   renderFlow,
   specializedClassName = "",
+  containLongContent = false,
 }: {
   number: string | null;
   eyebrow?: React.ReactNode;
@@ -104,6 +107,7 @@ function EditorialSection({
   bodyParticipates?: boolean;
   renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
   specializedClassName?: string;
+  containLongContent?: boolean;
 }) {
   const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
@@ -113,25 +117,25 @@ function EditorialSection({
     >
       {(() => { const specialized = <div data-section-specialized-content
         className={
-          `mx-auto w-full max-w-5xl ${specializedClassName} ${!number
+          `mx-auto w-full max-w-5xl ${specializedClassName} ${containLongContent ? "min-w-0 max-w-full" : ""} ${!number
             ? "block"
             : tabletEditorial
             ? "grid grid-cols-[3rem_minmax(0,1fr)] gap-5"
-            : "grid gap-9 md:grid-cols-[5rem_1fr]"}`
+            : `grid gap-9 ${containLongContent ? "md:grid-cols-[5rem_minmax(0,1fr)]" : "md:grid-cols-[5rem_1fr]"}`}`
         }
       >
         {number && <p className="text-[10px] font-bold tracking-[0.25em]" aria-hidden="true">{number} / 10</p>}
-        <div className={tabletEditorial ? "min-w-0" : ""}>
+        <div className={tabletEditorial || containLongContent ? "min-w-0 max-w-full" : ""}>
           {hasEyebrow && <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--me-section-accent)]">{eyebrow}</p>}
           {headingParticipates && <h2
             data-section-heading
-            className={`max-w-3xl font-[family-name:var(--me-heading-font)] text-4xl leading-none tracking-[-0.035em] sm:text-6xl ${hasEyebrow ? "mt-4" : ""}`}
+            className={`${containLongContent ? "w-full min-w-0 max-w-3xl [overflow-wrap:anywhere]" : "max-w-3xl"} font-[family-name:var(--me-heading-font)] text-4xl leading-none tracking-[-0.035em] sm:text-6xl ${hasEyebrow ? "mt-4" : ""}`}
           >
             {heading}
           </h2>}
           {bodyParticipates && <div
             data-section-body
-            className={`text-sm leading-7 text-[var(--me-muted)] ${hasEyebrow || headingParticipates ? "mt-12" : ""}`}
+            className={`${containLongContent ? "min-w-0 max-w-full [overflow-wrap:anywhere]" : ""} text-sm leading-7 text-[var(--me-muted)] ${hasEyebrow || headingParticipates ? "mt-12" : ""}`}
           >
             {children}
           </div>}

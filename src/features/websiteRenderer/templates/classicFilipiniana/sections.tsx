@@ -52,6 +52,7 @@ export function ClassicFilipinianaRsvp({
   return (
     <ContentSection
       eyebrow="Celebrate with us"
+      specializedClassName="min-w-0 max-w-full [overflow-wrap:anywhere]"
       heading={
         <EditableText
           sectionId={sectionId}
@@ -63,7 +64,7 @@ export function ClassicFilipinianaRsvp({
         />
       }
     >
-      <p className="mx-auto max-w-lg whitespace-pre-line">
+      <p className="mx-auto w-full max-w-lg whitespace-pre-line [overflow-wrap:anywhere]">
         <EditableText
           sectionId={sectionId}
           path={["semantic", "description"]}
@@ -76,7 +77,7 @@ export function ClassicFilipinianaRsvp({
       </p>
       <div
         data-rsvp-button
-        className="mx-auto mt-9 max-w-xs border border-[var(--cf-theme-accent)] bg-[var(--cf-theme-accent)] px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.2em] text-white"
+        className="mx-auto mt-9 w-full max-w-xs whitespace-normal border border-[var(--cf-theme-accent)] bg-[var(--cf-theme-accent)] px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.2em] text-white [overflow-wrap:anywhere]"
       >
         <EditableText
           sectionId={sectionId}

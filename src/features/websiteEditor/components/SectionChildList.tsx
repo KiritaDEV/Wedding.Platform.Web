@@ -56,7 +56,6 @@ import type {
   WebsiteElement,
 } from "../../websiteElements/types";
 import {
-  duplicateWebsiteElement,
   findSectionElement,
   getValidSectionElementMoveDestinations,
   moveSectionChild,
@@ -72,6 +71,9 @@ import {
 import {
   addToGroup,
   applyStructureElementDrop,
+  deleteGroupChild,
+  duplicateGroupChild,
+  GROUP_CHILD_LIMIT,
   groupAddKinds,
   reorderGroupChildInFlow,
   reorderRootSectionElement,
@@ -506,7 +508,7 @@ function TopLevelRow({
         />
         <div data-structure-actions className="ml-auto flex shrink-0 items-center gap-0.5">
           {add && (
-            <GroupAddControl depth={1} label="Add child to Group" onAdd={add} />
+            <GroupAddControl depth={1} label="Add child to Group" disabled={element?.type === "compositionGroup" && element.children.length >= GROUP_CHILD_LIMIT} onAdd={add} />
           )}
           <StructureActionMenu className="shrink-0" label={`${label} actions`}>
           <>
@@ -758,6 +760,7 @@ function NestedRow({
             <GroupAddControl
               depth={depth + 1}
               label="Add child to Group"
+              disabled={child.children.length >= GROUP_CHILD_LIMIT}
               onAdd={(kind) => addToGroup(child, kind, flow, onChange, onSelect)}
             />
           )}
@@ -785,18 +788,8 @@ function NestedRow({
             </StructureMenuAction>
             <StructureMenuAction
               icon={<Copy size={14} />}
-              onClick={() => {
-                const next = [...group.children];
-                next.splice(
-                  index + 1,
-                  0,
-                  duplicateWebsiteElement(
-                    flow,
-                    child,
-                  ) as (typeof group.children)[number],
-                );
-                replace(next);
-              }}
+              disabled={group.children.length >= GROUP_CHILD_LIMIT}
+              onClick={() => duplicateGroupChild(group, child.id, flow, onChange, onSelect)}
             >
               Duplicate
             </StructureMenuAction>
@@ -833,9 +826,7 @@ function NestedRow({
             <StructureMenuAction
               danger
               icon={<Trash2 size={14} />}
-              onClick={() =>
-                replace(group.children.filter(({ id }) => id !== child.id))
-              }
+              onClick={() => deleteGroupChild(group, child.id, flow, selectedElementId, onChange, onSelect)}
             >
               Delete
             </StructureMenuAction>
@@ -945,10 +936,12 @@ function RowLabel({
 function GroupAddControl({
   depth,
   label,
+  disabled = false,
   onAdd,
 }: {
   depth: number;
   label: string;
+  disabled?: boolean;
   onAdd: (kind: GroupAddKind) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -975,6 +968,7 @@ function GroupAddControl({
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
+        disabled={disabled}
         onClick={() => setOpen((value) => !value)}
       >
         <Plus size={15} />

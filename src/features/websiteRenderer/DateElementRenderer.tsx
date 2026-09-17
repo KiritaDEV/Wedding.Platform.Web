@@ -52,12 +52,9 @@ export function DateElementRenderer({
     ) : null;
   }
 
-  const semanticStyle = appearance.textStyle ?? "heading";
-  const inheritedFontSize = semanticStyle === "display" ? "xl" : semanticStyle === "body" ? "m" : "l";
-  const responsive = resolveTextResponsiveAppearance(appearance, viewport, { fontSize: inheritedFontSize, alignment: "start" });
+  const responsive = resolveTextResponsiveAppearance(appearance, viewport, { fontSize: "l", alignment: "start" });
   const authoredAlignment = viewport === "desktop" ? appearance.alignment : appearance.responsive?.[viewport]?.alignment ?? appearance.alignment;
-  const inheritedFontId = appearance.textStyle && semanticStyle !== "display" ? context?.bodyFontId : context?.headingFontId;
-  const fontFamilyId = appearance.fontFamilyId ?? inheritedFontId;
+  const fontFamilyId = appearance.fontFamilyId ?? context?.headingFontId;
   const style: CSSProperties = {
     display: "block",
     width: "100%",
@@ -68,8 +65,8 @@ export function DateElementRenderer({
     overflowWrap: "anywhere",
     fontFamily: fontFamilyId ? fontStackForTemplate(templateKey, fontFamilyId) : "inherit",
     fontSize: elementFontSizes[responsive.fontSize],
-    fontWeight: appearance.fontWeight ?? (semanticStyle === "body" ? 400 : 600),
-    lineHeight: elementLineHeights[appearance.lineHeight ?? (semanticStyle === "body" ? "normal" : "tight")],
+    fontWeight: appearance.fontWeight ?? 600,
+    lineHeight: elementLineHeights[appearance.lineHeight ?? "tight"],
     letterSpacing: elementLetterSpacings[appearance.letterSpacing ?? "normal"],
     textTransform: appearance.textTransform ?? "none",
     textAlign: authoredAlignment,
@@ -81,7 +78,7 @@ export function DateElementRenderer({
   };
 
   return (
-    <time data-website-element="date" {...{ datetime: eventDate! }} style={style}>
+    <time data-website-element="date" dateTime={eventDate!} style={style}>
       {label}
     </time>
   );

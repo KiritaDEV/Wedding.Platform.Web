@@ -45,7 +45,7 @@ export function GroupElementRenderer({ group, sectionId, mode, viewport, templat
     alignContent: direction === "horizontal" ? positionStyle.justifyContent : undefined,
     paddingTop: spaces[padding.top ?? "none"], paddingRight: spaces[padding.right ?? "none"], paddingBottom: spaces[padding.bottom ?? "none"], paddingLeft: spaces[padding.left ?? "none"],
     boxSizing: "border-box", minWidth: 0,
-    width: "100%", maxWidth: widths[layout.width ?? "full"], marginInline: layout.width && layout.width !== "full" ? "auto" : undefined,
+    width: "100%", maxWidth: widths[layout.width ?? "full"],
     minHeight: mode === "editor" && visibleChildren.length === 0 ? "2.5rem" : undefined,
     backgroundColor,
     boxShadow: group.appearance?.shadow ? shadows[group.appearance.shadow] : undefined,
