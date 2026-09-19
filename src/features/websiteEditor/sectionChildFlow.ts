@@ -54,6 +54,16 @@ export const genericTextSectionChildFlowSchema = genericSectionChildFlowSchema.s
   });
 });
 
+export const gallerySectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
+  const visit = (element: WebsiteElement, path: (string | number)[]) => {
+    if (element.type !== "text" && element.type !== "divider" && element.type !== "compositionGroup") {
+      context.addIssue({ code: "custom", path, message: `Element type ${element.type} is not allowed in Gallery.` });
+    }
+    if (element.type === "compositionGroup") element.children.forEach((child, index) => visit(child, [...path, "children", index, "type"]));
+  };
+  flow.elements.forEach((element, index) => visit(element, ["elements", index, "type"]));
+});
+
 export type SectionChildReference = z.infer<typeof sectionChildReferenceSchema>;
 export type SectionChildFlow = z.infer<typeof sectionChildFlowSchema>;
 export type SectionElementDestination = { parentId: string | null; index: number };
@@ -397,7 +407,7 @@ function sameReference(first: SectionChildReference, second: SectionChildReferen
 function regenerateElementIdentities(element: WebsiteElement, names: Record<GenericBlockType, number>, regenerateNames = true): WebsiteElement {
   element.id = createSemanticId(element.type === "compositionGroup" ? "group" : element.type);
   if (regenerateNames && isGenericBlock(element)) element.editorName = nextAutomaticName(element.type, names);
-  if (element.type === "mediaCollection" || element.type === "media") element.items.forEach((item) => { item.id = createSemanticId("media-item"); });
+  if (element.type === "media") element.items.forEach((item) => { item.id = createSemanticId("media-item"); });
   if (element.type === "accordion") element.items.forEach((item) => { item.id = createSemanticId("accordion-item"); });
   if (element.type === "schedule") element.items.forEach((item) => { item.id = createSemanticId("schedule-item"); });
   if (element.type === "people") element.groups.forEach((group) => {

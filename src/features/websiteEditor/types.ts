@@ -11,7 +11,8 @@ export type SectionCompositions = { shared: SectionComposition; custom?: Partial
 export type HeroContent = { semantic: Record<string, never>; compositions: SectionCompositions }
 export type PeoplePerson = { id: string; name: string; role?: string | null; media?: SectionMedia }
 export type PeopleGroup = { id: string; name: string; people: PeoplePerson[] }
-export type GalleryContent = { semantic: { heading: string; items: [] } }
+export type GalleryItem = { id: string; type: 'image'; mediaId: string; focalPoint?: { x: number; y: number }; zoom?: number }
+export type GalleryContent = { semantic: { items: GalleryItem[] }; compositions: SectionCompositions }
 export type RsvpContent = { semantic: { heading: string; description: string; buttonLabel: string } }
 export type BlankContent = { semantic: Record<string, never>; compositions: SectionCompositions }
 
@@ -23,7 +24,7 @@ type SectionBase<TType extends string, TContent> = {
   sortOrder: number
   isEnabled: boolean
   content: TContent
-  appearance: TType extends 'hero' | 'blank' ? WebsiteSectionAppearanceEnvelope : WebsiteSectionAppearance
+  appearance: TType extends 'hero' | 'gallery' | 'blank' ? WebsiteSectionAppearanceEnvelope : WebsiteSectionAppearance
   designDefaults: SectionDesignDefaults
   resolvedDesignContext: ResolvedDesignContext | null
   appearanceOptions: WebsiteSectionAppearanceOptions | null
@@ -58,6 +59,9 @@ export type MediaContentGap = 'tight' | 'comfortable' | 'spacious' | 'generous'
 export type ResponsiveViewport = 'desktop' | 'tablet' | 'mobile'
 export type HeroMinimumHeight = { unit: 'svh'; value: number }
 export type WebsiteSectionResponsiveAppearance = {
+  columns?: number
+  gap?: 'small' | 'medium' | 'large'
+  aspectRatio?: 'square' | 'portrait' | 'landscape'
   contentPosition?: import('../websiteRenderer/heroContentPosition').HeroContentPosition
   innerSpacing?: import('../websiteElements/group').InnerSpacing
   mediaPlacement?: string
@@ -68,6 +72,9 @@ export type WebsiteSectionResponsiveAppearance = {
   mediaSpacing?: { top: string; right: string; bottom: string; left: string }
 }
 export type WebsiteSectionAppearance = {
+  columns?: number
+  gap?: 'small' | 'medium' | 'large'
+  aspectRatio?: 'square' | 'portrait' | 'landscape'
   backgroundMedia?: SectionMedia
   contentPosition?: import('../websiteRenderer/heroContentPosition').HeroContentPosition
   innerSpacing?: import('../websiteElements/group').InnerSpacing

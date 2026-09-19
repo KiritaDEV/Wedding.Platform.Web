@@ -15,6 +15,9 @@ import { createSemanticId } from "../createSemanticId";
 import type { PeopleGroup, PeoplePerson } from "../types";
 import { useRevealNewItem } from "../useRevealNewItem";
 import { BackgroundMediaEditor } from "./BackgroundMediaEditor";
+import { GalleryCollectionEditor } from "./GalleryCollectionEditor";
+import type { GalleryContent } from "../types";
+import { resolveOwnedSectionAppearance } from "../sectionAppearance";
 
 type EditorProps = {
   section: WebsiteSection;
@@ -129,8 +132,8 @@ function PersonFocalDialog({ person, media, onClose, onChange }: { person?: Peop
 
 function EditorForm({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0 xl:pb-6">
+    <div className="flex h-full w-full min-h-0 min-w-0 max-w-full flex-col">
+      <div className="min-h-0 min-w-0 max-w-full flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0 xl:pb-6">
         {children}
       </div>
     </div>
@@ -259,18 +262,7 @@ export function SectionEditor(props: EditorProps) {
     case "hero":
       return <EditorForm><SectionMediaEditor {...props} /><p className="text-sm text-foreground-muted">Add and arrange Hero content blocks from the Structure panel.</p></EditorForm>;
     case "gallery":
-      return (
-        <SimpleEditor
-          {...props}
-          fields={[
-            {
-              name: "heading",
-              label: "Heading",
-              note: "Photo management will be added in a later phase.",
-            },
-          ]}
-        />
-      );
+      return <GalleryEditor {...props} />;
     case "rsvp":
       return (
         <SimpleEditor
@@ -293,4 +285,9 @@ export function SectionEditor(props: EditorProps) {
         </div>
       );
   }
+}
+
+function GalleryEditor(props: EditorProps) {
+  const event = useEventWorkspace();
+  return <EditorForm><GalleryCollectionEditor sectionId={props.section.id} eventId={event.id} appearance={props.appearance ?? resolveOwnedSectionAppearance(props.section.appearance, props.viewport ?? "desktop")} viewport={props.viewport ?? "desktop"} items={(props.content as GalleryContent).semantic.items} resolvedMedia={props.resolvedMedia} onMediaResolved={props.onMediaResolved} onChange={items => props.onChange({ ...props.content, semantic: { ...(props.content as GalleryContent).semantic, items } })} /></EditorForm>;
 }

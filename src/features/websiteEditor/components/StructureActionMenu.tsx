@@ -6,10 +6,14 @@ export function StructureActionMenu({
   label,
   children,
   className = "",
+  triggerClassName = "",
+  align = "right",
 }: {
   label: string;
   children: React.ReactNode;
   className?: string;
+  triggerClassName?: string;
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -22,6 +26,7 @@ export function StructureActionMenu({
       <IconButton
         type="button"
         size="sm"
+        className={triggerClassName}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -33,7 +38,7 @@ export function StructureActionMenu({
         <div
           role="menu"
           aria-label={label}
-          className="absolute text-xs right-0 top-full z-30 w-40 rounded-md border border-border bg-surface p-1 shadow-[var(--shadow-dialog)]"
+          className={`absolute top-full z-30 w-40 rounded-md border border-border bg-surface p-1 text-xs shadow-[var(--shadow-dialog)] ${align === "left" ? "left-0" : "right-0"}`}
           onClick={() => setOpen(false)}
         >
           {children}

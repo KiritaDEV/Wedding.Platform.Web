@@ -40,7 +40,7 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     ...props.website,
     sections: props.website.sections.map((section) => {
       const capability = props.website.template ? sectionCapability(props.website.template.capabilities, section.type) : undefined
-      const ownedAppearance = section.type === 'hero' || section.type === 'blank'
+      const ownedAppearance = section.type === 'hero' || section.type === 'gallery' || section.type === 'blank'
         ? resolveSectionAppearance(section.appearance, targetViewport).appearance
         : section.appearance
       return {
@@ -52,5 +52,5 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     }),
   }
 
-  return <div ref={rootRef}><WebsiteElementChangeContext.Provider value={{ onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></div>
+  return <div ref={rootRef}><WebsiteElementChangeContext.Provider value={{ onGalleryAdd: props.onGalleryAdd, onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></div>
 }

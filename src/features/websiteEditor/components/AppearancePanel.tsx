@@ -66,6 +66,7 @@ import {
 import { FourSidedSpacingControl as InnerSpacingControl } from "./FourSidedSpacingControl";
 import type { SpacingChanges } from "./spacingControlModel";
 import { ContentPositionControl } from "./ContentPositionControl";
+import { GalleryAppearanceControls } from "./GalleryAppearanceControls";
 import { HERO_MINIMUM_HEIGHT_MAX, HERO_MINIMUM_HEIGHT_MIN, HERO_MINIMUM_HEIGHT_STEP, setHeroHeightMode, setHeroMinimumHeight } from "../heroMinimumHeight";
 
 export function AppearancePanel({
@@ -130,7 +131,7 @@ export function AppearancePanel({
     delete responsive[targetViewport];
     onChange(pruneResponsiveAppearance({ ...appearance, responsive }));
   };
-  if (sectionCapability.id === "blank" || sectionCapability.id === "hero") {
+  if (sectionCapability.id === "blank" || sectionCapability.id === "hero" || sectionCapability.id === "gallery") {
     return (
       <div className="space-y-5">
         {error && (
@@ -148,6 +149,7 @@ export function AppearancePanel({
             onChange={onChange}
           />
         )}
+        {sectionCapability.id === "gallery" && <GalleryAppearanceControls appearance={appearance} viewport={targetViewport} onChange={onChange} />}
         {sectionCapability.id === "blank" && (
           <BlankInnerSpacingControls
             appearance={appearance}

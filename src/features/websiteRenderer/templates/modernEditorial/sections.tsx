@@ -1,36 +1,22 @@
 import { EditableText } from "../../../websiteEditor/inline/EditableText";
-import type { GalleryContent, RsvpContent } from "../../../websiteEditor/types";
+import type { RsvpContent } from "../../../websiteEditor/types";
 import { SectionContentInset } from "../../SectionContentInset";
 
 export function ModernEditorialGallery({
-  sectionId,
-  content,
-  mode,
+  collection,
 }: {
   sectionId: string;
-  content: GalleryContent["semantic"];
-  mode: "editor" | "public";
+  collection: React.ReactNode;
 }) {
   return (
     <EditorialSection
-      number="08"
+      number={null}
+      editorialRail
       containLongContent
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "heading"]}
-          value={content.heading}
-          fallback="Gallery"
-          placeholder="Add heading"
-          label="Gallery heading"
-        />
-      }
+      heading={null}
+      headingParticipates={false}
     >
-      {mode === "editor" && (
-        <div className="border-y border-dashed border-[var(--me-border)] py-10 text-xs uppercase tracking-widest">
-          Photos will appear here
-        </div>
-      )}
+      {collection}
     </EditorialSection>
   );
 }
@@ -90,6 +76,7 @@ function EditorialSection({
   heading,
   children,
   tabletEditorial = false,
+  editorialRail = false,
   eyebrowParticipates,
   headingParticipates = true,
   bodyParticipates = true,
@@ -102,6 +89,7 @@ function EditorialSection({
   heading: React.ReactNode;
   children: React.ReactNode;
   tabletEditorial?: boolean;
+  editorialRail?: boolean;
   eyebrowParticipates?: boolean;
   headingParticipates?: boolean;
   bodyParticipates?: boolean;
@@ -117,7 +105,7 @@ function EditorialSection({
     >
       {(() => { const specialized = <div data-section-specialized-content
         className={
-          `mx-auto w-full max-w-5xl ${specializedClassName} ${containLongContent ? "min-w-0 max-w-full" : ""} ${!number
+          `mx-auto w-full max-w-5xl ${specializedClassName} ${containLongContent ? "min-w-0 max-w-full" : ""} ${!number && !editorialRail
             ? "block"
             : tabletEditorial
             ? "grid grid-cols-[3rem_minmax(0,1fr)] gap-5"

@@ -14,6 +14,7 @@ export type WebsiteRendererProps = {
   mode?: 'editor' | 'public'
   selectedSectionId?: string | null
   onSectionSelect?: (sectionId: string) => void
+  onGalleryAdd?: (sectionId: string) => void
   targetViewport?: ResponsiveViewport
   scope?: WebsiteRenderScope
   selectedElementId?: string | null

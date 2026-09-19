@@ -7,9 +7,9 @@ import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs
 import { controlsForViewport, globalDesignCapability, presentationCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
 import type { AppearanceControlCapability, SectionCapability } from '../websiteCapabilities/types'
 import { projectColorsSchema } from '../websiteColors/projectColors'
-import { genericTextSectionChildFlowSchema } from './sectionChildFlow'
+import { gallerySectionChildFlowSchema, genericTextSectionChildFlowSchema } from './sectionChildFlow'
 import { backgroundMediaSchema } from '../websiteMedia/backgroundMedia'
-import { groupPaddingSchema } from '../websiteElements/schemas'
+import { galleryImageItemSchema, groupPaddingSchema } from '../websiteElements/schemas'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
@@ -23,6 +23,9 @@ const responsiveMediaSpacingSchema = z.object({
   left: nonEmptyString,
 }).strict()
 const responsiveAppearanceSchema = z.object({
+  columns: z.number().int().min(1).max(6).optional(),
+  gap: z.enum(['small', 'medium', 'large']).optional(),
+  aspectRatio: z.enum(['square', 'portrait', 'landscape']).optional(),
   contentPosition: z.enum(['top-start', 'top-center', 'top-end', 'center-start', 'center', 'center-end', 'bottom-start', 'bottom-center', 'bottom-end']).optional(),
   innerSpacing: groupPaddingSchema.optional(),
   mediaPlacement: nonEmptyString.optional(),
@@ -44,10 +47,8 @@ const responsiveControlSchema = z.object({
   }).strict().optional(),
 }).strict()
 export const sectionCompositionSchema = z.object({ childFlow: genericTextSectionChildFlowSchema }).strict()
-export const sectionCompositionsSchema = z.object({
-  shared: sectionCompositionSchema,
-  custom: z.object({ desktop: sectionCompositionSchema.optional(), tablet: sectionCompositionSchema.optional(), mobile: sectionCompositionSchema.optional() }).strict().optional(),
-}).strict().superRefine((compositions, context) => {
+const galleryCompositionSchema = z.object({ childFlow: gallerySectionChildFlowSchema }).strict()
+const compositionIdentityRefinement = (compositions: { shared: { childFlow: { elements: import('../websiteElements/types').WebsiteElement[] } }; custom?: Partial<Record<string, { childFlow: { elements: import('../websiteElements/types').WebsiteElement[] } }>> }, context: z.RefinementCtx) => {
   const seen = new Set<string>()
   const visitIdentity = (id: string, path: (string | number)[]) => {
     if (seen.has(id)) context.addIssue({ code: 'custom', message: `Owned IDs must be unique across all Section compositions; duplicate [${id}] found.`, path })
@@ -63,10 +64,27 @@ export const sectionCompositionsSchema = z.object({
     if (element.type === 'compositionGroup') element.children.forEach((child, index) => visit(child, [...path, 'children', index]))
   }
   const branches = [['shared', compositions.shared], ...Object.entries(compositions.custom ?? {})] as const
-  branches.forEach(([name, composition]) => composition.childFlow.elements.forEach((element, index) => visit(element, [name, 'childFlow', 'elements', index])))
-}).transform((compositions) => compositions.custom && Object.keys(compositions.custom).length > 0 ? compositions : { shared: compositions.shared })
+  branches.forEach(([name, composition]) => composition?.childFlow.elements.forEach((element, index) => visit(element, [name, 'childFlow', 'elements', index])))
+}
+const galleryCompositionsSchema = z.object({
+  shared: galleryCompositionSchema,
+  custom: z.object({ desktop: galleryCompositionSchema.optional(), tablet: galleryCompositionSchema.optional(), mobile: galleryCompositionSchema.optional() }).strict().optional(),
+}).strict().superRefine(compositionIdentityRefinement).transform((compositions) => compositions.custom && Object.keys(compositions.custom).length > 0 ? compositions : { shared: compositions.shared })
+export const sectionCompositionsSchema = z.object({
+  shared: sectionCompositionSchema,
+  custom: z.object({ desktop: sectionCompositionSchema.optional(), tablet: sectionCompositionSchema.optional(), mobile: sectionCompositionSchema.optional() }).strict().optional(),
+}).strict().superRefine(compositionIdentityRefinement).transform((compositions) => compositions.custom && Object.keys(compositions.custom).length > 0 ? compositions : { shared: compositions.shared })
 export const heroContentSchema = z.object({ semantic: z.object({}).strict(), compositions: sectionCompositionsSchema }).strict()
-export const galleryContentSchema = z.object({ semantic: z.object({ heading: text, items: z.tuple([]) }).strict() }).strict()
+export const galleryContentSchema = z.object({
+  semantic: z.object({ items: z.array(galleryImageItemSchema).max(24).superRefine((items, context) => {
+    const seen = new Set<string>()
+    items.forEach((item, index) => {
+      if (seen.has(item.id)) context.addIssue({ code: 'custom', path: [index, 'id'], message: 'Gallery item IDs must be unique.' })
+      seen.add(item.id)
+    })
+  }) }).strict(),
+  compositions: galleryCompositionsSchema,
+}).strict()
 export const rsvpContentSchema = z.object({ semantic: z.object({ heading: text, description: text, buttonLabel: text }).strict() }).strict()
 export const blankContentSchema = z.object({ semantic: z.object({}).strict(), compositions: sectionCompositionsSchema }).strict()
 
@@ -146,6 +164,9 @@ export function validateSectionContent(type: string, content: Record<string, unk
 }
 
 export const sectionAppearanceSchema = z.object({
+    columns: z.number().int().min(1).max(6).optional(),
+    gap: z.enum(['small', 'medium', 'large']).optional(),
+    aspectRatio: z.enum(['square', 'portrait', 'landscape']).optional(),
     backgroundMedia: backgroundMediaSchema,
     headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),
     bodyAlignment: z.enum(['inherit', 'left', 'center', 'right']),
@@ -378,7 +399,7 @@ const draftSchema = draftCommonSchema.extend({
   }
 
   draft.sections.forEach((section, index) => {
-    const composable = section.type === 'hero' || section.type === 'blank'
+    const composable = section.type === 'hero' || section.type === 'gallery' || section.type === 'blank'
     const envelope = composable && 'shared' in section.appearance ? section.appearance : null
     if (composable && !envelope) {
       context.addIssue({ code: 'custom', message: 'Composition Sections require a shared/custom appearance envelope', path: ['sections', index, 'appearance'] })

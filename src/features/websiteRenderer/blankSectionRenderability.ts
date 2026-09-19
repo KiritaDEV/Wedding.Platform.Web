@@ -50,3 +50,16 @@ export function isBlankSectionRenderable(
   return flow.elements.some(isRenderable)
     || hasIntentionalSectionSurface(section, targetViewport)
 }
+
+export function isGallerySectionRenderable(section: WebsiteSection, templateKey: string, media: Record<string, ResolvedWebsiteMedia>, eventDate: string | null, targetViewport: ResponsiveViewport = 'desktop'): boolean {
+  if (section.type !== 'gallery') return true
+  if (section.content.semantic.items.some(({ mediaId }) => Boolean(media[mediaId]))) return true
+  const isRenderable = (element: WebsiteElement): boolean => element.isHidden
+    ? false
+    : element.type === 'compositionGroup'
+    ? element.children.some(isRenderable)
+    : element.type === 'text'
+      ? textPlainText(element.document).trim().length > 0
+      : isElementRenderable(element, templateKey, 'public', media, eventDate)
+  return resolveSectionComposition(section, targetViewport).composition.childFlow.elements.some(isRenderable)
+}

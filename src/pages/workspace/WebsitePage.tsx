@@ -306,7 +306,7 @@ function WebsitePageContent() {
   const activeCompositionTarget =
     workingSelected &&
     workingContent &&
-    (workingSelected.type === "blank" || workingSelected.type === "hero")
+    (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery")
       ? resolveEditorCompositionTarget(
           { ...workingSelected, content: workingContent } as WebsiteSection,
           previewMode,
@@ -319,7 +319,7 @@ function WebsitePageContent() {
   const activeAppearanceTarget =
     workingSelected &&
     workingAppearanceOwner &&
-    (workingSelected.type === "hero" || workingSelected.type === "blank")
+    (workingSelected.type === "hero" || workingSelected.type === "blank" || workingSelected.type === "gallery")
       ? resolveSectionAppearance(
           workingAppearanceOwner as WebsiteSectionAppearanceEnvelope,
           previewMode,
@@ -364,7 +364,7 @@ function WebsitePageContent() {
     const nextScope =
       workingSelected &&
       workingContent &&
-      (workingSelected.type === "blank" || workingSelected.type === "hero")
+      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery")
         ? resolveEditorCompositionTarget(
             { ...workingSelected, content: workingContent } as WebsiteSection,
             next,
@@ -428,7 +428,7 @@ function WebsitePageContent() {
     const nextTarget =
       workingSelected &&
       workingContent &&
-      (workingSelected.type === "blank" || workingSelected.type === "hero")
+      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery")
         ? resolveEditorCompositionTarget(
             { ...workingSelected, content: workingContent } as WebsiteSection,
             next,
@@ -669,6 +669,7 @@ function WebsitePageContent() {
       return;
     if (
       authoritativeSelected.type !== "hero" &&
+      authoritativeSelected.type !== "gallery" &&
       authoritativeSelected.type !== "blank"
     )
       return;
@@ -708,6 +709,7 @@ function WebsitePageContent() {
       return;
     if (
       authoritativeSelected.type !== "hero" &&
+      authoritativeSelected.type !== "gallery" &&
       authoritativeSelected.type !== "blank"
     )
       return;
@@ -750,7 +752,7 @@ function WebsitePageContent() {
     const compositionTarget =
       section &&
       content &&
-      (section.type === "blank" || section.type === "hero")
+      (section.type === "blank" || section.type === "hero" || section.type === "gallery")
         ? resolveEditorCompositionTarget(
             { ...section, content } as WebsiteSection,
             previewMode,
@@ -823,7 +825,7 @@ function WebsitePageContent() {
     );
     if (!flow) return false;
     const target =
-      section.type === "blank" || section.type === "hero"
+      section.type === "blank" || section.type === "hero" || section.type === "gallery"
         ? resolveEditorCompositionTarget(
             { ...section, content } as WebsiteSection,
             previewMode,
@@ -885,7 +887,7 @@ function WebsitePageContent() {
         : (section.content as Record<string, unknown>),
     );
     const target =
-      section.type === "blank" || section.type === "hero"
+      section.type === "blank" || section.type === "hero" || section.type === "gallery"
         ? resolveEditorCompositionTarget(
             { ...section, content } as WebsiteSection,
             previewMode,
@@ -1087,6 +1089,7 @@ function WebsitePageContent() {
           activeAppearanceTarget &&
           freshestSelected &&
           (freshestSelected.type === "hero" ||
+            freshestSelected.type === "gallery" ||
             freshestSelected.type === "blank")
             ? mergeScopedSectionAppearance(
                 freshestSelected.appearance,
@@ -1213,7 +1216,7 @@ function WebsitePageContent() {
       workingChildFlow={
         selected &&
         workingContent &&
-        (selected.type === "blank" || selected.type === "hero")
+        (selected.type === "blank" || selected.type === "hero" || selected.type === "gallery")
           ? {
               sectionId: selected.id,
               flow: activeCompositionTarget?.composition.childFlow,
@@ -1295,7 +1298,7 @@ function WebsitePageContent() {
         panelMode={sectionPanelMode}
         showModeSwitch
         appearanceDirty={appearanceDirty}
-        contentDirty={contentDirty}
+        contentDirty={selected?.type === "gallery" ? sectionDirty : contentDirty}
         compositionPending={listPending}
         appearanceError={appearanceError}
         sectionDesignSaving={sectionDesignSaving}
@@ -1369,7 +1372,7 @@ function WebsitePageContent() {
         panelMode={drawerMode === "appearance" ? "appearance" : "content"}
         showModeSwitch={false}
         appearanceDirty={appearanceDirty}
-        contentDirty={contentDirty}
+        contentDirty={selected?.type === "gallery" ? sectionDirty : contentDirty}
         compositionPending={listPending}
         appearanceError={appearanceError}
         sectionDesignSaving={sectionDesignSaving}
@@ -1554,6 +1557,18 @@ function WebsitePageContent() {
             onChildFlowChange={changeChildFlow}
             onAddColor={addProjectColor}
             onSectionSelect={selectSection}
+            onGalleryAdd={(id) => {
+              selectSection(id);
+              if (sectionDirty && id !== effectiveSelectedId) return;
+              setMode("content");
+              setSectionPanelMode("content");
+              setDrawerMode("content");
+              setDrawerSnap("medium");
+              requestAnimationFrame(() => {
+                const button = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-gallery-add]")).find(node => node.dataset.galleryAdd === id && node.getClientRects().length > 0);
+                button?.click();
+              });
+            }}
           />
           <aside
             className="hidden h-full min-h-0 overflow-hidden border-l border-border bg-background p-3 xl:block"
@@ -1617,6 +1632,7 @@ function WebsitePageContent() {
               const pendingFlow =
                 pendingSection &&
                 (pendingSection.type === "blank" ||
+                  pendingSection.type === "gallery" ||
                   pendingSection.type === "hero")
                   ? resolveEditorCompositionTarget(pendingSection, previewMode)
                       .composition.childFlow
@@ -1671,6 +1687,7 @@ function WebsitePageContent() {
             const pendingFlow =
               pendingSection &&
               (pendingSection.type === "blank" ||
+                pendingSection.type === "gallery" ||
                 pendingSection.type === "hero")
                 ? resolveEditorCompositionTarget(pendingSection, previewMode)
                     .composition.childFlow
@@ -1973,6 +1990,7 @@ function PreviewCanvas({
   onChildFlowChange,
   onAddColor,
   onSectionSelect,
+  onGalleryAdd,
 }: {
   event: ReturnType<typeof useEventWorkspace>;
   draft: WebsiteDraft;
@@ -1992,6 +2010,7 @@ function PreviewCanvas({
   ) => boolean;
   onAddColor: (value: string) => Promise<ProjectColor>;
   onSectionSelect: (id: string) => void;
+  onGalleryAdd: (id: string) => void;
 }) {
   const previewAreaRef = useRef<HTMLDivElement>(null);
   const [availableSize, setAvailableSize] = useState({ width: 0, height: 0 });
@@ -2168,6 +2187,7 @@ function PreviewCanvas({
                   onSectionSelect={
                     editorMode === "edit" ? onSectionSelect : undefined
                   }
+                  onGalleryAdd={editorMode === "edit" ? onGalleryAdd : undefined}
                   selectedElementId={
                     editorMode === "edit" && selectedChild?.kind === "element"
                       ? selectedChild.id
@@ -2191,6 +2211,7 @@ function PreviewCanvas({
                           const flow =
                             section &&
                             (section.type === "blank" ||
+                              section.type === "gallery" ||
                               section.type === "hero")
                               ? resolveEditorCompositionTarget(
                                   section,
@@ -2215,6 +2236,7 @@ function PreviewCanvas({
                           const flow =
                             section &&
                             (section.type === "blank" ||
+                              section.type === "gallery" ||
                               section.type === "hero")
                               ? resolveEditorCompositionTarget(
                                   section,
@@ -2366,7 +2388,7 @@ function SectionInspector({
     ? sectionCapability(capabilities, selected.type)
     : undefined;
   const compositionTarget =
-    selected.type === "blank" || selected.type === "hero"
+    selected.type === "blank" || selected.type === "hero" || selected.type === "gallery"
       ? resolveEditorCompositionTarget(
           { ...selected, content: workingContent } as WebsiteSection,
           targetViewport,
@@ -2664,7 +2686,7 @@ function SectionInspector({
                 appearance={workingAppearance}
                 templateKey={templateKey}
                 sectionCapability={capability}
-                targetViewport={authoringViewport}
+                targetViewport={selected.type === "gallery" ? targetViewport : authoringViewport}
                 error={appearanceError}
                 library={capabilities!.designLibrary}
                 projectColors={projectColors}

@@ -25,7 +25,6 @@ import {
   Copy,
   Eye,
   EyeOff,
-  GripVertical,
   Group as GroupIcon,
   Images,
   Users,
@@ -83,6 +82,7 @@ import {
   StructureActionMenu,
   StructureMenuAction,
 } from "./StructureActionMenu";
+import { SortableDragHandle } from "./SortableDragHandle";
 
 const sortableId = (reference: SectionChildReference) =>
   reference.kind === "specialized"
@@ -471,16 +471,12 @@ function TopLevelRow({
         data-element-hidden={element?.isHidden ? "true" : undefined}
         className={`group/structure-row relative flex w-full min-w-0 max-w-full items-center gap-0.5 rounded-md border px-0.5 py-0.5 ${selected ? "border-accent bg-surface-muted" : isGroup ? "border-border/50 bg-surface-muted/35 hover:border-border hover:bg-surface-muted" : "border-transparent hover:bg-surface-muted"} ${isDragging ? "z-20 opacity-70 shadow-lg" : ""}`}
       >
-        <IconButton
-          type="button"
-          size="sm"
+        <SortableDragHandle
+          label={`Drag ${label}`}
           className={`touch-none cursor-grab opacity-35 active:cursor-grabbing group-hover/structure-row:opacity-100 focus-visible:opacity-100 ${selected ? "opacity-100" : ""}`}
-          aria-label={`Drag ${label}`}
           {...attributes}
           {...listeners}
-        >
-          <GripVertical size={14} />
-        </IconButton>
+        />
         {isGroup && (
           <GroupDisclosure
             expanded={expanded}
@@ -726,16 +722,12 @@ function NestedRow({
         data-element-hidden={child.isHidden ? "true" : undefined}
         className={`group/structure-row flex w-full min-w-0 max-w-full items-center gap-0.5 rounded-md border px-0.5 py-0.5 ${selected ? "border-accent bg-surface-muted" : isGroup ? "border-border/50 bg-surface-muted/35 hover:border-border hover:bg-surface-muted" : "border-transparent hover:bg-surface-muted"}`}
       >
-        <IconButton
-          type="button"
-          size="sm"
+        <SortableDragHandle
+          label={`Drag ${label}`}
           className={`touch-none cursor-grab opacity-35 active:cursor-grabbing group-hover/structure-row:opacity-100 focus-visible:opacity-100 ${selected ? "opacity-100" : ""}`}
-          aria-label={`Drag ${label}`}
           {...attributes}
           {...listeners}
-        >
-          <GripVertical size={14} />
-        </IconButton>
+        />
         {isGroup && (
           <GroupDisclosure
             expanded={expanded}

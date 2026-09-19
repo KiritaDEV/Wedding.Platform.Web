@@ -1,4 +1,4 @@
-import type { BlankContent, HeroContent, ResponsiveViewport, SectionComposition, WebsiteSection } from './types'
+import type { BlankContent, GalleryContent, HeroContent, ResponsiveViewport, SectionComposition, WebsiteSection } from './types'
 
 export type PersistedSectionComposition = {
   scope: { kind: 'shared' } | { kind: 'custom'; viewport: ResponsiveViewport }
@@ -6,12 +6,12 @@ export type PersistedSectionComposition = {
 }
 
 export function supportsSectionCompositions(section: Pick<WebsiteSection, 'type'>): boolean {
-  return section.type === 'hero' || section.type === 'blank'
+  return section.type === 'hero' || section.type === 'gallery' || section.type === 'blank'
 }
 
 export function listSectionCompositions(section: WebsiteSection): PersistedSectionComposition[] {
   if (!supportsSectionCompositions(section)) return []
-  const compositions = (section.content as HeroContent | BlankContent).compositions
+  const compositions = (section.content as HeroContent | GalleryContent | BlankContent).compositions
   const branches: PersistedSectionComposition[] = [{ scope: { kind: 'shared' }, composition: compositions.shared }]
   for (const viewport of ['desktop', 'tablet', 'mobile'] as const) {
     const composition = compositions.custom?.[viewport]
@@ -31,7 +31,7 @@ export function resolveSectionComposition(section: WebsiteSection, targetViewpor
   if (!supportsSectionCompositions(section)) {
     throw new Error(`Section type [${section.type}] does not support compositions.`)
   }
-  const compositions = (section.content as HeroContent | BlankContent).compositions
+  const compositions = (section.content as HeroContent | GalleryContent | BlankContent).compositions
   const custom = compositions.custom?.[targetViewport]
   return custom
     ? { composition: custom, targetViewport, source: 'custom', customViewport: targetViewport }
