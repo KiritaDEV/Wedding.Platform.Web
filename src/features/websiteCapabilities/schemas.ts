@@ -287,7 +287,6 @@ const expectedElementAppearanceRoles = {
   media: { typography: [], colors: [] },
   divider: null,
   cta: null,
-  mediaCollection: null,
   compositionGroup: null,
   eventDate: null,
   eventTime: null,

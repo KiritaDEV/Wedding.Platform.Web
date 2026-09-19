@@ -24,9 +24,11 @@ const resolvedMedia = {
 };
 
 function section(type: string, id = type, content: Record<string, unknown> = {}): WebsiteSection {
+  const galleryHeading = typeof content.heading === "string" ? content.heading : "";
   const canonicalContent = "semantic" in content ? content : type === "hero"
     ? { semantic: {}, compositions: { shared: { childFlow: content.childFlow } } }
     : type === "blank" ? { semantic: {}, compositions: { shared: { childFlow: content.childFlow } } }
+    : type === "gallery" ? { semantic: { items: content.items ?? [] }, compositions: { shared: { childFlow: { elements: galleryHeading ? [{ id: "gallery-heading", type: "text", editorName: "Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: galleryHeading }] }] } }] : [], order: [...(galleryHeading ? [{ kind: "element", id: "gallery-heading" }] : []), { kind: "specialized", key: "content" }] } } } }
     : { semantic: content };
   return {
     id,
@@ -35,7 +37,7 @@ function section(type: string, id = type, content: Record<string, unknown> = {})
     sortOrder: 10,
     isEnabled: true,
     content: canonicalContent,
-    appearance: type === "hero" && content.backgroundMedia ? { ...appearance, backgroundMedia: content.backgroundMedia } : appearance,
+    appearance: type === "gallery" ? { shared: appearance } : type === "hero" && content.backgroundMedia ? { ...appearance, backgroundMedia: content.backgroundMedia } : appearance,
     designDefaults: {},
     resolvedDesignContext: null,
     appearanceOptions: null,
@@ -68,7 +70,8 @@ function draft(templateKey: "classic-filipiniana-v1" | "modern-editorial-v1", se
 function render(template: "classic" | "modern", sections: WebsiteSection[], viewport: "desktop" | "tablet" | "mobile" = "desktop", mode: "editor" | "public" = "public") {
   const templateKey = template === "classic" ? "classic-filipiniana-v1" : "modern-editorial-v1";
   const Renderer = template === "classic" ? ClassicFilipinianaRenderer : ModernEditorialRenderer;
-  return renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, sections)} targetViewport={viewport} mode={mode} />);
+  const resolvedSections = sections.map((value) => value.type === "gallery" ? { ...value, appearance: (value.appearance as { shared: typeof appearance }).shared } as unknown as WebsiteSection : value);
+  return renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, resolvedSections)} targetViewport={viewport} mode={mode} />);
 }
 
 function hero(height: number | null = 100): WebsiteSection {
@@ -107,11 +110,11 @@ describe("Section renderer boundary", () => {
 
   it.each(["gallery", "rsvp"] as const)("hosts %s decoration on the outer Section surface in both renderers", (type) => {
     const content = type === "gallery"
-      ? { heading: "Gallery", items: [] }
+      ? { items: [] }
       : { heading: "RSVP", description: "Join us", buttonLabel: "Reply" };
     for (const template of ["classic", "modern"] as const) {
       const value = section(type, type, content);
-      value.appearance = { ...appearance, decorativeAppearance: { background: { overlay: "soft" }, frame: { style: "fine" } } };
+      value.appearance = type === "gallery" ? { shared: { ...appearance, decorativeAppearance: { background: { overlay: "soft" }, frame: { style: "fine" } } } } : { ...appearance, decorativeAppearance: { background: { overlay: "soft" }, frame: { style: "fine" } } };
       const markup = render(template, [value], "mobile", "editor");
       expect(markup).toContain("relative isolate");
       expect(markup).toContain("data-section-decoration");
@@ -376,16 +379,44 @@ describe("Section renderer boundary", () => {
     const rsvp = section("rsvp", "rsvp", { heading: "Will you join us?", description: "We hope you can celebrate with us.", buttonLabel: "Respond" });
     const editor = render(template, [gallery, rsvp], "mobile", "editor");
     expect(editor).toContain("Our moments");
-    expect(editor).toContain("Photos will appear here");
+    expect(editor).toContain("Add images");
     expect(editor).toContain("Will you join us?");
     expect(editor).toContain("We hope you can celebrate with us.");
     expect(editor).toContain("Respond");
     expect(editor).toContain("data-rsvp-button");
     const publicMarkup = render(template, [gallery, rsvp], "desktop", "public");
     expect(publicMarkup).toContain("Our moments");
-    expect(publicMarkup).not.toContain("Photos will appear here");
+    expect(publicMarkup).not.toContain("Gallery images will appear here");
     expect(publicMarkup).toContain("Will you join us?");
     expect(publicMarkup).toContain("Respond");
+  });
+
+  it.each(["classic", "modern"] as const)("renders generic Gallery content around the specialized collection in authored order through %s", (template) => {
+    const gallery = section("gallery", "gallery", { items: [{ id: "photo", type: "image", mediaId: "image" }] });
+    const text = (id: string, value: string) => ({ id, type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: value }] }] } });
+    (gallery.content as import("../websiteEditor/types").GalleryContent).compositions.shared.childFlow = {
+      elements: [text("before", "Before Gallery"), text("after", "After Gallery")],
+      order: [{ kind: "element", id: "before" }, { kind: "specialized", key: "content" }, { kind: "element", id: "after" }],
+    };
+    const markup = render(template, [gallery], "desktop", "public");
+    expect(markup.indexOf("Before Gallery")).toBeLessThan(markup.indexOf("data-gallery-collection"));
+    expect(markup.indexOf("data-gallery-collection")).toBeLessThan(markup.indexOf("After Gallery"));
+    expect(markup).toContain('src="/hero.jpg"');
+  });
+
+  it.each(["classic", "modern"] as const)("renders a populated %s Gallery without an implicit heading", (template) => {
+    const gallery = section("gallery", "gallery", { items: [{ id: "photo", type: "image", mediaId: "image" }] });
+    const markup = render(template, [gallery], "desktop", "public");
+
+    expect(markup).toContain("data-gallery-collection");
+    expect(markup).not.toContain("Memories");
+  });
+
+  it("renders an empty Classic Gallery editor without an implicit heading", () => {
+    const markup = render("classic", [section("gallery", "gallery", { items: [] })], "desktop", "editor");
+
+    expect(markup).toContain("Add images");
+    expect(markup).not.toContain("Memories");
   });
 
   it.each(["classic", "modern"] as const)("isolates every supported %s Blank generic child kind", (template) => {

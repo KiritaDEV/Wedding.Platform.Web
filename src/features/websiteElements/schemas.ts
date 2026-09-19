@@ -206,7 +206,11 @@ export const imageElementSchema = z
   .strict();
 
 const focalPointSchema = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict();
-const mediaImageItemSchema = z.object({
+export const galleryImageItemSchema = z.object({
+  id: elementIdSchema, type: z.literal("image"), mediaId: mediaIdSchema,
+  focalPoint: focalPointSchema.optional(), zoom: z.number().min(1).max(3).optional(),
+}).strict();
+export const mediaImageItemSchema = z.object({
   id: elementIdSchema, type: z.literal("image"), mediaId: mediaIdSchema,
   alt: z.string().max(500).optional(), decorative: z.boolean().optional(), focalPoint: focalPointSchema.optional(),
   zoom: z.number().min(1).max(3).optional(),
@@ -308,21 +312,6 @@ export const ctaElementSchema = z
   })
   .strict();
 
-export const mediaCollectionItemSchema = z
-  .object({
-    id: elementIdSchema,
-    mediaId: mediaIdSchema,
-  })
-  .strict();
-
-export const mediaCollectionElementSchema = z
-  .object({
-    ...baseShape,
-    type: z.literal("mediaCollection"),
-    items: z.array(mediaCollectionItemSchema),
-  })
-  .strict();
-
 export const eventDateElementSchema = z
   .object({
     ...baseShape,
@@ -356,7 +345,6 @@ export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   dividerElementSchema,
   quoteElementSchema,
   ctaElementSchema,
-  mediaCollectionElementSchema,
   eventDateElementSchema,
   eventTimeElementSchema,
   countdownElementSchema,
@@ -423,7 +411,6 @@ function addDuplicateIdIssues(
     }
     seen.add(element.id);
 
-    if (element.type === "mediaCollection") element.items?.forEach(visit);
     element.children?.forEach(visit);
   };
   elements.forEach(visit);

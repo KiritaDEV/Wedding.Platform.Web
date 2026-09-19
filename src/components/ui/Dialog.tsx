@@ -12,6 +12,9 @@ export type DialogProps = {
   size?: "sm" | "lg" | "xl";
   className?: string;
   initialFocusRef?: React.RefObject<HTMLElement | null>;
+  mobileFullScreen?: boolean;
+  onAfterClose?: () => void;
+  contained?: boolean;
 };
 
 const sizes = {
@@ -30,6 +33,9 @@ export function Dialog({
   size = "lg",
   className = "",
   initialFocusRef,
+  mobileFullScreen = false,
+  onAfterClose,
+  contained = false,
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -40,13 +46,17 @@ export function Dialog({
       dialog.showModal();
       initialFocusRef?.current?.focus();
     }
-    if (!open && dialog.open) dialog.close();
-  }, [initialFocusRef, open]);
+    if (!open && dialog.open) {
+      dialog.close();
+    }
+  }, [initialFocusRef, onAfterClose, open]);
 
   return (
     <dialog
       ref={ref}
-      className={`m-auto rounded-md border border-border bg-surface text-foreground shadow-[var(--shadow-dialog)] ${sizes[size]} ${className}`}
+      data-mobile-full-screen={mobileFullScreen || undefined}
+      className={`m-auto rounded-md border border-border bg-surface text-foreground shadow-[var(--shadow-dialog)] ${sizes[size]} ${contained ? "overflow-hidden" : ""} ${mobileFullScreen ? "max-sm:m-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-0" : ""} ${className}`}
+      style={contained ? { overflow: "hidden" } : undefined}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       onCancel={(event) => {
@@ -54,6 +64,7 @@ export function Dialog({
         if (!closeDisabled) onClose();
       }}
       onClose={() => {
+        onAfterClose?.();
         if (open && !closeDisabled) onClose();
       }}
       onClick={(event) => {

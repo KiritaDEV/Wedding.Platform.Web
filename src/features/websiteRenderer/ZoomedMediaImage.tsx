@@ -14,7 +14,11 @@ export function ZoomedMediaImage({ alt = '', allowZoomOut = false, className = '
     if (!element) return
     const measure = () => setContainer({ width: element.clientWidth, height: element.clientHeight })
     measure()
-    const observer = new ResizeObserver(measure)
+    // ResizeObserver reports fractional, untransformed layout dimensions. Integer
+    // client sizes can leave a subpixel uncovered at a clamped crop edge.
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setContainer({ width: entry.contentRect.width, height: entry.contentRect.height })
+    })
     observer.observe(element)
     return () => observer.disconnect()
   }, [])

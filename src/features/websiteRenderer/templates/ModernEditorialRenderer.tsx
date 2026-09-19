@@ -16,9 +16,12 @@ import {
 import { resolveSectionDesignTokens } from "../../websiteTemplates/design/catalogs";
 import { SectionSurfaceDecoration } from "../SectionSurfaceDecoration";
 import { BlankSectionRenderer } from "../BlankSectionRenderer";
-import { isBlankSectionRenderable, isHeroSectionRenderable } from "../blankSectionRenderability";
+import { isBlankSectionRenderable, isGallerySectionRenderable, isHeroSectionRenderable } from "../blankSectionRenderability";
 import { HeroSectionRenderer } from "../HeroSectionRenderer";
 import { resolveSectionComposition } from "../../websiteEditor/sectionComposition";
+import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
+import { GalleryCollectionRenderer } from "../GalleryCollectionRenderer";
+import { resolveOwnedSectionAppearance } from "../../websiteEditor/sectionAppearance";
 
 export function ModernEditorialRenderer({
   event,
@@ -42,6 +45,7 @@ export function ModernEditorialRenderer({
           .filter(({ section }) => section.isEnabled);
   const sections = candidates.filter(({ section }) => {
     if (mode === "public" && section.type === "blank") return isBlankSectionRenderable(section, website.templateKey, website.media, event.eventDate, targetViewport);
+    if (mode === "public" && section.type === "gallery") return isGallerySectionRenderable(section, website.templateKey, website.media, event.eventDate, targetViewport);
     if (mode === "public" && section.type === "hero") return isHeroSectionRenderable(section, website.templateKey, website.media, event.eventDate, targetViewport);
     return true;
   });
@@ -208,14 +212,13 @@ function Section({
       const resolved = resolveSectionComposition(section, targetViewport);
       return <HeroSectionRenderer section={section} composition={resolved.composition} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
     }
-    case "gallery":
-      return (
-        <ModernEditorialGallery
+    case "gallery": {
+      const resolved = resolveSectionComposition(section, targetViewport);
+      return <SectionChildFlowRenderer sectionId={section.id} flow={resolved.composition.childFlow} specialized={<ModernEditorialGallery
           sectionId={section.id}
-          content={(section.content as GalleryContent).semantic}
-          mode={mode}
-        />
-      );
+          collection={<GalleryCollectionRenderer sectionId={section.id} items={(section.content as GalleryContent).semantic.items} media={media} appearance={resolveOwnedSectionAppearance(section.appearance, targetViewport)} viewport={targetViewport} mode={mode} />}
+        />} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
+    }
     case "rsvp":
       return (
         <ModernEditorialRsvp

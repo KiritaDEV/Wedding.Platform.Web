@@ -9,15 +9,20 @@ import type { CompositionGroup } from "../websiteElements/types";
 import { SectionChildFlowRenderer } from "./SectionChildFlowRenderer";
 import { ClassicFilipinianaGallery, ClassicFilipinianaRsvp } from "./templates/classicFilipiniana/sections";
 import { ModernEditorialGallery, ModernEditorialRsvp } from "./templates/modernEditorial/sections";
+import { GalleryCollectionRenderer } from "./GalleryCollectionRenderer";
 
 const chrome = [process.env.CHROME_PATH, "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"]
   .find((candidate): candidate is string => Boolean(candidate && existsSync(candidate)));
 const browserIt = chrome ? it : it.skip;
 const library = { colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } as never;
+const galleryAppearance = { headingAlignment: "inherit", bodyAlignment: "inherit", backgroundTreatment: "inherit", emphasis: "inherit" } as const;
+const emptyGallery = <GalleryCollectionRenderer items={[]} media={{}} appearance={galleryAppearance} viewport="desktop" mode="editor" />;
+const galleryItems = Array.from({ length: 7 }, (_, index) => ({ id: `item-${index}`, type: "image" as const, mediaId: `image-${index}` }));
+const galleryMedia = Object.fromEntries(galleryItems.map((item, index) => [item.mediaId, { id: item.mediaId, originalFilename: `${item.mediaId}.jpg`, width: index % 2 ? 800 : 1200, height: index % 2 ? 1200 : 800, web: { width: index % 2 ? 800 : 1200, height: index % 2 ? 1200 : 800, url: `/${item.mediaId}.jpg` } }]));
 
 const css = `
   *{box-sizing:border-box}html,body{margin:0}.viewport{overflow:hidden}
-  [class~="mx-auto"]{margin-inline:auto}[class~="w-full"]{width:100%}[class~="min-w-0"]{min-width:0}[class~="max-w-full"]{max-width:100%}
+  [class~="mx-auto"]{margin-inline:auto}[class~="w-full"]{width:100%}[class~="h-full"]{height:100%}[class~="min-w-0"]{min-width:0}[class~="max-w-full"]{max-width:100%}
   [class~="max-w-xs"]{max-width:20rem}[class~="max-w-lg"]{max-width:32rem}[class~="max-w-xl"]{max-width:36rem}[class~="max-w-2xl"]{max-width:42rem}[class~="max-w-3xl"]{max-width:48rem}[class~="max-w-5xl"]{max-width:64rem}
   [class~="grid"]{display:grid}[class~="flex"]{display:flex}[class~="flex-col"]{flex-direction:column}[class~="inline-block"]{display:inline-block}
   [class~="overflow-hidden"]{overflow:hidden}[class~="whitespace-pre-line"]{white-space:pre-line}[class~="whitespace-normal"]{white-space:normal}
@@ -52,6 +57,17 @@ const scenarios = [
 ];
 
 describe("specialized Section browser layout", () => {
+  it("does not inject a Classic or Modern Gallery heading treatment", () => {
+    const classic = renderToStaticMarkup(<ClassicFilipinianaGallery sectionId="gallery" collection={emptyGallery} />);
+    const modern = renderToStaticMarkup(<ModernEditorialGallery sectionId="gallery" collection={emptyGallery} />);
+
+    expect(classic).toContain("data-gallery-empty");
+    expect(classic).not.toContain("Memories");
+    expect(classic).not.toContain("mask-image");
+    expect(modern).toContain("data-gallery-empty");
+    expect(modern).not.toContain("Memories");
+  });
+
   browserIt("contains Classic and Modern RSVP content at mobile, tablet, and desktop widths", () => {
     const renderers = [["classic", ClassicFilipinianaRsvp], ["modern", ModernEditorialRsvp]] as const;
     for (const width of [320, 768, 1200]) {
@@ -68,31 +84,59 @@ describe("specialized Section browser layout", () => {
     }
   }, 30_000);
 
-  browserIt("keeps Gallery content and placeholder widths stable for ordinary heading changes", () => {
+  browserIt("keeps the temporary Gallery placeholder contained", () => {
     const renderers = [["classic", ClassicFilipinianaGallery], ["modern", ModernEditorialGallery]] as const;
     for (const width of [320, 768, 1200]) for (const [template, Renderer] of renderers) {
-      const markup = renderToStaticMarkup(<Renderer sectionId="gallery" content={{ heading: "Gallery", items: [] }} mode="editor" />);
-      const result = chromiumLayout<{ before: number[]; after: number[]; overflow: boolean }>(width, markup, `(()=>{const host=document.querySelector('.viewport'),special=document.querySelector('[data-section-specialized-content]'),content=special.lastElementChild,heading=document.querySelector('[data-section-heading]'),placeholder=document.querySelector('[aria-label="Empty gallery preview"]')??document.querySelector('[data-section-body]'),measure=()=>[special.getBoundingClientRect().width,content.getBoundingClientRect().width,placeholder.getBoundingClientRect().width];const before=measure();heading.textContent='A longer Gallery heading with ordinary spaced content';const after=measure();return{before,after,overflow:host.scrollWidth>host.clientWidth}})()`);
-      expect(result.after, `${template}/${width}`).toEqual(result.before);
+      const markup = renderToStaticMarkup(<Renderer sectionId="gallery" collection={emptyGallery} />);
+      const result = chromiumLayout<{ before: number[]; overflow: boolean }>(width, markup, `(()=>{const host=document.querySelector('.viewport'),special=document.querySelector('[data-section-specialized-content]'),content=special.lastElementChild,placeholder=document.querySelector('[data-gallery-empty]'),measure=()=>[special.getBoundingClientRect().width,content.getBoundingClientRect().width,placeholder.getBoundingClientRect().width];return{before:measure(),overflow:host.scrollWidth>host.clientWidth}})()`);
+      expect(result.before.every((value) => value <= width + .2), `${template}/${width}`).toBe(true);
       expect(result.overflow).toBe(false);
     }
   }, 30_000);
 
-  browserIt("contains Modern Gallery spaced and unbroken headings without changing its placeholder grid", () => {
-    const headings = ["Gallery", "A deliberately long Gallery heading with ordinary spaces that may wrap when needed", longToken];
+  browserIt("contains the temporary Modern Gallery placeholder at all target widths", () => {
     for (const width of [320, 768, 1200]) {
-      const markup = headings.map((heading, index) => `<section class="gallery-case" data-case="${index}">${renderToStaticMarkup(<ModernEditorialGallery sectionId="gallery" content={{ heading, items: [] }} mode="editor" />)}</section>`).join("");
-      const results = chromiumLayout<Array<{ host: number; hostScroll: number; specialized: number; specializedScroll: number; heading: number; headingScroll: number; placeholder: number; placeholderScroll: number }>>(width, markup, `([...document.querySelectorAll('.gallery-case')].map(host=>{const specialized=host.querySelector('[data-section-specialized-content]'),heading=host.querySelector('[data-section-heading]'),placeholder=host.querySelector('[data-section-body]');return{host:host.clientWidth,hostScroll:host.scrollWidth,specialized:specialized.clientWidth,specializedScroll:specialized.scrollWidth,heading:heading.clientWidth,headingScroll:heading.scrollWidth,placeholder:placeholder.getBoundingClientRect().width,placeholderScroll:placeholder.scrollWidth}}))`);
-      expect(results).toHaveLength(3);
+      const markup = `<section class="gallery-case">${renderToStaticMarkup(<ModernEditorialGallery sectionId="gallery" collection={emptyGallery} />)}</section>`;
+      const results = chromiumLayout<Array<{ host: number; hostScroll: number; specialized: number; specializedScroll: number; placeholder: number; placeholderScroll: number }>>(width, markup, `([...document.querySelectorAll('.gallery-case')].map(host=>{const specialized=host.querySelector('[data-section-specialized-content]'),placeholder=host.querySelector('[data-section-body]');return{host:host.clientWidth,hostScroll:host.scrollWidth,specialized:specialized.clientWidth,specializedScroll:specialized.scrollWidth,placeholder:placeholder.getBoundingClientRect().width,placeholderScroll:placeholder.scrollWidth}}))`);
+      expect(results).toHaveLength(1);
       const placeholderWidth = results[0].placeholder;
       for (const [index, result] of results.entries()) {
         expect(result.hostScroll, `${width}/${index}/host`).toBeLessThanOrEqual(result.host + 1);
         expect(result.specializedScroll, `${width}/${index}/specialized`).toBeLessThanOrEqual(result.specialized + 1);
-        expect(result.headingScroll, `${width}/${index}/heading`).toBeLessThanOrEqual(result.heading + 1);
         expect(result.placeholderScroll, `${width}/${index}/placeholder`).toBeLessThanOrEqual(result.placeholder + 1);
         expect(result.specialized).toBeLessThanOrEqual(width + 0.2);
         expect(result.placeholder).toBeCloseTo(placeholderWidth, 2);
       }
+    }
+  }, 30_000);
+
+  browserIt("renders equal responsive Gallery tracks without horizontal overflow", () => {
+    for (const [width, viewport, expected] of [[320, "mobile", 1], [390, "mobile", 1], [768, "tablet", 2], [1280, "desktop", 3], [1440, "desktop", 3]] as const) {
+      const markup = renderToStaticMarkup(<GalleryCollectionRenderer items={galleryItems} media={galleryMedia} appearance={galleryAppearance} viewport={viewport} mode="public" />);
+      const result = chromiumLayout<{ columns: number; overflow: boolean; widths: number[]; ratios: number[]; order: string[] }>(width, markup, `(()=>{const host=document.querySelector('.viewport'),grid=document.querySelector('[data-gallery-collection]'),items=[...grid.querySelectorAll('[data-gallery-item]')];return{columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,overflow:host.scrollWidth>host.clientWidth,widths:items.map(x=>x.getBoundingClientRect().width),ratios:items.map(x=>x.getBoundingClientRect().width/x.getBoundingClientRect().height),order:items.map(x=>x.dataset.galleryItem)}})()`);
+      expect(result.columns).toBe(expected);
+      expect(result.overflow).toBe(false);
+      expect(Math.max(...result.widths) - Math.min(...result.widths)).toBeLessThan(.2);
+      result.ratios.forEach((ratio) => expect(ratio).toBeCloseTo(.8, 1));
+      expect(result.order).toEqual(galleryItems.map(({ id }) => id));
+    }
+    for (const [viewport, columns] of [["mobile", 2], ["tablet", 3], ["desktop", 6]] as const) {
+      const markup = renderToStaticMarkup(<GalleryCollectionRenderer items={galleryItems} media={galleryMedia} appearance={{ ...galleryAppearance, columns, gap: "large", aspectRatio: "square" }} viewport={viewport} mode="public" />);
+      const result = chromiumLayout<{ columns: number; gap: string; ratio: number }>(1280, markup, `(()=>{const grid=document.querySelector('[data-gallery-collection]'),item=grid.querySelector('[data-gallery-item]'),style=getComputedStyle(grid),rect=item.getBoundingClientRect();return{columns:style.gridTemplateColumns.split(' ').length,gap:style.gap,ratio:rect.width/rect.height}})()`);
+      expect(result.columns).toBe(columns);
+      expect(result.gap).toBe("32px");
+      expect(result.ratio).toBeCloseTo(1, 2);
+    }
+  }, 30_000);
+
+  browserIt("keeps resolved Gallery geometry equal between editor and public modes", () => {
+    for (const [width, viewport] of [[390, "mobile"], [768, "tablet"], [1280, "desktop"]] as const) {
+      const editor = renderToStaticMarkup(<GalleryCollectionRenderer items={galleryItems} media={galleryMedia} appearance={galleryAppearance} viewport={viewport} mode="editor" />);
+      const published = renderToStaticMarkup(<GalleryCollectionRenderer items={galleryItems} media={galleryMedia} appearance={galleryAppearance} viewport={viewport} mode="public" />);
+      const markup = `<div data-mode="editor">${editor}</div><div data-mode="public">${published}</div>`;
+      const result = chromiumLayout<Array<{ grid: { width: number; height: number }; items: Array<{ left: number; top: number; width: number; height: number }> }>>(width, markup, `([...document.querySelectorAll('[data-mode]')].map(host=>{const grid=host.querySelector('[data-gallery-collection]'),rect=grid.getBoundingClientRect();return{grid:{width:rect.width,height:rect.height},items:[...grid.querySelectorAll('[data-gallery-item]')].map(item=>{const r=item.getBoundingClientRect();return{left:r.left,top:r.top-host.getBoundingClientRect().top,width:r.width,height:r.height}})}}))`);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual(result[1]);
     }
   }, 30_000);
 
@@ -127,11 +171,12 @@ describe("RSVP containment markup", () => {
   });
 
   it("opts Modern Gallery into the same shrink-safe grid track without changing its specialized-only contract", () => {
-    const gallery = renderToStaticMarkup(<ModernEditorialGallery sectionId="gallery" content={{ heading: "Gallery", items: [] }} mode="editor" />);
+    const gallery = renderToStaticMarkup(<ModernEditorialGallery sectionId="gallery" collection={emptyGallery} />);
     expect(gallery).toContain("md:grid-cols-[5rem_minmax(0,1fr)]");
     expect(gallery).not.toContain("md:grid-cols-[5rem_1fr]");
     expect(gallery).toContain("min-w-0 max-w-full");
     expect(gallery).toContain("[overflow-wrap:anywhere]");
     expect(gallery).not.toContain("data-section-root-flow");
+    expect(gallery).not.toContain("08 / 10");
   });
 });

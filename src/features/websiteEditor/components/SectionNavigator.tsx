@@ -21,7 +21,6 @@ import {
   Copy,
   Eye,
   EyeOff,
-  GripVertical,
   Pencil,
   Plus,
   SquareDashed,
@@ -57,6 +56,7 @@ import {
 } from "./sectionAccordion";
 import { revealStructureRow } from "./structureReveal";
 import type { GenericBlockType } from "../../websiteElements/blockIdentity";
+import { SortableDragHandle } from "./SortableDragHandle";
 type Props = {
   sections: WebsiteSection[];
   selectedId: string | null;
@@ -246,17 +246,13 @@ function SortableSection(
       <div
         className={`group flex min-w-0 items-center gap-0.5 rounded-lg border px-1 py-1 ${props.selectedId === section.id && !hasSelectedChild ? "border-accent border-2 bg-surface-muted" : "border-transparent hover:bg-surface-muted"}`}
       >
-        <IconButton
-          type="button"
-          size="sm"
-          className="touch-none cursor-grab active:cursor-grabbing"
+        <SortableDragHandle
+          label={`Drag ${sectionLabel} section`}
+          iconSize={15}
           disabled={props.pending}
-          aria-label={`Drag ${sectionLabel} section`}
           {...attributes}
           {...listeners}
-        >
-          <GripVertical size={15} />
-        </IconButton>
+        />
         <button
           className="w-0 min-w-0 flex-1 rounded px-1.5 py-1.5 text-left"
           type="button"

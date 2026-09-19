@@ -25,8 +25,8 @@ export function mergeScopedSectionAppearance(fresh: WebsiteSectionAppearanceEnve
 }
 
 export function assertPairedSectionPresentation(section: Pick<WebsiteSection, 'type' | 'content' | 'appearance'>) {
-  if (section.type !== 'hero' && section.type !== 'blank') return
-  const content = section.content as import('./types').HeroContent | import('./types').BlankContent
+  if (section.type !== 'hero' && section.type !== 'gallery' && section.type !== 'blank') return
+  const content = section.content as import('./types').HeroContent | import('./types').GalleryContent | import('./types').BlankContent
   const appearance = section.appearance as WebsiteSectionAppearanceEnvelope
   for (const viewport of ['desktop', 'tablet', 'mobile'] as const) {
     if (Boolean(content.compositions.custom?.[viewport]) !== Boolean(appearance.custom?.[viewport])) throw new Error(`Section presentation has mismatched ${viewport} custom ownership.`)

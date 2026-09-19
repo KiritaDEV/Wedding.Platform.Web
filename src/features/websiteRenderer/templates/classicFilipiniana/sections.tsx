@@ -1,43 +1,21 @@
+import type { RsvpContent } from "../../../websiteEditor/types";
 import { EditableText } from "../../../websiteEditor/inline/EditableText";
-import type { GalleryContent, RsvpContent } from "../../../websiteEditor/types";
 import { ClassicFoundationOrnament } from "./decorations";
 import { SectionContentInset } from "../../SectionContentInset";
 
 export function ClassicFilipinianaGallery({
-  sectionId,
-  content,
-  mode,
+  collection,
 }: {
   sectionId: string;
-  content: GalleryContent["semantic"];
-  mode: "editor" | "public";
+  collection: React.ReactNode;
 }) {
   return (
     <ContentSection
-      eyebrow="Memories"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "heading"]}
-          value={content.heading}
-          fallback="Gallery"
-          placeholder="Add heading"
-          label="Gallery heading"
-        />
-      }
+      heading={null}
+      headingParticipates={false}
+      foundationOrnamentParticipates={false}
     >
-      {mode === "editor" && (
-        <div
-          className="mx-auto grid max-w-xl grid-cols-3 items-center gap-3"
-          aria-label="Empty gallery preview"
-        >
-          <div className="aspect-[4/5] -rotate-2 border border-[var(--cf-border)] bg-[color-mix(in_srgb,var(--cf-surface)_65%,transparent)] shadow-sm" />
-          <div className="flex aspect-[4/5] items-center justify-center border border-[var(--cf-border)] bg-[var(--cf-surface)] px-2 text-xs italic text-[var(--cf-muted)] shadow-sm">
-            Photos will appear here
-          </div>
-          <div className="aspect-[4/5] rotate-2 border border-[var(--cf-border)] bg-[color-mix(in_srgb,var(--cf-surface)_65%,transparent)] shadow-sm" />
-        </div>
-      )}
+      {collection}
     </ContentSection>
   );
 }
@@ -97,6 +75,7 @@ function ContentSection({
   heading,
   children,
   eyebrowParticipates,
+  foundationOrnamentParticipates = true,
   headingParticipates = true,
   bodyParticipates = true,
   renderFlow,
@@ -106,6 +85,7 @@ function ContentSection({
   heading: React.ReactNode;
   children: React.ReactNode;
   eyebrowParticipates?: boolean;
+  foundationOrnamentParticipates?: boolean;
   headingParticipates?: boolean;
   bodyParticipates?: boolean;
   renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
@@ -122,7 +102,9 @@ function ContentSection({
             data-section-specialized-content
             className={`relative mx-auto max-w-5xl overflow-hidden text-center ${specializedClassName}`}
           >
-            <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
+            {foundationOrnamentParticipates && (
+              <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
+            )}
             {hasEyebrow && (
               <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]">
                 {eyebrow}

@@ -10,7 +10,6 @@ export const WEBSITE_ELEMENT_TYPES = [
   'divider',
   'quote',
   'cta',
-  'mediaCollection',
   'compositionGroup',
   'eventDate',
   'eventTime',
