@@ -24,6 +24,7 @@ describe('Invitation form domain', () => {
     expect(effectiveInvitationName('', [guest('Neil', 'Barnedo'), guest('Hazel', 'Barnedo'), guest('A'), guest('B'), guest('C'), guest('D')])).toBe('Neil Barnedo, Hazel Barnedo + 4 guests')
     expect(effectiveInvitationName('  Ceremony   Party ', [guest('Ignored')])).toBe('Ceremony Party')
     expect(effectiveInvitationName('', [guest('First'), guest('Second'), guest('Third')])).toBe('First, Second + 1 guest')
+    expect(effectiveInvitationName('', [guest('Active'), { ...guest('Inactive'), status: 'inactive' }])).toBe('Active')
   })
 
   it('detects exact normalized draft duplicates without fuzzy matching', () => {
@@ -38,8 +39,8 @@ describe('Invitation form domain', () => {
 
   it('hydrates persisted IDs and roles and emits one atomic final-state payload', () => {
     const invitation: Invitation = {
-      id: 'invitation', customName: 'Party', effectiveName: 'Party', status: 'active',
-      guests: [{ id: 'guest-1', firstName: 'Ana', lastName: null, relationship: 'friend', side: 'bride', weddingRoles: [{ id: 'role-1', key: 'bridesmaid', name: 'Bridesmaid', isBuiltin: true }] }],
+      id: 'invitation', customName: 'Party', effectiveName: 'Party', status: 'active', canPermanentlyDelete: true,
+      guests: [{ id: 'guest-1', firstName: 'Ana', lastName: null, relationship: 'friend', side: 'bride', status: 'active', rsvpResponse: null, canPermanentlyDelete: true, weddingRoles: [{ id: 'role-1', key: 'bridesmaid', name: 'Bridesmaid', isBuiltin: true }] }],
     }
     const draft = hydrateInvitationDraft(invitation)
     draft.guests.push({ ...guest('Pedro'), relationship: 'colleague', side: 'groom', customWeddingRoleKeys: ['reader'] })
@@ -47,12 +48,13 @@ describe('Invitation form domain', () => {
     expect(payload.guests[0]).toMatchObject({ id: 'guest-1', weddingRoleIds: ['role-1'], relationship: 'friend', side: 'bride' })
     expect(payload.guests[1]).not.toHaveProperty('id')
     expect(payload.customRoles).toEqual([{ clientKey: 'reader', name: 'Reader' }])
+    expect(buildInvitationPayload(draft, [], ['guest-1']).deletedGuestIds).toEqual(['guest-1'])
   })
 
   it('uses one default Guest and canonical classification defaults', () => {
     const draft: InvitationFormDraft = { customName: '', guests: [newGuestDraft('row')] }
     expect(draft.guests).toHaveLength(1)
-    expect(draft.guests[0]).toMatchObject({ relationship: 'guest_other', side: 'unspecified', weddingRoleIds: [], customWeddingRoleKeys: [] })
+    expect(draft.guests[0]).toMatchObject({ relationship: 'guest_other', side: 'unspecified', status: 'active', weddingRoleIds: [], customWeddingRoleKeys: [] })
   })
 
   it('updates only Wedding Role leaves and cannot replace unrelated Guest state', () => {

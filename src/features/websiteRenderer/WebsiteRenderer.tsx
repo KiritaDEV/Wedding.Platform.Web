@@ -8,6 +8,7 @@ import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRender
 import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
 import type { WebsiteRendererProps } from './types'
 import { WebsiteElementChangeContext } from './WebsiteElementChangeContext'
+import { sectionsForAudience } from './audience'
 
 const templateRenderers = {
   'classic-filipiniana-v1': ClassicFilipinianaRenderer,
@@ -38,7 +39,7 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
   const targetViewport = props.targetViewport ?? 'desktop'
   const website = {
     ...props.website,
-    sections: props.website.sections.map((section) => {
+    sections: sectionsForAudience(props.website.sections, props.audience).map((section) => {
       const capability = props.website.template ? sectionCapability(props.website.template.capabilities, section.type) : undefined
       const ownedAppearance = section.type === 'hero' || section.type === 'gallery' || section.type === 'blank'
         ? resolveSectionAppearance(section.appearance, targetViewport).appearance

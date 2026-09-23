@@ -1,4 +1,4 @@
-import type { WebsiteDraft } from "../websiteEditor/types";
+import type { RenderableWebsite } from "../websiteEditor/types";
 import { listSectionCompositions } from "../websiteEditor/sectionComposition";
 import type { WebsiteElement } from "../websiteElements/types";
 
@@ -39,7 +39,7 @@ export const platformFonts: PlatformFontDefinition[] = [
 export const platformFont = (id: string) => platformFonts.find((font) => font.id === id);
 export const platformFontStack = (id: string) => { const font = platformFont(id); if (!font) return undefined; return font.source.type === "googleFonts" ? `"${font.family}", ${font.fallback}` : font.fallback; };
 
-export function collectRequiredFontIds(website: WebsiteDraft): string[] {
+export function collectRequiredFontIds(website: RenderableWebsite): string[] {
   const ids = new Set<string>();
   const preset = website.template?.capabilities.designLibrary.typographyPresets.find(({ id }) => id === website.designSettings.fontSet);
   if (preset) { ids.add(preset.headingFontId); ids.add(preset.bodyFontId); }

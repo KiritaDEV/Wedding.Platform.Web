@@ -7,13 +7,14 @@ const roleSchema = z.object({ id: z.string(), key: z.string().nullable(), name: 
 const guestSchema = z.object({
   id: z.string(), firstName: z.string(), lastName: z.string().nullable(),
   relationship: z.enum(['guest_other', 'parent', 'family_member', 'friend', 'colleague']),
-  side: z.enum(['unspecified', 'bride', 'groom', 'both']), weddingRoles: z.array(roleSchema),
+  side: z.enum(['unspecified', 'bride', 'groom', 'both']), status: z.enum(['active', 'inactive']),
+  rsvpResponse: z.enum(['attending', 'declined']).nullable(), canPermanentlyDelete: z.boolean(), weddingRoles: z.array(roleSchema),
 })
 const listGuestSchema = guestSchema.extend({ rsvpStatus: z.enum(['pending', 'attending', 'declined']) })
 const listItemSchema = z.object({
-  id: z.string(), customName: z.string().nullable(), effectiveName: z.string(), status: z.enum(['active', 'inactive']), guestCount: z.number(),
-  rsvp: z.object({ status: z.enum(['pending', 'partial', 'complete']), attending: z.number(), declined: z.number(), pending: z.number() }),
-  lastResponse: z.string().nullable(), guests: z.array(listGuestSchema), createdAt: z.string(),
+  id: z.string(), customName: z.string().nullable(), effectiveName: z.string(), status: z.enum(['active', 'inactive']), guestCount: z.number(), totalGuestCount: z.number(),
+  rsvp: z.object({ status: z.enum(['pending', 'partial', 'complete']), attendingCount: z.number(), declinedCount: z.number(), pendingCount: z.number() }),
+  lastResponse: z.string().nullable(), canPermanentlyDelete: z.boolean(), guests: z.array(listGuestSchema), createdAt: z.string(),
 })
 const listMetaSchema = z.object({
   pagination: z.object({ currentPage: z.number(), lastPage: z.number(), perPage: z.number(), total: z.number() }),
@@ -23,7 +24,7 @@ const listMetaSchema = z.object({
 const optionSchema = z.object({ id: z.string(), effectiveName: z.string(), status: z.enum(['active', 'inactive']), guestCount: z.number() })
 const transportSchema = z.object({
   id: z.string(), customName: z.string().nullable(), displayName: z.string(),
-  status: z.enum(['active', 'inactive']), guests: z.array(guestSchema),
+  status: z.enum(['active', 'inactive']), canPermanentlyDelete: z.boolean(), guests: z.array(guestSchema),
 })
 
 function parseInvitation(value: unknown): Invitation {

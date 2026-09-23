@@ -4,6 +4,7 @@ export type InvitationStatus = 'active' | 'inactive'
 export type InvitationLifecycle = 'all' | InvitationStatus
 export type InvitationRsvpStatus = 'pending' | 'partial' | 'complete'
 export type GuestRsvpStatus = 'pending' | 'attending' | 'declined'
+export type GuestStatus = 'active' | 'inactive'
 export type InvitationSort = 'recently_added' | 'invitation_asc' | 'invitation_desc' | 'last_response_desc' | 'last_response_asc'
 
 export type WeddingRole = { id: string; key: string | null; name: string; isBuiltin: boolean }
@@ -15,14 +16,17 @@ export type InvitationGuest = {
   lastName: string | null
   relationship: GuestRelationship
   side: GuestSide
+  status: GuestStatus
+  rsvpResponse: Exclude<GuestRsvpStatus, 'pending'> | null
+  canPermanentlyDelete: boolean
   weddingRoles: WeddingRole[]
 }
 
 export type InvitationListGuest = InvitationGuest & { rsvpStatus: GuestRsvpStatus }
 export type InvitationListItem = {
-  id: string; customName: string | null; effectiveName: string; status: InvitationStatus; guestCount: number
-  rsvp: { status: InvitationRsvpStatus; attending: number; declined: number; pending: number }
-  lastResponse: string | null; guests: InvitationListGuest[]; createdAt: string
+  id: string; customName: string | null; effectiveName: string; status: InvitationStatus; guestCount: number; totalGuestCount: number
+  rsvp: { status: InvitationRsvpStatus; attendingCount: number; declinedCount: number; pendingCount: number }
+  lastResponse: string | null; canPermanentlyDelete: boolean; guests: InvitationListGuest[]; createdAt: string
 }
 export type InvitationListMeta = {
   pagination: { currentPage: number; lastPage: number; perPage: number; total: number }
@@ -41,6 +45,7 @@ export type Invitation = {
   customName: string | null
   effectiveName: string
   status: InvitationStatus
+  canPermanentlyDelete: boolean
   guests: InvitationGuest[]
 }
 
@@ -52,13 +57,15 @@ export type InvitationGuestInput = {
   side: GuestSide
   weddingRoleIds: string[]
   customWeddingRoleKeys: string[]
+  status: GuestStatus
 }
 
 export type InvitationMutationPayload = {
   customName: string | null
   customRoles: DraftWeddingRole[]
   guests: InvitationGuestInput[]
+  deletedGuestIds?: string[]
 }
 
-export type GuestDraft = InvitationGuestInput & { rowKey: string }
+export type GuestDraft = InvitationGuestInput & { rowKey: string; canPermanentlyDelete?: boolean }
 export type InvitationFormDraft = { customName: string; guests: GuestDraft[] }

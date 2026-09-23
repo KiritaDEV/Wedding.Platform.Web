@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react'
+import { RotateCcw, Trash2, UserX } from 'lucide-react'
 import { Controller, useWatch, type Control, type FieldErrors, type UseFormRegister, type UseFormSetValue } from 'react-hook-form'
 import { IconButton } from '../../../components/ui/IconButton'
 import { Input } from '../../../components/ui/Input'
@@ -16,17 +16,19 @@ const sides = [
   { value: 'groom', label: 'Groom' }, { value: 'both', label: 'Both' },
 ]
 
-export function GuestDraftCard({ index, register, control, setValue, errors, catalog, draftRoles, canRemove, disabled, onRemove, onCreateDraftRole }: {
+export function GuestDraftCard({ index, register, control, setValue, errors, catalog, draftRoles, canDeactivate, canPermanentlyDelete, deleteBlockedReason, disabled, onRemove, onCreateDraftRole }: {
   index: number; register: UseFormRegister<InvitationFormDraft>; control: Control<InvitationFormDraft>; setValue: UseFormSetValue<InvitationFormDraft>; errors: FieldErrors<InvitationFormDraft>
-  catalog: WeddingRole[]; draftRoles: DraftWeddingRole[]; canRemove: boolean; disabled: boolean
+  catalog: WeddingRole[]; draftRoles: DraftWeddingRole[]; canDeactivate: boolean; canPermanentlyDelete: boolean; deleteBlockedReason?: string; disabled: boolean
   onRemove: () => void; onCreateDraftRole: (name: string) => DraftWeddingRole
 }) {
   const guestErrors = errors.guests?.[index]
   const weddingRoleIds = useWatch({ control, name: `guests.${index}.weddingRoleIds` }) ?? []
   const customWeddingRoleKeys = useWatch({ control, name: `guests.${index}.customWeddingRoleKeys` }) ?? []
+  const status = useWatch({ control, name: `guests.${index}.status` })
   return <section className="rounded-xl border border-border bg-background p-4" aria-labelledby={`guest-${index}-title`}>
-    <div className="mb-4 flex items-center justify-between"><h3 id={`guest-${index}-title`} className="font-semibold">Guest {index + 1}</h3>
-      <IconButton type="button" size="sm" variant="danger" disabled={!canRemove || disabled} aria-label={`Remove Guest ${index + 1}`} title={canRemove ? 'Remove Guest' : 'An Invitation must have at least one Guest'} onClick={onRemove}><Trash2 size={16} aria-hidden="true" /></IconButton>
+    <div className="mb-4 flex items-center justify-between gap-3"><div className="flex items-center gap-2"><h3 id={`guest-${index}-title`} className="font-semibold">Guest {index + 1}</h3><span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs">{status === 'active' ? 'Active' : 'Inactive'}</span></div><div className="flex gap-1">
+      {status === 'active' ? <IconButton type="button" size="sm" disabled={!canDeactivate || disabled} aria-label={`Deactivate Guest ${index + 1}`} title={canDeactivate ? 'Deactivate Guest' : 'An Invitation must keep one active Guest'} onClick={() => setValue(`guests.${index}.status`, 'inactive', { shouldDirty: true, shouldValidate: true })}><UserX size={16} aria-hidden="true" /></IconButton> : <IconButton type="button" size="sm" disabled={disabled} aria-label={`Reactivate Guest ${index + 1}`} title="Reactivate Guest" onClick={() => setValue(`guests.${index}.status`, 'active', { shouldDirty: true, shouldValidate: true })}><RotateCcw size={16} aria-hidden="true" /></IconButton>}
+      <IconButton type="button" size="sm" variant="danger" disabled={!canPermanentlyDelete || disabled} aria-label={`Delete Guest ${index + 1} permanently`} title={canPermanentlyDelete ? 'Delete permanently' : (deleteBlockedReason ?? 'Permanent deletion is unavailable')} onClick={onRemove}><Trash2 size={16} aria-hidden="true" /></IconButton></div>
     </div>
     <div className="grid gap-4 sm:grid-cols-2">
       <Field label="First name" id={`guest-${index}-first`} error={guestErrors?.firstName?.message}><Input id={`guest-${index}-first`} aria-invalid={!!guestErrors?.firstName} {...register(`guests.${index}.firstName`)} /></Field>

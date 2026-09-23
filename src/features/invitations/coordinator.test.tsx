@@ -6,19 +6,19 @@ import type { InvitationListItem, InvitationListQuery } from './types'
 
 const query: InvitationListQuery = { q: 'Neil', lifecycle: 'inactive', relationship: 'friend', side: 'groom', weddingRoleId: 'role', rsvp: 'pending', sort: 'invitation_asc', page: 3 }
 const item = (id: string): InvitationListItem => ({
-  id, customName: null, effectiveName: `Invitation ${id}`, status: id === 'two' ? 'inactive' : 'active', guestCount: 2,
-  rsvp: { status: 'pending', attending: 0, declined: 0, pending: 2 }, lastResponse: null, createdAt: '2026-01-01T00:00:00Z',
-  guests: [{ id: `guest-${id}`, firstName: 'Neil', lastName: id, relationship: 'friend', side: 'groom', rsvpStatus: 'pending', weddingRoles: [{ id: 'role', key: 'best_man', name: 'Best Man', isBuiltin: true }] }],
+  id, customName: null, effectiveName: `Invitation ${id}`, status: id === 'two' ? 'inactive' : 'active', guestCount: 2, totalGuestCount: 2,
+  rsvp: { status: 'pending', attendingCount: 0, declinedCount: 0, pendingCount: 2 }, lastResponse: null, canPermanentlyDelete: true, createdAt: '2026-01-01T00:00:00Z',
+  guests: [{ id: `guest-${id}`, firstName: 'Neil', lastName: id, relationship: 'friend', side: 'groom', status: 'active', rsvpResponse: null, canPermanentlyDelete: true, rsvpStatus: 'pending', weddingRoles: [{ id: 'role', key: 'best_man', name: 'Best Man', isBuiltin: true }] }],
 })
 
 const renderResults = (invitation: InvitationListItem) => renderToStaticMarkup(<InvitationsResults invitations={[invitation]} expanded={new Set([invitation.id])} sort="recently_added" onToggle={vi.fn()} onSort={vi.fn()} onEdit={vi.fn()} onActivate={vi.fn()} onDeactivate={vi.fn()} onDelete={vi.fn()} onMove={vi.fn()} />)
 
 describe('Invitations coordinator contracts', () => {
   it.each([
-    ['Pending', { status: 'pending' as const, attending: 0, declined: 0, pending: 3 }, ['3🟡'], ['0 attending', '0 declined'], ['3 pending']],
-    ['Partial', { status: 'partial' as const, attending: 2, declined: 1, pending: 1 }, ['2🟢', '1🔴', '1🟡'], [], ['2 attending', '1 declined', '1 pending']],
-    ['Complete', { status: 'complete' as const, attending: 4, declined: 0, pending: 0 }, ['4🟢'], ['0 declined', '0 pending'], ['4 attending']],
-    ['Complete', { status: 'complete' as const, attending: 2, declined: 2, pending: 0 }, ['2🟢', '2🔴'], ['0 pending'], ['2 attending', '2 declined']],
+    ['Pending', { status: 'pending' as const, attendingCount: 0, declinedCount: 0, pendingCount: 3 }, ['3🟡'], ['0 attending', '0 declined'], ['3 pending']],
+    ['Partial', { status: 'partial' as const, attendingCount: 2, declinedCount: 1, pendingCount: 1 }, ['2🟢', '1🔴', '1🟡'], [], ['2 attending', '1 declined', '1 pending']],
+    ['Complete', { status: 'complete' as const, attendingCount: 4, declinedCount: 0, pendingCount: 0 }, ['4🟢'], ['0 declined', '0 pending'], ['4 attending']],
+    ['Complete', { status: 'complete' as const, attendingCount: 2, declinedCount: 2, pendingCount: 0 }, ['2🟢', '2🔴'], ['0 pending'], ['2 attending', '2 declined']],
   ])('renders compact accessible %s RSVP counts', (label, rsvp, visible, absent, accessible) => {
     const invitation = { ...item('rsvp'), rsvp }
     const html = renderToStaticMarkup(<InvitationRsvpSummary invitation={invitation} />)
@@ -51,6 +51,29 @@ describe('Invitations coordinator contracts', () => {
     expect(html.match(/0 attending/g)).toBeNull()
     expect(html.match(/2🟡/g)).toHaveLength(4)
     expect(html.match(/aria-label="2 pending"/g)).toHaveLength(4)
+  })
+
+  it('shows total retained Guests in the heading while RSVP remains active-only', () => {
+    const invitation: InvitationListItem = {
+      ...item('Avengers'),
+      effectiveName: 'Avengers',
+      guestCount: 3,
+      totalGuestCount: 4,
+      rsvp: { status: 'partial', attendingCount: 0, declinedCount: 1, pendingCount: 2 },
+      guests: [
+        ...item('Avengers').guests,
+        { ...item('Steve').guests[0], id: 'steve', firstName: 'Steve', lastName: 'Rogers' },
+        { ...item('John').guests[0], id: 'john', firstName: 'John', lastName: 'Walker' },
+        { ...item('James').guests[0], id: 'james', firstName: 'James', lastName: 'Barnes', status: 'inactive' },
+      ],
+    }
+    const html = renderResults(invitation)
+
+    expect(html.match(/Avengers \(4\)/g)).toHaveLength(2)
+    expect(html).toContain('Partial')
+    expect(html).toContain('aria-label="1 declined"')
+    expect(html).toContain('aria-label="2 pending"')
+    expect(html).not.toContain('aria-label="3 pending"')
   })
 
   it('renders the compact mobile Guest hierarchy and preserves the desktop Guest table', () => {
@@ -88,7 +111,7 @@ describe('Invitations coordinator contracts', () => {
     expect(mobile).toContain('Bridesmaid')
     expect(mobile).toContain('Cord Sponsor')
     expect(mobile.match(/data-mobile-guest-roles="true"/g)).toHaveLength(1)
-    expect(mobile).not.toContain('—')
+    expect(mobile).not.toContain('-')
   })
 
   it('keeps the Invitation-level mobile RSVP and Last response on separate lines', () => {

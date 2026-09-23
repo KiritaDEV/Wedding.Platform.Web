@@ -10,6 +10,7 @@ import { InvitationsResults } from '../../features/invitations/components/Invita
 import { InvitationsToolbar } from '../../features/invitations/components/InvitationsToolbar'
 import { MoveGuestDialog } from '../../features/invitations/components/MoveGuestDialog'
 import type { InvitationListGuest, InvitationListItem, InvitationListQuery, InvitationListResult, WeddingRole } from '../../features/invitations/types'
+import { ApiError } from '../../lib/api'
 
 const initialQuery: InvitationListQuery = { q: '', lifecycle: 'all', relationship: '', side: '', weddingRoleId: '', rsvp: '', sort: 'recently_added', page: 1 }
 
@@ -32,7 +33,7 @@ export function InvitationsPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    queueMicrotask(() => { setLoading(true); setError(null); listInvitations(event.id, query, controller.signal).then((next) => { const validPage = Math.max(1, next.meta.pagination.lastPage); if (query.page > validPage) changeQuery({ page: validPage }); else setResult(next) }).catch((reason: unknown) => { if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(reason instanceof Error ? reason.message : 'Unable to load Invitations.') }).finally(() => { if (!controller.signal.aborted) setLoading(false) }) })
+    queueMicrotask(() => { setLoading(true); setError(null); listInvitations(event.id, query, controller.signal).then((next) => { const validPage = Math.max(1, next.meta.pagination.lastPage); if (query.page > validPage) changeQuery({ page: validPage }); else setResult(next) }).catch((reason: unknown) => { if (!(reason instanceof DOMException && reason.name === 'AbortError')) { if (import.meta.env.DEV) console.error('Invitation coordinator response failed to load.', reason); setError(reason instanceof ApiError ? reason.message : 'Unable to load Invitations.') } }).finally(() => { if (!controller.signal.aborted) setLoading(false) }) })
     return () => controller.abort()
   }, [changeQuery, event.id, query, refresh])
 

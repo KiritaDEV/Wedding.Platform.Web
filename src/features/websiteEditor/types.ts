@@ -161,6 +161,8 @@ export type WebsiteDesignSettings = {
   projectDefaults: ProjectDesignDefaultOverrides
   customColors: ProjectColor[]
 }
+
+export type RenderableWebsite = Omit<WebsiteDraft, 'eventId' | 'name'>
 export type ProjectDesignDefaults = {
   headingFontId: string
   bodyFontId: string

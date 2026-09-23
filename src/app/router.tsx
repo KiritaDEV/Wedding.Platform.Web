@@ -13,11 +13,16 @@ import { EventOverviewPage } from '../pages/workspace/EventOverviewPage'
 import { WebsitePreviewPage } from '../pages/workspace/WebsitePreviewPage'
 import { WebsiteProjectsPage } from '../pages/workspace/WebsiteProjectsPage'
 import { LegacyWebsiteRedirect } from '../pages/workspace/LegacyWebsiteRedirect'
+import { PublicEventSitePage } from '../pages/PublicEventSitePage'
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootRedirect />,
+  },
+  {
+    path: '/e/:slug',
+    element: <PublicEventSitePage />,
   },
   {
     element: <GuestRoute />,

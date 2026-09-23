@@ -19,5 +19,16 @@ export async function createWebsiteProject(eventId: string, input: CreateWebsite
   return normalizeWebsiteDraftFromApi(response.data)
 }
 
+export async function publishWebsiteProject(eventId: string, projectId: string): Promise<WebsiteProjectSummary> {
+  await ensureCsrfCookie()
+  const response = await apiRequest<ApiResource<unknown>>(`/api/events/${encodeURIComponent(eventId)}/websites/${encodeURIComponent(projectId)}/publish`, { method: 'POST' })
+  return parseWebsiteProjectList([response.data])[0]
+}
+
+export async function unpublishWebsite(eventId: string): Promise<void> {
+  await ensureCsrfCookie()
+  await apiRequest(`/api/events/${encodeURIComponent(eventId)}/published-website`, { method: 'DELETE' })
+}
+
 export const websiteProjectListKey = (eventId: string) => ['website-projects', eventId] as const
 export const websiteDraftKey = (eventId: string, projectId: string) => ['website-draft', eventId, projectId] as const

@@ -6,6 +6,7 @@ export type WebsiteProjectSummary = {
   name: string
   templateKey: string
   designSettings: WebsiteDesignSettings
+  isPublished: boolean
 }
 
 export type CreateWebsiteProjectInput = {

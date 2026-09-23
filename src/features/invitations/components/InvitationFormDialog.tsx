@@ -9,6 +9,7 @@ import { ApiError } from '../../../lib/api'
 import { DiscardChangesDialog } from '../../websiteEditor/components/DiscardChangesDialog'
 import { createInvitation, getInvitation, getWeddingRoles, updateInvitation } from '../api'
 import { buildInvitationPayload, createInvitationDraftId, effectiveInvitationName, hydrateInvitationDraft, invitationFormSchema, newGuestDraft, normalizeInvitationIdentity } from '../invitationForm'
+import { guestEditorCapabilities } from '../guestEditorCapabilities'
 import type { DraftWeddingRole, Invitation, InvitationFormDraft, WeddingRole } from '../types'
 import { GuestDraftCard } from './GuestDraftCard'
 
@@ -29,9 +30,10 @@ export function InvitationFormDialog({ open, eventId, mode, invitationId, onClos
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [discardOpen, setDiscardOpen] = useState(false)
+  const [deletedGuestIds, setDeletedGuestIds] = useState<string[]>([])
   const form = useForm<InvitationFormDraft>({ resolver: zodResolver(invitationFormSchema), defaultValues: createDefaults() })
   const { fields, append, remove } = useFieldArray({ control: form.control, name: 'guests', keyName: 'fieldKey' })
-  const guests = useWatch({ control: form.control, name: 'guests' })
+  const guests = useWatch({ control: form.control, name: 'guests' }) ?? []
   const customName = useWatch({ control: form.control, name: 'customName' })
   const titleId = `invitation-${mode}-title`
 
@@ -44,6 +46,7 @@ export function InvitationFormDialog({ open, eventId, mode, invitationId, onClos
       setLoading(true)
       setLoadError(null)
       setDraftRoles([])
+      setDeletedGuestIds([])
       const detail = mode === 'edit' && invitationId ? getInvitation(eventId, invitationId, controller.signal) : Promise.resolve(null)
       Promise.all([getWeddingRoles(eventId, controller.signal), detail]).then(([roles, invitation]) => {
         if (!active) return
@@ -81,7 +84,7 @@ export function InvitationFormDialog({ open, eventId, mode, invitationId, onClos
   const submit = form.handleSubmit(async (draft) => {
     form.clearErrors('root')
     try {
-      const payload = buildInvitationPayload(draft, draftRoles)
+      const payload = buildInvitationPayload(draft, draftRoles, deletedGuestIds)
       const saved = mode === 'create'
         ? await createInvitation(eventId, payload)
         : await updateInvitation(eventId, invitationId!, payload)
@@ -115,7 +118,7 @@ export function InvitationFormDialog({ open, eventId, mode, invitationId, onClos
                 <p className="mt-1.5 text-xs text-foreground-muted">Leave blank and Kirita will derive the name from the Guests.</p>
                 <p className="mt-2 text-sm"><span className="text-foreground-muted">Effective name:</span> <strong>{effectiveInvitationName(customName, guests)}</strong></p>
               </div>
-              <div className="space-y-4">{fields.map((field, index) => <GuestDraftCard key={field.fieldKey} index={index} register={form.register} control={form.control} setValue={form.setValue} errors={form.formState.errors} catalog={catalog} draftRoles={draftRoles} canRemove={fields.length > 1} disabled={form.formState.isSubmitting} onRemove={() => remove(index)} onCreateDraftRole={createDraftRole} />)}</div>
+              <div className="space-y-4">{fields.map((field, index) => { const guest = guests[index] ?? field; const capabilities = guestEditorCapabilities(guests, index); return <GuestDraftCard key={field.fieldKey} index={index} register={form.register} control={form.control} setValue={form.setValue} errors={form.formState.errors} catalog={catalog} draftRoles={draftRoles} canDeactivate={capabilities.canDeactivate} canPermanentlyDelete={capabilities.canPermanentlyDelete} deleteBlockedReason={capabilities.deleteBlockedReason} disabled={form.formState.isSubmitting} onRemove={() => { if (guest.id && !window.confirm(`Permanently delete ${guest.firstName || 'this Guest'}? This cannot be undone.`)) return; if (guest.id) setDeletedGuestIds((current) => [...current, guest.id!]); remove(index) }} onCreateDraftRole={createDraftRole} /> })}</div>
               <Button type="button" variant="secondary" disabled={form.formState.isSubmitting} onClick={() => { append(newGuestDraft()); setTimeout(() => form.setFocus(`guests.${fields.length}.firstName`), 0) }}><Plus size={16} aria-hidden="true" />Add Guest</Button>
             </div>}
         </div>

@@ -9,7 +9,10 @@ export type Event = {
   slug: string
   eventDate: string | null
   startTime: string | null
-  timeZone: string | null
+  timeZone: string
+  rsvpIsOpen: boolean
+  rsvpDeadline: string | null
+  rsvpIsEffectivelyOpen: boolean
   startsAtUtc: string | null
   status: EventStatus
   membershipRole: EventMembershipRole
@@ -26,12 +29,15 @@ export type CreateEventRequest = {
   type: EventType
   eventDate?: string
   slug?: string
+  timeZone: string
 }
 
 export type EventTimingRequest = {
   eventDate: string | null
   startTime: string | null
-  timeZone: string | null
+  timeZone: string
 }
+
+export type EventRsvpSettingsRequest = { isOpen: boolean; deadline: string | null }
 
 export type TimeZoneOption = { id: string; displayName: string }

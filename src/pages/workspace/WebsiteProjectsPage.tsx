@@ -8,7 +8,7 @@ import { Select } from '../../components/ui/Select'
 import { Text } from '../../components/ui/Text'
 import { useEventWorkspace } from '../../features/events/workspace/EventWorkspaceContext'
 import { WorkspaceSection } from '../../features/events/workspace/WorkspaceSection'
-import { createWebsiteProject } from '../../features/websiteProjects/api'
+import { createWebsiteProject, publishWebsiteProject, unpublishWebsite } from '../../features/websiteProjects/api'
 import { websiteTemplateDisplayName } from '../../features/websiteProjects/templates'
 import { useWebsiteProjects } from '../../features/websiteProjects/useWebsiteProjects'
 import { useWebsiteCreationTemplates } from '../../features/websiteTemplates/useWebsiteCreationTemplates'
@@ -23,6 +23,8 @@ export function WebsiteProjectsPage() {
   const [name, setName] = useState('Website')
   const [templateKey, setTemplateKey] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
+  const [publishingId, setPublishingId] = useState<string | null>(null)
+  const [publicationError, setPublicationError] = useState<string | null>(null)
 
   const selectedTemplateKey = templateKey || templateCatalog.templates[0]?.key || ''
 
@@ -41,12 +43,26 @@ export function WebsiteProjectsPage() {
     }
   }
 
+  async function changePublication(projectId: string | null) {
+    setPublishingId(projectId ?? 'unpublish'); setPublicationError(null)
+    try {
+      if (projectId) await publishWebsiteProject(event.id, projectId)
+      else await unpublishWebsite(event.id)
+      retry()
+    } catch (reason) {
+      setPublicationError(reason instanceof Error ? reason.message : 'Unable to change publication.')
+    } finally {
+      setPublishingId(null)
+    }
+  }
+
   return <WorkspaceSection eyebrow="Event websites" title="Website Projects" description="Create and manage independent Website drafts for this Event.">
     <div className="flex justify-end"><Button type="button" onClick={() => setOpen(true)}><Plus aria-hidden="true" size={16} /> Create Website</Button></div>
+    {publicationError && <Text className="mt-4" variant="error" role="alert">{publicationError}</Text>}
     {isLoading && <Text className="mt-6" variant="muted">Loading Website Projects…</Text>}
     {Boolean(error) && <div className="mt-6 rounded-xl border border-border bg-surface p-5"><Text variant="error">Unable to load Website Projects.</Text><Button className="mt-3" size="sm" type="button" onClick={retry}><RefreshCw aria-hidden="true" size={15} /> Try again</Button></div>}
     {!isLoading && !error && projects.length === 0 && <section className="mt-6 rounded-2xl border border-dashed border-border bg-surface p-8 text-center"><Globe2 className="mx-auto text-secondary-accent" aria-hidden="true" /><h2 className="mt-3 font-semibold">No Website Projects yet</h2><Text className="mt-1" variant="muted">Create a Website to start with a fresh Template and independent draft.</Text><Button className="mt-5" type="button" onClick={() => setOpen(true)}>Create Website</Button></section>}
-    {!isLoading && !error && projects.length > 0 && <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{projects.map((project) => <article className="flex min-h-48 flex-col rounded-2xl border border-border bg-surface p-5" key={project.id}><span className="grid size-10 place-items-center rounded-lg bg-surface-muted text-secondary-accent"><Globe2 aria-hidden="true" size={20} /></span><h2 className="mt-4 truncate font-semibold">{project.name}</h2><Text className="mt-1" variant="muted">{websiteTemplateDisplayName(templateCatalog.templates, project.templateKey)}</Text><div className="mt-auto pt-5"><Link className="inline-flex min-h-9 items-center rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-accent-hover" to={project.id}>Open Website</Link></div></article>)}</div>}
+    {!isLoading && !error && projects.length > 0 && <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{projects.map((project) => <article className="flex min-h-48 flex-col rounded-2xl border border-border bg-surface p-5" key={project.id}><div className="flex items-start justify-between gap-3"><span className="grid size-10 place-items-center rounded-lg bg-surface-muted text-secondary-accent"><Globe2 aria-hidden="true" size={20} /></span>{project.isPublished && <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-foreground">Published</span>}</div><h2 className="mt-4 truncate font-semibold">{project.name}</h2><Text className="mt-1" variant="muted">{websiteTemplateDisplayName(templateCatalog.templates, project.templateKey)}</Text><div className="mt-auto flex flex-wrap gap-2 pt-5"><Link className="inline-flex min-h-9 items-center rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-accent-hover" to={project.id}>Open Website</Link>{project.isPublished ? <Button size="sm" variant="secondary" type="button" disabled={publishingId !== null} onClick={() => void changePublication(null)}>{publishingId === 'unpublish' ? 'Unpublishing…' : 'Unpublish'}</Button> : <Button size="sm" variant="secondary" type="button" disabled={publishingId !== null} onClick={() => void changePublication(project.id)}>{publishingId === project.id ? 'Publishing…' : 'Publish'}</Button>}</div></article>)}</div>}
     <Dialog open={open} onClose={() => !creating && setOpen(false)} closeDisabled={creating} titleId="create-website-title" descriptionId="create-website-description">
       <form className="p-5 sm:p-6" onSubmit={(formEvent) => { formEvent.preventDefault(); void create() }}>
         <DialogHeader title="Create Website" titleId="create-website-title" description="Choose a name and starting Template. The Template is fixed for this project." descriptionId="create-website-description" onClose={() => setOpen(false)} closeDisabled={creating} />

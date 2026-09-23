@@ -1,6 +1,6 @@
 import { isDividerAssetForTemplate } from "../websiteElements/divider";
 import { z } from 'zod'
-import type { WebsiteDraft, WebsiteSection, WebsiteSectionAppearance } from './types'
+import type { RenderableWebsite, WebsiteDraft, WebsiteSection, WebsiteSectionAppearance } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
 import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
 import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs'
@@ -290,10 +290,8 @@ const currentDesignSettingsSchema = legacyDesignSettingsSchema.extend({
   customColors: projectColorsSchema.default([]),
 }).strict()
 
-const draftCommonSchema = z.object({
+const renderableWebsiteCommonSchema = z.object({
   id: z.string(),
-  eventId: z.string(),
-  name: nonEmptyString.max(100),
   templateKey: z.string(),
   projectDesignDefaults: z.object({
     headingFontId: nonEmptyString,
@@ -318,6 +316,27 @@ const draftCommonSchema = z.object({
     web: z.object({ width: z.number(), height: z.number(), url: z.string().url() }).strict(),
   }).strict()),
 }).strict()
+
+const draftCommonSchema = renderableWebsiteCommonSchema.extend({
+  eventId: z.string(),
+  name: nonEmptyString.max(100),
+}).strict()
+
+const publicRenderableWebsiteSchema = renderableWebsiteCommonSchema.extend({
+  schemaVersion: z.literal(CURRENT_WEBSITE_SCHEMA_VERSION),
+  designSettings: currentDesignSettingsSchema,
+  media: z.preprocess(
+    (value) => Array.isArray(value) && value.length === 0 ? {} : value,
+    renderableWebsiteCommonSchema.shape.media,
+  ),
+}).strict().transform((website) => ({
+  ...website,
+  designSettings: {
+    ...website.designSettings,
+    projectDefaults: 'projectDefaults' in website.designSettings ? website.designSettings.projectDefaults : {},
+    customColors: website.designSettings.customColors ?? [],
+  },
+}))
 
 const draftSchema = draftCommonSchema.extend({
   schemaVersion: z.literal(CURRENT_WEBSITE_SCHEMA_VERSION),
@@ -475,4 +494,14 @@ export function normalizeWebsiteDraftFromApi(value: unknown): WebsiteDraft {
     return { ...section, content: schema.parse(section.content) } as WebsiteSection
   })
   return { ...draft, sections }
+}
+
+export function normalizePublicRenderableWebsiteFromApi(value: unknown): RenderableWebsite {
+  const website = publicRenderableWebsiteSchema.parse(value)
+  const sections = website.sections.map((section) => {
+    const schema = contentSchemas[section.type]
+    if (!schema) return section as WebsiteSection
+    return { ...section, content: schema.parse(section.content) } as WebsiteSection
+  })
+  return { ...website, sections }
 }

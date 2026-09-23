@@ -2,7 +2,7 @@ import { apiRequest, ensureCsrfCookie } from '../../lib/api'
 import type { ApiCollection, ApiResource } from '../../lib/api'
 import { z } from 'zod'
 import { eventDetailSchema, eventSchema, timeZoneOptionSchema } from './schemas'
-import type { CreateEventRequest, Event, EventDetail, EventTimingRequest, TimeZoneOption } from './types'
+import type { CreateEventRequest, Event, EventDetail, EventRsvpSettingsRequest, EventTimingRequest, TimeZoneOption } from './types'
 
 export async function getMyEvents(signal?: AbortSignal): Promise<Event[]> {
   const response = await apiRequest<ApiCollection<Event>>('/api/events', { signal })
@@ -26,6 +26,14 @@ export async function getEvent(eventId: string, signal?: AbortSignal): Promise<E
 export async function updateEventTiming(eventId: string, input: EventTimingRequest): Promise<EventDetail> {
   await ensureCsrfCookie()
   const response = await apiRequest<ApiResource<unknown>>(`/api/events/${encodeURIComponent(eventId)}/timing`, {
+    method: 'PUT', body: input,
+  })
+  return eventDetailSchema.parse(response.data)
+}
+
+export async function updateEventRsvpSettings(eventId: string, input: EventRsvpSettingsRequest): Promise<EventDetail> {
+  await ensureCsrfCookie()
+  const response = await apiRequest<ApiResource<unknown>>(`/api/events/${encodeURIComponent(eventId)}/rsvp-settings`, {
     method: 'PUT', body: input,
   })
   return eventDetailSchema.parse(response.data)
