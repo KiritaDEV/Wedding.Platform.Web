@@ -11,5 +11,5 @@ export function InvitationActionMenu({ label, children }: { label: string; child
 }
 
 export function InvitationMenuItem({ children, onClick, danger = false, disabled = false, title }: { children: React.ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; title?: string }) {
-  return <button type="button" role="menuitem" disabled={disabled} title={title} className={`flex min-h-9 w-full items-center rounded-md px-3 text-left text-sm disabled:cursor-not-allowed disabled:opacity-45 ${danger ? 'text-danger hover:bg-danger-muted' : 'hover:bg-surface-muted'}`} onClick={onClick}>{children}</button>
+  return <button type="button" role="menuitem" disabled={disabled} title={title} className={`flex min-h-9 w-full flex-col items-start justify-center rounded-md px-3 text-left text-sm disabled:cursor-not-allowed disabled:opacity-45 ${danger ? 'text-danger hover:bg-danger-muted' : 'hover:bg-surface-muted'}`} onClick={onClick}>{children}</button>
 }

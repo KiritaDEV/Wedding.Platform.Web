@@ -9,6 +9,7 @@ import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
 import type { WebsiteRendererProps } from './types'
 import { WebsiteElementChangeContext } from './WebsiteElementChangeContext'
 import { sectionsForAudience } from './audience'
+import { PrivateInvitationRuntimeProvider } from './PrivateInvitationRuntimeContext'
 
 const templateRenderers = {
   'classic-filipiniana-v1': ClassicFilipinianaRenderer,
@@ -53,5 +54,5 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     }),
   }
 
-  return <div ref={rootRef}><WebsiteElementChangeContext.Provider value={{ onGalleryAdd: props.onGalleryAdd, onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></div>
+  return <div ref={rootRef}><PrivateInvitationRuntimeProvider value={props.privateInvitationRuntime}><WebsiteElementChangeContext.Provider value={{ onGalleryAdd: props.onGalleryAdd, onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></PrivateInvitationRuntimeProvider></div>
 }

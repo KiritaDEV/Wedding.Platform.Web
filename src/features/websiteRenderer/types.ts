@@ -3,6 +3,7 @@ import type { RenderableWebsite } from '../websiteEditor/types'
 import type { ResponsiveViewport } from '../websiteEditor/types'
 import type { TextDocument, WebsiteElement } from '../websiteElements/types'
 import type { ProjectColor } from '../websiteColors/projectColors'
+import type { PrivateInvitationRendererRuntime } from './privateInvitationRuntime'
 
 export type WebsiteRenderScope =
   | { kind: 'full' }
@@ -12,7 +13,8 @@ export type WebsiteRendererProps = {
   event: Pick<EventDetail, 'id' | 'name' | 'eventDate' | 'type'>
   website: RenderableWebsite
   mode?: 'editor' | 'public'
-  audience?: 'management-preview' | 'public-site'
+  audience?: 'management-preview' | 'public-site' | 'private-site'
+  privateInvitationRuntime?: PrivateInvitationRendererRuntime
   selectedSectionId?: string | null
   onSectionSelect?: (sectionId: string) => void
   onGalleryAdd?: (sectionId: string) => void

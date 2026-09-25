@@ -14,6 +14,7 @@ import { WebsitePreviewPage } from '../pages/workspace/WebsitePreviewPage'
 import { WebsiteProjectsPage } from '../pages/workspace/WebsiteProjectsPage'
 import { LegacyWebsiteRedirect } from '../pages/workspace/LegacyWebsiteRedirect'
 import { PublicEventSitePage } from '../pages/PublicEventSitePage'
+import { PrivateEventSitePage } from '../pages/PrivateEventSitePage'
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +24,10 @@ export const router = createBrowserRouter([
   {
     path: '/e/:slug',
     element: <PublicEventSitePage />,
+  },
+  {
+    path: '/i/:token',
+    element: <PrivateEventSitePage />,
   },
   {
     element: <GuestRoute />,

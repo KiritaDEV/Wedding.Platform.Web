@@ -39,7 +39,7 @@ describe('Invitation form domain', () => {
 
   it('hydrates persisted IDs and roles and emits one atomic final-state payload', () => {
     const invitation: Invitation = {
-      id: 'invitation', customName: 'Party', effectiveName: 'Party', status: 'active', canPermanentlyDelete: true,
+      id: 'invitation', customName: 'Party', effectiveName: 'Party', status: 'active', canPermanentlyDelete: true, trustedAccess: { hasTrustedBrowser: false, hasPendingAccessRequest: false },
       guests: [{ id: 'guest-1', firstName: 'Ana', lastName: null, relationship: 'friend', side: 'bride', status: 'active', rsvpResponse: null, canPermanentlyDelete: true, weddingRoles: [{ id: 'role-1', key: 'bridesmaid', name: 'Bridesmaid', isBuiltin: true }] }],
     }
     const draft = hydrateInvitationDraft(invitation)

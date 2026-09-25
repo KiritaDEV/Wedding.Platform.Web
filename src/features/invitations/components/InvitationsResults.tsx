@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { guestFullName } from '../invitationForm'
+import { hasRecoverableTrustedAccess } from '../trustedAccess'
 import type { GuestRelationship, GuestSide, InvitationListGuest, InvitationListItem, InvitationSort } from '../types'
 import { InvitationActionMenu, InvitationMenuItem } from './InvitationMenus'
 
@@ -9,7 +10,10 @@ const sideLabels: Record<GuestSide, string> = { unspecified: 'Unspecified', brid
 type Props = {
   invitations: InvitationListItem[]; expanded: Set<string>; sort: InvitationSort
   onToggle: (id: string) => void; onSort: (sort: InvitationSort) => void; onEdit: (id: string) => void
-  onActivate: (invitation: InvitationListItem) => void; onDeactivate: (invitation: InvitationListItem) => void; onDelete: (invitation: InvitationListItem) => void
+  onActivate: (invitation: InvitationListItem) => void; onDeactivate: (invitation: InvitationListItem) => void; onResetAccess: (invitation: InvitationListItem) => void; onDelete: (invitation: InvitationListItem) => void
+  onCopyLink: (invitation: InvitationListItem) => void; onRotateLink: (invitation: InvitationListItem) => void
+  onAccessActivity: (invitation: InvitationListItem) => void
+  onManageRsvp: (invitation: InvitationListItem) => void
   onMove: (invitation: InvitationListItem, guest: InvitationListGuest) => void
 }
 
@@ -28,8 +32,9 @@ function ExpandButton({ invitation, expanded, targetId, onToggle }: { invitation
   return <button type="button" className="inline-grid size-8 shrink-0 place-items-center rounded hover:bg-surface-muted" aria-label={`${expanded ? 'Collapse' : 'Expand'} ${invitation.effectiveName}`} aria-expanded={expanded} aria-controls={targetId} onClick={(event) => { event.stopPropagation(); onToggle() }}><Icon size={17} aria-hidden="true" /></button>
 }
 
-function Actions({ invitation, onEdit, onActivate, onDeactivate, onDelete }: Pick<Props, 'onEdit' | 'onActivate' | 'onDeactivate' | 'onDelete'> & { invitation: InvitationListItem }) {
-  return <InvitationActionMenu label={`Actions for ${invitation.effectiveName}`}><InvitationMenuItem onClick={() => onEdit(invitation.id)}>Edit</InvitationMenuItem>{invitation.status === 'active' ? <InvitationMenuItem onClick={() => onDeactivate(invitation)}>Deactivate</InvitationMenuItem> : <InvitationMenuItem onClick={() => onActivate(invitation)}>Activate</InvitationMenuItem>}<div className="my-1 border-t border-border" /><InvitationMenuItem danger disabled={!invitation.canPermanentlyDelete} title={!invitation.canPermanentlyDelete ? 'Invitations with RSVP participation cannot be permanently deleted. Deactivate instead.' : undefined} onClick={() => onDelete(invitation)}>Delete permanently</InvitationMenuItem></InvitationActionMenu>
+function Actions({ invitation, onEdit, onManageRsvp, onActivate, onDeactivate, onResetAccess, onCopyLink, onRotateLink, onAccessActivity, onDelete }: Pick<Props, 'onEdit' | 'onManageRsvp' | 'onActivate' | 'onDeactivate' | 'onResetAccess' | 'onCopyLink' | 'onRotateLink' | 'onAccessActivity' | 'onDelete'> & { invitation: InvitationListItem }) {
+  const canResetAccess = hasRecoverableTrustedAccess(invitation)
+  return <InvitationActionMenu label={`Actions for ${invitation.effectiveName}`}><InvitationMenuItem onClick={() => onEdit(invitation.id)}>Edit</InvitationMenuItem><InvitationMenuItem disabled={invitation.status === 'inactive'} title={invitation.status === 'inactive' ? 'Reactivate this invitation to manage RSVP.' : undefined} onClick={() => onManageRsvp(invitation)}><span>Manage RSVP</span>{invitation.status === 'inactive' && <span className="block text-xs font-normal">Reactivate this invitation to manage RSVP.</span>}</InvitationMenuItem><InvitationMenuItem onClick={() => onAccessActivity(invitation)}>Access activity</InvitationMenuItem><InvitationMenuItem onClick={() => onCopyLink(invitation)}>Copy invitation link</InvitationMenuItem><InvitationMenuItem onClick={() => onRotateLink(invitation)}>Rotate private link</InvitationMenuItem>{invitation.status === 'active' ? <InvitationMenuItem onClick={() => onDeactivate(invitation)}>Deactivate</InvitationMenuItem> : <InvitationMenuItem onClick={() => onActivate(invitation)}>Activate</InvitationMenuItem>}{canResetAccess && <InvitationMenuItem danger onClick={() => onResetAccess(invitation)}>Reset trusted access</InvitationMenuItem>}<div className="my-1 border-t border-border" /><InvitationMenuItem danger disabled={!invitation.canPermanentlyDelete} title={!invitation.canPermanentlyDelete ? 'Invitations with RSVP participation cannot be permanently deleted. Deactivate instead.' : undefined} onClick={() => onDelete(invitation)}>Delete permanently</InvitationMenuItem></InvitationActionMenu>
 }
 
 function GuestRows({ invitation, targetId, onMove }: { invitation: InvitationListItem; targetId: string; onMove: Props['onMove'] }) {

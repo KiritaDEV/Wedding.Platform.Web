@@ -1,17 +1,19 @@
 import { renderToStaticMarkup } from 'react-dom/server'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { invitationQueryParameters } from './api'
 import { InvitationRsvpSummary, InvitationsResults } from './components/InvitationsResults'
+import { hasRecoverableTrustedAccess } from './trustedAccess'
 import type { InvitationListItem, InvitationListQuery } from './types'
 
-const query: InvitationListQuery = { q: 'Neil', lifecycle: 'inactive', relationship: 'friend', side: 'groom', weddingRoleId: 'role', rsvp: 'pending', sort: 'invitation_asc', page: 3 }
+const query: InvitationListQuery = { q: 'Neil', lifecycle: 'inactive', relationships: ['friend'], sides: ['groom'], roleIds: ['role'], rsvpStatuses: ['pending'], guestResponses: ['attending'], sort: 'invitation_asc', page: 3 }
 const item = (id: string): InvitationListItem => ({
   id, customName: null, effectiveName: `Invitation ${id}`, status: id === 'two' ? 'inactive' : 'active', guestCount: 2, totalGuestCount: 2,
-  rsvp: { status: 'pending', attendingCount: 0, declinedCount: 0, pendingCount: 2 }, lastResponse: null, canPermanentlyDelete: true, createdAt: '2026-01-01T00:00:00Z',
+  rsvp: { status: 'pending', attendingCount: 0, declinedCount: 0, pendingCount: 2 }, lastResponse: null, canPermanentlyDelete: true, trustedAccess: { hasTrustedBrowser: false, hasPendingAccessRequest: false }, createdAt: '2026-01-01T00:00:00Z',
   guests: [{ id: `guest-${id}`, firstName: 'Neil', lastName: id, relationship: 'friend', side: 'groom', status: 'active', rsvpResponse: null, canPermanentlyDelete: true, rsvpStatus: 'pending', weddingRoles: [{ id: 'role', key: 'best_man', name: 'Best Man', isBuiltin: true }] }],
 })
 
-const renderResults = (invitation: InvitationListItem) => renderToStaticMarkup(<InvitationsResults invitations={[invitation]} expanded={new Set([invitation.id])} sort="recently_added" onToggle={vi.fn()} onSort={vi.fn()} onEdit={vi.fn()} onActivate={vi.fn()} onDeactivate={vi.fn()} onDelete={vi.fn()} onMove={vi.fn()} />)
+const renderResults = (invitation: InvitationListItem) => renderToStaticMarkup(<InvitationsResults invitations={[invitation]} expanded={new Set([invitation.id])} sort="recently_added" onToggle={vi.fn()} onSort={vi.fn()} onEdit={vi.fn()} onManageRsvp={vi.fn()} onAccessActivity={vi.fn()} onCopyLink={vi.fn()} onRotateLink={vi.fn()} onActivate={vi.fn()} onDeactivate={vi.fn()} onResetAccess={vi.fn()} onDelete={vi.fn()} onMove={vi.fn()} />)
 
 describe('Invitations coordinator contracts', () => {
   it.each([
@@ -29,13 +31,13 @@ describe('Invitations coordinator contracts', () => {
   })
 
   it('serializes the complete canonical query for server-side execution', () => {
-    expect(invitationQueryParameters(query).toString()).toBe('lifecycle=inactive&sort=invitation_asc&page=3&q=Neil&relationship=friend&side=groom&weddingRoleId=role&rsvp=pending')
-    const defaults = invitationQueryParameters({ ...query, q: '', lifecycle: 'all', relationship: '', side: '', weddingRoleId: '', rsvp: '', sort: 'recently_added', page: 1 })
+    expect(invitationQueryParameters(query).toString()).toBe('lifecycle=inactive&sort=invitation_asc&page=3&q=Neil&relationships%5B%5D=friend&sides%5B%5D=groom&roleIds%5B%5D=role&rsvpStatuses%5B%5D=pending&guestResponses%5B%5D=attending')
+    const defaults = invitationQueryParameters({ ...query, q: '', lifecycle: 'all', relationships: [], sides: [], roleIds: [], rsvpStatuses: [], guestResponses: [], sort: 'recently_added', page: 1 })
     expect(defaults.toString()).toBe('lifecycle=all&sort=recently_added&page=1')
   })
 
   it('renders desktop and mobile results with multiple independent expansions', () => {
-    const html = renderToStaticMarkup(<InvitationsResults invitations={[item('one'), item('two')]} expanded={new Set(['one', 'two'])} sort="invitation_asc" onToggle={vi.fn()} onSort={vi.fn()} onEdit={vi.fn()} onActivate={vi.fn()} onDeactivate={vi.fn()} onDelete={vi.fn()} onMove={vi.fn()} />)
+    const html = renderToStaticMarkup(<InvitationsResults invitations={[item('one'), item('two')]} expanded={new Set(['one', 'two'])} sort="invitation_asc" onToggle={vi.fn()} onSort={vi.fn()} onEdit={vi.fn()} onManageRsvp={vi.fn()} onAccessActivity={vi.fn()} onCopyLink={vi.fn()} onRotateLink={vi.fn()} onActivate={vi.fn()} onDeactivate={vi.fn()} onResetAccess={vi.fn()} onDelete={vi.fn()} onMove={vi.fn()} />)
     expect(html).toContain('Invitation')
     expect(html).toContain('RSVP')
     expect(html).toContain('Last response')
@@ -111,11 +113,24 @@ describe('Invitations coordinator contracts', () => {
     expect(mobile).toContain('Bridesmaid')
     expect(mobile).toContain('Cord Sponsor')
     expect(mobile.match(/data-mobile-guest-roles="true"/g)).toHaveLength(1)
-    expect(mobile).not.toContain('-')
+    expect(mobile).not.toContain('>-<')
   })
 
   it('keeps the Invitation-level mobile RSVP and Last response on separate lines', () => {
     const html = renderResults(item('header'))
     expect(html).toMatch(/<div class="mt-1"><span[^>]*>.*?<\/span><\/div><p class="mt-1 text-sm text-foreground-muted">Last response:/)
+  })
+
+  it('offers trusted-access reset only for a current browser or active request', () => {
+    expect(hasRecoverableTrustedAccess({ ...item('trusted'), trustedAccess: { hasTrustedBrowser: true, hasPendingAccessRequest: false } })).toBe(true)
+    expect(hasRecoverableTrustedAccess({ ...item('pending'), trustedAccess: { hasTrustedBrowser: false, hasPendingAccessRequest: true } })).toBe(true)
+    expect(hasRecoverableTrustedAccess(item('unclaimed'))).toBe(false)
+  })
+
+  it('offers Invitation-level Manage RSVP and explains why it is disabled when inactive', () => {
+    const source = readFileSync(new URL('./components/InvitationsResults.tsx', import.meta.url), 'utf8')
+    expect(source).toContain('Manage RSVP')
+    expect(source).toContain('Reactivate this invitation to manage RSVP.')
+    expect(source).toContain("invitation.status === 'inactive'")
   })
 })

@@ -2,6 +2,7 @@ import type { RsvpContent } from "../../../websiteEditor/types";
 import { EditableText } from "../../../websiteEditor/inline/EditableText";
 import { ClassicFoundationOrnament } from "./decorations";
 import { SectionContentInset } from "../../SectionContentInset";
+import { PrivateRsvpRuntime } from "../../PrivateRsvpRuntime";
 
 export function ClassicFilipinianaGallery({
   collection,
@@ -53,10 +54,7 @@ export function ClassicFilipinianaRsvp({
           multiline
         />
       </p>
-      <div
-        data-rsvp-button
-        className="mx-auto mt-9 w-full max-w-xs whitespace-normal border border-[var(--cf-theme-accent)] bg-[var(--cf-theme-accent)] px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.2em] text-white [overflow-wrap:anywhere]"
-      >
+      <PrivateRsvpRuntime buttonClassName="mx-auto w-full max-w-xs whitespace-normal border border-[var(--cf-theme-accent)] bg-[var(--cf-theme-accent)] px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.2em] text-white [overflow-wrap:anywhere]">
         <EditableText
           sectionId={sectionId}
           path={["semantic", "buttonLabel"]}
@@ -65,7 +63,7 @@ export function ClassicFilipinianaRsvp({
           placeholder="Add button label"
           label="RSVP button label"
         />
-      </div>
+      </PrivateRsvpRuntime>
     </ContentSection>
   );
 }

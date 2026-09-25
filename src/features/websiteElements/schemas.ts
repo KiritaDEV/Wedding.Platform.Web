@@ -5,7 +5,8 @@ import {
   WEBSITE_ELEMENT_LIMITS,
   WEBSITE_LEAF_ELEMENT_TYPES,
 } from "./constants";
-import { normalizeTextContent, TEXT_SIZES, validateTextFontTuple } from "./text";
+import { normalizeTextContent, validateTextFontTuple } from "./text";
+import { canonicalRuntimeTextAppearanceSchema, canonicalTextResponsiveAppearanceSchema, TEXT_SIZES } from "./textAppearanceContract";
 import { normalizeEditorName } from "./blockIdentity";
 import { isUnsupportedVideoProviderUrl } from "./videoUrl";
 export const elementIdSchema = z
@@ -38,28 +39,11 @@ export const groupSpacingSchema = z.enum(["none", "xs", "s", "m", "l", "xl"]);
 export const groupPaddingSchema = z.object({ top: groupSpacingSchema.optional(), right: groupSpacingSchema.optional(), bottom: groupSpacingSchema.optional(), left: groupSpacingSchema.optional() }).strict();
 const blockSpacingResponsiveSchema = z.object({ outerSpacing: groupPaddingSchema.optional() }).strict();
 const blockSpacingAppearanceShape = { outerSpacing: groupPaddingSchema.optional() };
-export const textResponsiveAppearanceSchema = z.object({
+export const textResponsiveAppearanceSchema = canonicalTextResponsiveAppearanceSchema.extend({
   ...blockSpacingAppearanceShape,
-  fontSize: elementFontSizeSchema.optional(),
-  alignment: textAlignmentSchema.optional(),
 }).strict();
-export const textAppearanceSchema = z.object({
+export const textAppearanceSchema = canonicalRuntimeTextAppearanceSchema.extend({
   ...blockSpacingAppearanceShape,
-  fontFamilyId: z.string().min(1).optional(),
-  fontSize: elementFontSizeSchema.optional(),
-  fontWeight: z.union([z.literal(400), z.literal(600), z.literal(700)]).optional(),
-  lineHeight: elementLineSpacingSchema.optional(),
-  letterSpacing: elementLetterSpacingSchema.optional(),
-  alignment: textAlignmentSchema.optional(),
-  colorId: z.string().min(1).optional(),
-  textShadow: textEffectStrengthSchema.optional(),
-  textShadowColorId: z.string().min(1).optional(),
-  glow: textEffectStrengthSchema.optional(),
-  glowColorId: z.string().min(1).optional(),
-  italic: z.boolean().optional(),
-  underline: z.boolean().optional(),
-  strikethrough: z.boolean().optional(),
-  textTransform: textTransformSchema.optional(),
   responsive: z.object({
     tablet: textResponsiveAppearanceSchema.optional(),
     mobile: textResponsiveAppearanceSchema.optional(),

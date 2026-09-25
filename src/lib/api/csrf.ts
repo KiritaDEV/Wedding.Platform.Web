@@ -24,6 +24,10 @@ export async function ensureCsrfCookie(signal?: AbortSignal): Promise<void> {
       signal,
     })
   } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw cause
+    }
+
     throw new ApiError(0, 'Unable to connect to the API.', {}, { cause })
   }
 

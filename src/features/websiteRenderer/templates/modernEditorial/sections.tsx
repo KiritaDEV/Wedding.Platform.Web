@@ -1,6 +1,7 @@
 import { EditableText } from "../../../websiteEditor/inline/EditableText";
 import type { RsvpContent } from "../../../websiteEditor/types";
 import { SectionContentInset } from "../../SectionContentInset";
+import { PrivateRsvpRuntime } from "../../PrivateRsvpRuntime";
 
 export function ModernEditorialGallery({
   collection,
@@ -53,10 +54,7 @@ export function ModernEditorialRsvp({
           multiline
         />
       </p>
-      <div
-        data-rsvp-button
-        className="mt-10 inline-block max-w-full whitespace-normal border-2 border-[var(--me-theme-text)] px-8 py-4 text-xs font-bold uppercase tracking-[0.22em] [overflow-wrap:anywhere]"
-      >
+      <PrivateRsvpRuntime buttonClassName="mt-10 inline-block max-w-full whitespace-normal border-2 border-[var(--me-theme-text)] px-8 py-4 text-xs font-bold uppercase tracking-[0.22em] [overflow-wrap:anywhere]">
         <EditableText
           sectionId={sectionId}
           path={["semantic", "buttonLabel"]}
@@ -65,7 +63,7 @@ export function ModernEditorialRsvp({
           placeholder="Add button label"
           label="RSVP button label"
         />
-      </div>
+      </PrivateRsvpRuntime>
     </EditorialSection>
   );
 }
