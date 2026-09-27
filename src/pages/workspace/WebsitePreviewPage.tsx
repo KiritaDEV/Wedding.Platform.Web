@@ -11,6 +11,7 @@ import { useEventDetail } from "../../features/events/workspace/useEventDetail";
 import { useEditorDeviceCategory } from "../../features/websiteEditor/responsiveViewport";
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
+import { DEFAULT_RSVP_EDITOR_PREVIEW_STATE } from "../../features/websiteRenderer/rsvpEditorPreview";
 import { ApiError } from "../../lib/api";
 
 function draftErrorMessage(error: unknown) {
@@ -69,6 +70,8 @@ export function WebsitePreviewPage() {
         website={draftResult.draft}
         mode="public"
         targetViewport={targetViewport}
+        audience="management-preview"
+        rsvpEditorPreviewState={DEFAULT_RSVP_EDITOR_PREVIEW_STATE}
       />
     </main>
   );

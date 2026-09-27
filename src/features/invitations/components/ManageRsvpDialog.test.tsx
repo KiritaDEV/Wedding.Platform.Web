@@ -21,8 +21,8 @@ describe('Manage RSVP management contract', () => {
 
   it('implements one atomic full-roster save with nullable Pending and duplicate-submit protection', () => {
     const source = readFileSync(new URL('./ManageRsvpDialog.tsx', import.meta.url), 'utf8')
-    expect(source).toContain("(['pending', 'attending', 'declined'] as const)")
-    expect(source).toContain("value === 'pending' ? null : value")
+    expect(source).toContain('(["pending", "attending", "declined"] as const)')
+    expect(source).toContain('value === "pending" ? null : value')
     expect(source).toContain('!changed || savingRef.current')
     expect(source).toContain('activeGuests.map((guest) =>')
     expect(source).toContain('note.trim() || null')
@@ -32,7 +32,7 @@ describe('Manage RSVP management contract', () => {
   it('renders immutable history on demand with actors, snapshot items, notes, and cursor loading', () => {
     const source = readFileSync(new URL('./ManageRsvpDialog.tsx', import.meta.url), 'utf8')
     expect(source).toContain('getInvitationRsvpHistory')
-    expect(source).toContain("'Private invitation'")
+    expect(source).toContain('"Private invitation"')
     expect(source).toContain('item.guestName')
     expect(source).toContain('entry.note')
     expect(source).toContain('Load more')

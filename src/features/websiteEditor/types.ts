@@ -13,7 +13,7 @@ export type PeoplePerson = { id: string; name: string; role?: string | null; med
 export type PeopleGroup = { id: string; name: string; people: PeoplePerson[] }
 export type GalleryItem = { id: string; type: 'image'; mediaId: string; focalPoint?: { x: number; y: number }; zoom?: number }
 export type GalleryContent = { semantic: { items: GalleryItem[] }; compositions: SectionCompositions }
-export type RsvpContent = { semantic: { heading: string; description: string; buttonLabel: string } }
+export type RsvpContent = { semantic: { runtimeAppearance?: import('../websitePresentation/rsvpThemePresentation').RsvpRuntimeAppearance }; compositions: SectionCompositions }
 export type BlankContent = { semantic: Record<string, never>; compositions: SectionCompositions }
 
 type SectionBase<TType extends string, TContent> = {

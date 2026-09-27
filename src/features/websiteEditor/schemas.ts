@@ -7,11 +7,13 @@ import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs
 import { controlsForViewport, globalDesignCapability, presentationCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
 import type { AppearanceControlCapability, SectionCapability } from '../websiteCapabilities/types'
 import { projectColorsSchema } from '../websiteColors/projectColors'
-import { gallerySectionChildFlowSchema, genericTextSectionChildFlowSchema } from './sectionChildFlow'
+import { gallerySectionChildFlowSchema, genericTextSectionChildFlowSchema, rsvpSectionChildFlowSchema } from './sectionChildFlow'
 import { backgroundMediaSchema } from '../websiteMedia/backgroundMedia'
 import { galleryImageItemSchema, groupPaddingSchema } from '../websiteElements/schemas'
+import { canonicalRuntimeTextAppearanceSchema } from '../websitePresentation/runtimeTextAppearance'
+import { choiceAppearanceSchema } from '../websitePresentation/choiceAppearance'
+import { actionAppearanceSchema } from '../websitePresentation/actionAppearance'
 
-const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
 export const backgroundTreatmentSchema = z.enum(['inherit', 'plain', 'soft', 'accent', 'custom'])
 export const opaqueHexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/).transform((value) => value.toUpperCase())
@@ -48,6 +50,7 @@ const responsiveControlSchema = z.object({
 }).strict()
 export const sectionCompositionSchema = z.object({ childFlow: genericTextSectionChildFlowSchema }).strict()
 const galleryCompositionSchema = z.object({ childFlow: gallerySectionChildFlowSchema }).strict()
+const rsvpCompositionSchema = z.object({ childFlow: rsvpSectionChildFlowSchema }).strict()
 const compositionIdentityRefinement = (compositions: { shared: { childFlow: { elements: import('../websiteElements/types').WebsiteElement[] } }; custom?: Partial<Record<string, { childFlow: { elements: import('../websiteElements/types').WebsiteElement[] } }>> }, context: z.RefinementCtx) => {
   const seen = new Set<string>()
   const visitIdentity = (id: string, path: (string | number)[]) => {
@@ -85,7 +88,20 @@ export const galleryContentSchema = z.object({
   }) }).strict(),
   compositions: galleryCompositionsSchema,
 }).strict()
-export const rsvpContentSchema = z.object({ semantic: z.object({ heading: text, description: text, buttonLabel: text }).strict() }).strict()
+export const rsvpContentSchema = z.object({
+  semantic: z.object({ runtimeAppearance: z.object({
+    status: canonicalRuntimeTextAppearanceSchema.optional(),
+    guestName: canonicalRuntimeTextAppearanceSchema.optional(),
+    responseLabel: canonicalRuntimeTextAppearanceSchema.optional(),
+    supporting: canonicalRuntimeTextAppearanceSchema.optional(),
+    choice: choiceAppearanceSchema.optional(),
+    action: actionAppearanceSchema.optional(),
+  }).strict().optional() }).strict(),
+  compositions: z.object({
+    shared: rsvpCompositionSchema,
+    custom: z.object({ desktop: rsvpCompositionSchema.optional(), tablet: rsvpCompositionSchema.optional(), mobile: rsvpCompositionSchema.optional() }).strict().optional(),
+  }).strict().superRefine(compositionIdentityRefinement).transform((compositions) => compositions.custom && Object.keys(compositions.custom).length > 0 ? compositions : { shared: compositions.shared }),
+}).strict()
 export const blankContentSchema = z.object({ semantic: z.object({}).strict(), compositions: sectionCompositionsSchema }).strict()
 
 const contentSchemas: Record<string, z.ZodType> = {

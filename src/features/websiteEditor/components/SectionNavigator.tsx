@@ -230,7 +230,7 @@ function SortableSection(
   const childFlow = supportsGenericChildren
     ? props.workingChildFlow?.sectionId === section.id
       ? props.workingChildFlow.flow
-      : (section.content as { childFlow?: SectionChildFlow }).childFlow
+      : (section.content as { compositions?: { shared?: { childFlow?: SectionChildFlow } } }).compositions?.shared?.childFlow
     : undefined;
   const resolvedChildFlow: SectionChildFlow = childFlow ?? {
     elements: [],
@@ -404,6 +404,7 @@ function SortableSection(
               );
             }}
             onRenameSave={(flow) => props.onChildRenameSave(section.id, flow)}
+            allowedGenericTypes={allowedGenericTypes}
             onDuplicate={(elementId) => {
               const result = duplicateSectionElement(
                 resolvedChildFlow,

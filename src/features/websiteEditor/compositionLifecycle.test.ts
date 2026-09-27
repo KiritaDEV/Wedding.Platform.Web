@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BlankContent, HeroContent, WebsiteSection, WebsiteSectionAppearanceEnvelope } from './types'
+import type { BlankContent, HeroContent, RsvpContent, WebsiteSection, WebsiteSectionAppearanceEnvelope } from './types'
 import { createCustomSectionComposition, createCustomSectionPresentation, getSectionCompositionStatus, removeCustomSectionComposition, removeCustomSectionPresentation } from './compositionLifecycle'
 
 const shared = { childFlow: { elements: [{ id: 'group', type: 'compositionGroup' as const, editorName: 'Group 1', children: [
@@ -10,6 +10,18 @@ const shared = { childFlow: { elements: [{ id: 'group', type: 'compositionGroup'
 ] }], order: [{ kind: 'element' as const, id: 'group' }] } }
 
 describe('custom composition lifecycle', () => {
+  it('customizes and resets RSVP composition without requiring an appearance envelope', () => {
+    const content: RsvpContent = { semantic: {}, compositions: { shared: { childFlow: {
+      elements: [{ id: 'intro', type: 'text', editorName: 'Text 1', document: { type: 'doc', children: [{ type: 'paragraph', children: [{ text: 'Kindly Respond' }] }] } }],
+      order: [{ kind: 'element', id: 'intro' }, { kind: 'specialized', key: 'content' }],
+    } } } }
+    const customized = createCustomSectionComposition(content, 'mobile')
+    const mobile = customized.compositions.custom!.mobile!
+    expect(mobile.childFlow.elements[0].id).not.toBe('intro')
+    expect(mobile.childFlow.order.at(-1)).toEqual({ kind: 'specialized', key: 'content' })
+    expect(removeCustomSectionComposition(customized, 'mobile')).toEqual(content)
+  })
+
   it('deep copies and resets composition and Section appearance as one target presentation', () => {
     const content = { semantic: {}, compositions: { shared } } as BlankContent
     const appearance: WebsiteSectionAppearanceEnvelope = { shared: { headingAlignment: 'inherit', bodyAlignment: 'inherit', backgroundTreatment: 'custom', emphasis: 'inherit', decorativeAppearance: { background: { texture: 'grain', textureStrength: 45 } } } }

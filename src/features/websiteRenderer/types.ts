@@ -4,6 +4,7 @@ import type { ResponsiveViewport } from '../websiteEditor/types'
 import type { TextDocument, WebsiteElement } from '../websiteElements/types'
 import type { ProjectColor } from '../websiteColors/projectColors'
 import type { PrivateInvitationRendererRuntime } from './privateInvitationRuntime'
+import type { RsvpEditorPreviewState } from './rsvpEditorPreview'
 
 export type WebsiteRenderScope =
   | { kind: 'full' }
@@ -15,6 +16,7 @@ export type WebsiteRendererProps = {
   mode?: 'editor' | 'public'
   audience?: 'management-preview' | 'public-site' | 'private-site'
   privateInvitationRuntime?: PrivateInvitationRendererRuntime
+  rsvpEditorPreviewState?: RsvpEditorPreviewState
   selectedSectionId?: string | null
   onSectionSelect?: (sectionId: string) => void
   onGalleryAdd?: (sectionId: string) => void

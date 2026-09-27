@@ -60,8 +60,12 @@ import { ScheduleElementEditor } from "../../features/websiteEditor/components/S
 import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionCompositionControls } from "../../features/websiteEditor/components/SectionCompositionControls";
+import { RsvpRuntimeAppearanceEditor } from "../../features/websiteEditor/components/RsvpRuntimeAppearanceEditor";
+import { resolveRsvpPresentation } from "../../features/websiteRenderer/rsvpPresentationResolution";
 import {
+  createCustomSectionComposition,
   createCustomSectionPresentation,
+  removeCustomSectionComposition,
   removeCustomSectionPresentation,
 } from "../../features/websiteEditor/compositionLifecycle";
 import {
@@ -99,6 +103,10 @@ import {
 } from "../../features/websiteEditor/responsiveViewport";
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
+import {
+  DEFAULT_RSVP_EDITOR_PREVIEW_STATE,
+  type RsvpEditorPreviewState,
+} from "../../features/websiteRenderer/rsvpEditorPreview";
 import {
   authoredPropertyViewport,
   mergeScopedComposition,
@@ -227,6 +235,8 @@ function WebsitePageContent() {
   } | null>(null);
   const [mode, setMode] = useState<BuilderMode>("content");
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
+  const [rsvpEditorPreviewState, setRsvpEditorPreviewState] =
+    useState<RsvpEditorPreviewState>(DEFAULT_RSVP_EDITOR_PREVIEW_STATE);
   const [sectionPanelMode, setSectionPanelMode] =
     useState<SectionPanelMode>("content");
   const [drawerMode, setDrawerMode] = useState<DrawerMode>("content");
@@ -306,7 +316,7 @@ function WebsitePageContent() {
   const activeCompositionTarget =
     workingSelected &&
     workingContent &&
-    (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery")
+    (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery" || workingSelected.type === "rsvp")
       ? resolveEditorCompositionTarget(
           { ...workingSelected, content: workingContent } as WebsiteSection,
           previewMode,
@@ -364,7 +374,7 @@ function WebsitePageContent() {
     const nextScope =
       workingSelected &&
       workingContent &&
-      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery")
+      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery" || workingSelected.type === "rsvp")
         ? resolveEditorCompositionTarget(
             { ...workingSelected, content: workingContent } as WebsiteSection,
             next,
@@ -428,7 +438,7 @@ function WebsitePageContent() {
     const nextTarget =
       workingSelected &&
       workingContent &&
-      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery")
+      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery" || workingSelected.type === "rsvp")
         ? resolveEditorCompositionTarget(
             { ...workingSelected, content: workingContent } as WebsiteSection,
             next,
@@ -670,9 +680,31 @@ function WebsitePageContent() {
     if (
       authoritativeSelected.type !== "hero" &&
       authoritativeSelected.type !== "gallery" &&
-      authoritativeSelected.type !== "blank"
+      authoritativeSelected.type !== "blank" &&
+      authoritativeSelected.type !== "rsvp"
     )
       return;
+    if (authoritativeSelected.type === "rsvp") {
+      setListPending(true);
+      try {
+        contentSaved(
+          await updateWebsiteSectionContent(
+            event.id,
+            projectId,
+            authoritativeSelected.id,
+            createCustomSectionComposition(authoritativeSelected.content, previewMode),
+          ),
+        );
+        setSelectedChild(null);
+        setInlineEditingTarget(null);
+        setCanvasSelectionRequest(null);
+      } catch (branchError) {
+        setContentError(messageFor(branchError));
+      } finally {
+        setListPending(false);
+      }
+      return;
+    }
     const presentation = createCustomSectionPresentation(
       authoritativeSelected.content,
       authoritativeSelected.appearance,
@@ -710,9 +742,31 @@ function WebsitePageContent() {
     if (
       authoritativeSelected.type !== "hero" &&
       authoritativeSelected.type !== "gallery" &&
-      authoritativeSelected.type !== "blank"
+      authoritativeSelected.type !== "blank" &&
+      authoritativeSelected.type !== "rsvp"
     )
       return;
+    if (authoritativeSelected.type === "rsvp") {
+      setListPending(true);
+      try {
+        contentSaved(
+          await updateWebsiteSectionContent(
+            event.id,
+            projectId,
+            authoritativeSelected.id,
+            removeCustomSectionComposition(authoritativeSelected.content, previewMode),
+          ),
+        );
+        setSelectedChild(null);
+        setInlineEditingTarget(null);
+        setCanvasSelectionRequest(null);
+      } catch (branchError) {
+        setContentError(messageFor(branchError));
+      } finally {
+        setListPending(false);
+      }
+      return;
+    }
     const presentation = removeCustomSectionPresentation(
       authoritativeSelected.content,
       authoritativeSelected.appearance,
@@ -752,7 +806,7 @@ function WebsitePageContent() {
     const compositionTarget =
       section &&
       content &&
-      (section.type === "blank" || section.type === "hero" || section.type === "gallery")
+      (section.type === "blank" || section.type === "hero" || section.type === "gallery" || section.type === "rsvp")
         ? resolveEditorCompositionTarget(
             { ...section, content } as WebsiteSection,
             previewMode,
@@ -825,7 +879,7 @@ function WebsitePageContent() {
     );
     if (!flow) return false;
     const target =
-      section.type === "blank" || section.type === "hero" || section.type === "gallery"
+      section.type === "blank" || section.type === "hero" || section.type === "gallery" || section.type === "rsvp"
         ? resolveEditorCompositionTarget(
             { ...section, content } as WebsiteSection,
             previewMode,
@@ -887,7 +941,7 @@ function WebsitePageContent() {
         : (section.content as Record<string, unknown>),
     );
     const target =
-      section.type === "blank" || section.type === "hero" || section.type === "gallery"
+      section.type === "blank" || section.type === "hero" || section.type === "gallery" || section.type === "rsvp"
         ? resolveEditorCompositionTarget(
             { ...section, content } as WebsiteSection,
             previewMode,
@@ -1216,7 +1270,7 @@ function WebsitePageContent() {
       workingChildFlow={
         selected &&
         workingContent &&
-        (selected.type === "blank" || selected.type === "hero" || selected.type === "gallery")
+        (selected.type === "blank" || selected.type === "hero" || selected.type === "gallery" || selected.type === "rsvp")
           ? {
               sectionId: selected.id,
               flow: activeCompositionTarget?.composition.childFlow,
@@ -1284,6 +1338,8 @@ function WebsitePageContent() {
         workingContent={workingContent}
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
+        rsvpPreviewState={rsvpEditorPreviewState}
+        onRsvpPreviewStateChange={setRsvpEditorPreviewState}
         selectedChild={
           selectedChild &&
           selectedChild.sectionId === selected?.id &&
@@ -1358,6 +1414,8 @@ function WebsitePageContent() {
         workingContent={workingContent}
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
+        rsvpPreviewState={rsvpEditorPreviewState}
+        onRsvpPreviewStateChange={setRsvpEditorPreviewState}
         selectedChild={
           selectedChild &&
           selectedChild.sectionId === selected?.id &&
@@ -1531,6 +1589,7 @@ function WebsitePageContent() {
             editorMode={editorMode}
             selectedId={effectiveSelectedId}
             previewMode={previewMode}
+            rsvpEditorPreviewState={rsvpEditorPreviewState}
             unsaved={globalDirty}
             inlineValue={
               mode === "content"
@@ -1633,7 +1692,8 @@ function WebsitePageContent() {
                 pendingSection &&
                 (pendingSection.type === "blank" ||
                   pendingSection.type === "gallery" ||
-                  pendingSection.type === "hero")
+                  pendingSection.type === "hero" ||
+                  pendingSection.type === "rsvp")
                   ? resolveEditorCompositionTarget(pendingSection, previewMode)
                       .composition.childFlow
                   : undefined;
@@ -1688,7 +1748,8 @@ function WebsitePageContent() {
               pendingSection &&
               (pendingSection.type === "blank" ||
                 pendingSection.type === "gallery" ||
-                pendingSection.type === "hero")
+                pendingSection.type === "hero" ||
+                pendingSection.type === "rsvp")
                 ? resolveEditorCompositionTarget(pendingSection, previewMode)
                     .composition.childFlow
                 : undefined;
@@ -1982,6 +2043,7 @@ function PreviewCanvas({
   editorMode,
   selectedId,
   previewMode,
+  rsvpEditorPreviewState,
   unsaved,
   inlineValue,
   selectedChild,
@@ -1998,6 +2060,7 @@ function PreviewCanvas({
   editorMode: EditorMode;
   selectedId: string | null;
   previewMode: ResponsiveViewport;
+  rsvpEditorPreviewState: RsvpEditorPreviewState;
   unsaved: boolean;
   inlineValue: React.ComponentProps<typeof InlineEditProvider>["value"];
   selectedChild: SectionChildReference | null;
@@ -2212,7 +2275,8 @@ function PreviewCanvas({
                             section &&
                             (section.type === "blank" ||
                               section.type === "gallery" ||
-                              section.type === "hero")
+                              section.type === "hero" ||
+                              section.type === "rsvp")
                               ? resolveEditorCompositionTarget(
                                   section,
                                   previewMode,
@@ -2237,7 +2301,8 @@ function PreviewCanvas({
                             section &&
                             (section.type === "blank" ||
                               section.type === "gallery" ||
-                              section.type === "hero")
+                              section.type === "hero" ||
+                              section.type === "rsvp")
                               ? resolveEditorCompositionTarget(
                                   section,
                                   previewMode,
@@ -2259,6 +2324,8 @@ function PreviewCanvas({
                   }
                   onAddColor={editorMode === "edit" ? onAddColor : undefined}
                   targetViewport={previewMode}
+                  audience="management-preview"
+                  rsvpEditorPreviewState={rsvpEditorPreviewState}
                   scope={
                     editorMode === "edit" && selectedId
                       ? { kind: "single-section", sectionId: selectedId }
@@ -2338,6 +2405,8 @@ function SectionInspector({
   workingContent,
   workingAppearance,
   targetViewport,
+  rsvpPreviewState,
+  onRsvpPreviewStateChange,
   selectedChild,
   panelMode,
   showModeSwitch,
@@ -2365,6 +2434,8 @@ function SectionInspector({
   workingContent?: Record<string, unknown>;
   workingAppearance?: WebsiteSectionAppearance;
   targetViewport: ResponsiveViewport;
+  rsvpPreviewState: RsvpEditorPreviewState;
+  onRsvpPreviewStateChange: (state: RsvpEditorPreviewState) => void;
   selectedChild: SectionChildReference | null;
   panelMode: SectionPanelMode;
   showModeSwitch: boolean;
@@ -2388,7 +2459,7 @@ function SectionInspector({
     ? sectionCapability(capabilities, selected.type)
     : undefined;
   const compositionTarget =
-    selected.type === "blank" || selected.type === "hero" || selected.type === "gallery"
+    selected.type === "blank" || selected.type === "hero" || selected.type === "gallery" || selected.type === "rsvp"
       ? resolveEditorCompositionTarget(
           { ...selected, content: workingContent } as WebsiteSection,
           targetViewport,
@@ -2424,6 +2495,7 @@ function SectionInspector({
     selectedElement?.type === "divider" ? selectedElement : null;
   const selectedMedia =
     selectedElement?.type === "media" ? selectedElement : null;
+  const selectedRsvpRuntime = selected.type === "rsvp" && selectedChild?.kind === "specialized";
   const textCapability = capabilities
     ? templateElementCapability(capabilities, "text")
     : undefined;
@@ -2471,7 +2543,9 @@ function SectionInspector({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heading className="xl:text-base!" level={2} variant="panel">
-              {selectedText
+              {selectedRsvpRuntime
+                ? "RSVP form"
+                : selectedText
                 ? "Text"
                 : selectedDate
                   ? "Date"
@@ -2664,6 +2738,36 @@ function SectionInspector({
             />
           </ColorPreviewScopeContext>
         </div>
+      ) : selectedRsvpRuntime && panelMode === "appearance" && capabilities ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <ColorPreviewScopeContext key={selected.id} value={selected.id}>
+            <RsvpRuntimeAppearanceEditor
+              value={(workingContent as import("../../features/websiteEditor/types").RsvpContent).semantic.runtimeAppearance ?? {}}
+              resolved={resolveRsvpPresentation({
+                templateKey,
+                viewport: targetViewport,
+                library: capabilities.designLibrary,
+                projectColors,
+                context: selected.resolvedDesignContext,
+                authored: (workingContent as import("../../features/websiteEditor/types").RsvpContent).semantic.runtimeAppearance,
+              })}
+              viewport={authoringViewport}
+              library={capabilities.designLibrary}
+              allowedFontIds={textFontIds}
+              allowedColorIds={textColorIds}
+              projectColors={projectColors}
+              context={selected.resolvedDesignContext}
+              onAddColor={onAddColor}
+              onChange={(runtimeAppearance) => {
+                const content = workingContent as import("../../features/websiteEditor/types").RsvpContent;
+                onContentChange({
+                  ...content,
+                  semantic: Object.keys(runtimeAppearance).length ? { runtimeAppearance } : {},
+                });
+              }}
+            />
+          </ColorPreviewScopeContext>
+        </div>
       ) : panelMode === "content" ? (
         <div className="min-h-0 flex-1">
           <SectionEditor
@@ -2675,6 +2779,8 @@ function SectionInspector({
             onAppearanceChange={onAppearanceChange}
             resolvedMedia={resolvedMedia}
             onMediaResolved={onMediaResolved}
+            rsvpPreviewState={selectedRsvpRuntime ? rsvpPreviewState : undefined}
+            onRsvpPreviewStateChange={selectedRsvpRuntime ? onRsvpPreviewStateChange : undefined}
           />
         </div>
       ) : capability ? (

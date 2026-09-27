@@ -28,9 +28,33 @@ describe('functional Section boundaries', () => {
     ]) expect(galleryContentSchema.safeParse(invalid).success).toBe(false)
   })
 
-  it('keeps RSVP specialized and composition-free', () => {
-    const content = { semantic: { heading: 'Join us', description: 'Celebrate', buttonLabel: 'RSVP' } }
+  it('requires one top-level RSVP runtime and only canonical Text, Divider, Media, and Group blocks', () => {
+    const text = { id: 'text', type: 'text', editorName: 'Text 1', document: { type: 'doc', children: [{ type: 'paragraph', children: [{ text: 'Kindly Respond' }] }] } }
+    const divider = { id: 'divider', type: 'divider', editorName: 'Divider 1' }
+    const media = { id: 'media', type: 'media', editorName: 'Media 1', items: [] }
+    const group = { id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [divider, media] }
+    const content = { semantic: {}, compositions: { shared: { childFlow: { elements: [text, group], order: [{ kind: 'element', id: 'text' }, flow.order[0], { kind: 'element', id: 'group' }] } } } }
     expect(rsvpContentSchema.parse(content)).toEqual(content)
-    expect(rsvpContentSchema.safeParse({ ...content, compositions: {} }).success).toBe(false)
+    const styled = { ...content, semantic: { runtimeAppearance: {
+      status: { fontSize: '2xl', colorId: 'heading', responsive: { mobile: { fontSize: 'l', alignment: 'center' } } },
+      guestName: { fontWeight: 700 }, responseLabel: { textTransform: 'uppercase' }, supporting: { lineHeight: 'relaxed' },
+      choice: { layout: 'segmented', selected: { emphasis: 'bold', borderColorId: 'accent' }, responsive: { mobile: { direction: 'column', size: 'large' } } },
+      action: { variant: 'outline', radius: 'pill', width: 'full', typography: { fontFamilyId: 'inter' }, responsive: { mobile: { width: 'full', alignment: 'center' } } },
+    } } }
+    expect(rsvpContentSchema.parse(styled)).toEqual(styled)
+    for (const runtimeAppearance of [
+      { unknown: {} },
+      { status: { unknown: true } },
+      { choice: { layout: 'buttons' } },
+      { action: { width: 'overflow' } },
+      { previewState: 'completed' },
+      { guests: [{ name: 'Alex Santos' }] },
+    ]) expect(rsvpContentSchema.safeParse({ ...content, semantic: { runtimeAppearance } }).success).toBe(false)
+    expect(rsvpContentSchema.safeParse({ semantic: { heading: 'Legacy' }, compositions: content.compositions }).success).toBe(false)
+    expect(rsvpContentSchema.safeParse({ semantic: {}, compositions: { shared: { childFlow: { elements: [text], order: [{ kind: 'element', id: 'text' }] } } } }).success).toBe(false)
+    expect(rsvpContentSchema.safeParse({ semantic: {}, compositions: { shared: { childFlow: { elements: [text], order: [flow.order[0], flow.order[0], { kind: 'element', id: 'text' }] } } } }).success).toBe(false)
+    for (const type of ['date', 'accordion', 'schedule', 'people']) {
+      expect(rsvpContentSchema.safeParse({ semantic: {}, compositions: { shared: { childFlow: { elements: [{ id: type, type, editorName: `${type} 1` }], order: [{ kind: 'element', id: type }, flow.order[0]] } } } }).success).toBe(false)
+    }
   })
 })

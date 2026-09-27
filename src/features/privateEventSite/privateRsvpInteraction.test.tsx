@@ -39,6 +39,9 @@ describe('trusted private RSVP interaction', () => {
     expect(pending).not.toContain('value="pending"')
     expect(pending).toContain('type="submit"')
     expect(pending).toContain('disabled=""')
+    expect(pending).toContain('Pending')
+    expect(pending).not.toContain('0 attending')
+    expect(pending).not.toContain('2 pending')
 
     const partial = render(runtime({
       status: 'partial', attendingCount: 1, pendingCount: 1,
@@ -49,6 +52,9 @@ describe('trusted private RSVP interaction', () => {
     }))
     expect(partial).toMatch(/checked="" value="attending"/)
     expect(partial.match(/checked=""/g)).toHaveLength(1)
+    expect(partial).toContain('Partial')
+    expect(partial).not.toContain('1 attending')
+    expect(partial).not.toContain('1 pending')
   })
 
   it('renders Complete as a summary with Update RSVP only while mutation is open', () => {
@@ -64,6 +70,9 @@ describe('trusted private RSVP interaction', () => {
     expect(open).toContain('Update RSVP')
     expect(open).toContain('RSVP last updated')
     expect(open).not.toContain('type="radio"')
+    expect(open).toContain('Complete')
+    expect(open).not.toContain('1 attending')
+    expect(open).not.toContain('1 declined')
 
     for (const availability of ['event_closed', 'deadline_passed', 'invitation_inactive'] as const) {
       const readOnly = render(runtime({ ...complete, availability }))

@@ -10,6 +10,7 @@ import type { WebsiteRendererProps } from './types'
 import { WebsiteElementChangeContext } from './WebsiteElementChangeContext'
 import { sectionsForAudience } from './audience'
 import { PrivateInvitationRuntimeProvider } from './PrivateInvitationRuntimeContext'
+import { useEditorDeviceCategory } from '../websiteEditor/responsiveViewport'
 
 const templateRenderers = {
   'classic-filipiniana-v1': ClassicFilipinianaRenderer,
@@ -18,6 +19,7 @@ const templateRenderers = {
 
 export function WebsiteRenderer(props: WebsiteRendererProps) {
   const rootRef = useRef<HTMLDivElement>(null)
+  const runtimeViewport = useEditorDeviceCategory()
   const Renderer = templateRenderers[props.website.templateKey as keyof typeof templateRenderers]
   const requiredFontIds = useMemo(() => collectRequiredFontIds(props.website), [props.website])
   const requiredFontSignature = requiredFontIds.sort().join('|')
@@ -37,7 +39,7 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     return <div className="flex min-h-80 items-center justify-center bg-[#f7f0e6] p-8 text-center text-sm text-[#665d54]">This Template is not supported by this version of the renderer.</div>
   }
 
-  const targetViewport = props.targetViewport ?? 'desktop'
+  const targetViewport = props.targetViewport ?? runtimeViewport
   const website = {
     ...props.website,
     sections: sectionsForAudience(props.website.sections, props.audience).map((section) => {

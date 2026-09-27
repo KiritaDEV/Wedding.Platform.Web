@@ -487,7 +487,7 @@ describe("Section child-flow operations", () => {
   });
 
   it("deletes only the element and falls back to specialized selection", () => {
-    expect(deleteSectionElement(flow(), "a")).toEqual({ flow: undefined, selection: SECTION_SPECIALIZED_REFERENCE });
+    expect(deleteSectionElement(flow(), "a")).toEqual({ flow: { elements: [], order: [SECTION_SPECIALIZED_REFERENCE] }, selection: SECTION_SPECIALIZED_REFERENCE });
   });
 
   it("persists an empty generic-only flow after deleting its final block", () => {

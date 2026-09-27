@@ -28,9 +28,10 @@ export function accessiblePreviewViewports(category: ResponsiveViewport): Respon
 }
 
 export function useEditorDeviceCategory(): ResponsiveViewport {
-  const [category, setCategory] = useState<ResponsiveViewport>(() => editorDeviceCategory(window.innerWidth))
+  const [category, setCategory] = useState<ResponsiveViewport>(() => typeof window === 'undefined' ? 'desktop' : editorDeviceCategory(window.innerWidth))
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
     const update = () => setCategory(editorDeviceCategory(window.innerWidth))
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)

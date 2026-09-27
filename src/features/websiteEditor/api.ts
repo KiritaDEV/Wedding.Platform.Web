@@ -43,7 +43,10 @@ export function updateWebsiteSectionContent(eventId: string, projectId: string, 
 
 export function canonicalizeWebsiteSectionContentForApi(content: Record<string, unknown>): Record<string, unknown> {
   const canonicalContent = structuredClone(content)
-  removeAuthoredResponsiveState(canonicalContent)
+  // Generic element responsive state is derived from exact composition ownership.
+  // Specialized semantic contracts (such as RSVP runtime appearance) own their
+  // explicitly validated responsive overrides and must retain them.
+  removeAuthoredResponsiveState(canonicalContent.compositions)
   const compositions = canonicalContent.compositions as { shared?: { childFlow?: SectionChildFlow }; custom?: Record<string, { childFlow?: SectionChildFlow }> } | undefined
   if (compositions?.shared?.childFlow) compositions.shared.childFlow = canonicalizeSectionChildFlowText(compositions.shared.childFlow)
   Object.values(compositions?.custom ?? {}).forEach((composition) => { if (composition.childFlow) composition.childFlow = canonicalizeSectionChildFlowText(composition.childFlow) })

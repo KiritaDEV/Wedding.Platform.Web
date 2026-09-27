@@ -64,6 +64,16 @@ export const gallerySectionChildFlowSchema = sectionChildFlowSchema.superRefine(
   flow.elements.forEach((element, index) => visit(element, ["elements", index, "type"]));
 });
 
+export const rsvpSectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
+  const visit = (element: WebsiteElement, path: (string | number)[]) => {
+    if (element.type !== "text" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") {
+      context.addIssue({ code: "custom", path, message: `Element type ${element.type} is not allowed in RSVP.` });
+    }
+    if (element.type === "compositionGroup") element.children.forEach((child, index) => visit(child, [...path, "children", index, "type"]));
+  };
+  flow.elements.forEach((element, index) => visit(element, ["elements", index, "type"]));
+});
+
 export type SectionChildReference = z.infer<typeof sectionChildReferenceSchema>;
 export type SectionChildFlow = z.infer<typeof sectionChildFlowSchema>;
 export type SectionElementDestination = { parentId: string | null; index: number };
@@ -244,7 +254,7 @@ export function deleteSectionElement(flow: SectionChildFlow, elementId: string):
   const index = flow.order.findIndex((reference) => reference.kind === "element" && reference.id === elementId);
   const order = flow.order.filter((reference) => !(reference.kind === "element" && reference.id === elementId));
   const elements = flow.elements.filter(({ id }) => id !== elementId);
-  return { flow: elements.length ? { elements, order } : undefined, selection: order[Math.min(Math.max(index, 0), order.length - 1)] ?? SECTION_SPECIALIZED_REFERENCE };
+  return { flow: elements.length || order.some(({ kind }) => kind === "specialized") ? { elements, order } : undefined, selection: order[Math.min(Math.max(index, 0), order.length - 1)] ?? SECTION_SPECIALIZED_REFERENCE };
 }
 
 export function deleteGenericSectionElement(flow: SectionChildFlow, elementId: string): { flow: SectionChildFlow; selection?: SectionChildReference } {

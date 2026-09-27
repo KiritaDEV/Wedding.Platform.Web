@@ -29,6 +29,7 @@ function section(type: string, id = type, content: Record<string, unknown> = {})
     ? { semantic: {}, compositions: { shared: { childFlow: content.childFlow } } }
     : type === "blank" ? { semantic: {}, compositions: { shared: { childFlow: content.childFlow } } }
     : type === "gallery" ? { semantic: { items: content.items ?? [] }, compositions: { shared: { childFlow: { elements: galleryHeading ? [{ id: "gallery-heading", type: "text", editorName: "Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: galleryHeading }] }] } }] : [], order: [...(galleryHeading ? [{ kind: "element", id: "gallery-heading" }] : []), { kind: "specialized", key: "content" }] } } } }
+    : type === "rsvp" ? { semantic: {}, compositions: { shared: { childFlow: content.childFlow } } }
     : { semantic: content };
   return {
     id,
@@ -83,6 +84,12 @@ function hero(height: number | null = 100): WebsiteSection {
   } as WebsiteSection;
 }
 
+const textElement = (id: string, text: string) => ({ id, type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text }] }] } });
+const rsvpFlow = (...texts: string[]) => ({
+  elements: texts.map((text, index) => textElement(`rsvp-text-${index}`, text)),
+  order: [...texts.map((_, index) => ({ kind: "element" as const, id: `rsvp-text-${index}` })), { kind: "specialized" as const, key: "content" as const }],
+});
+
 describe("Section renderer boundary", () => {
   it.each(["classic", "modern"] as const)("resolves %s Hero composition independently while retaining semantic media", (template) => {
     const value = hero();
@@ -100,7 +107,7 @@ describe("Section renderer boundary", () => {
     expect(mobile).toContain("data-hero-background-image");
   });
   it.each(["classic", "modern"] as const)("keeps the %s surface and ordinary content boundary free of Section padding", (template) => {
-    const markup = render(template, [section("rsvp", "rsvp", { heading: "RSVP", description: "Join us", buttonLabel: "Reply" })]);
+    const markup = render(template, [section("rsvp", "rsvp", { childFlow: rsvpFlow("RSVP", "Join us") })]);
     expect(markup).toContain('data-preview-section="rsvp"');
     expect(markup).toContain("data-section-surface");
     expect(markup).toContain("data-section-content-inset");
@@ -111,7 +118,7 @@ describe("Section renderer boundary", () => {
   it.each(["gallery", "rsvp"] as const)("hosts %s decoration on the outer Section surface in both renderers", (type) => {
     const content = type === "gallery"
       ? { items: [] }
-      : { heading: "RSVP", description: "Join us", buttonLabel: "Reply" };
+      : { childFlow: rsvpFlow("RSVP", "Join us") };
     for (const template of ["classic", "modern"] as const) {
       const value = section(type, type, content);
       value.appearance = type === "gallery" ? { shared: { ...appearance, decorativeAppearance: { background: { overlay: "soft" }, frame: { style: "fine" } } } } : { ...appearance, decorativeAppearance: { background: { overlay: "soft" }, frame: { style: "fine" } } };
@@ -368,27 +375,26 @@ describe("Section renderer boundary", () => {
 
   it.each(["classic", "modern"] as const)("renders %s Sections in persisted array order", (template) => {
     const markup = render(template, [
-      section("rsvp", "second", { heading: "RSVP", description: "", buttonLabel: "Reply" }),
+      section("rsvp", "second", { childFlow: rsvpFlow("RSVP") }),
       section("gallery", "first", { heading: "Gallery", items: [] }),
     ]);
     expect(markup.indexOf('data-preview-section="second"')).toBeLessThan(markup.indexOf('data-preview-section="first"'));
   });
 
-  it.each(["classic", "modern"] as const)("renders the same semantic Gallery and RSVP contract through %s styling", (template) => {
+  it.each(["classic", "modern"] as const)("renders generic RSVP content and omits its runtime on the public audience through %s styling", (template) => {
     const gallery = section("gallery", "gallery", { heading: "Our moments", items: [] });
-    const rsvp = section("rsvp", "rsvp", { heading: "Will you join us?", description: "We hope you can celebrate with us.", buttonLabel: "Respond" });
+    const rsvp = section("rsvp", "rsvp", { childFlow: rsvpFlow("Will you join us?", "We hope you can celebrate with us.") });
     const editor = render(template, [gallery, rsvp], "mobile", "editor");
     expect(editor).toContain("Our moments");
     expect(editor).toContain("Add images");
     expect(editor).toContain("Will you join us?");
     expect(editor).toContain("We hope you can celebrate with us.");
-    expect(editor).toContain("Respond");
-    expect(editor).toContain("data-rsvp-button");
+    expect(editor).not.toContain("data-rsvp-button");
     const publicMarkup = render(template, [gallery, rsvp], "desktop", "public");
     expect(publicMarkup).toContain("Our moments");
     expect(publicMarkup).not.toContain("Gallery images will appear here");
     expect(publicMarkup).toContain("Will you join us?");
-    expect(publicMarkup).toContain("Respond");
+    expect(publicMarkup).not.toContain("data-rsvp-button");
   });
 
   it.each(["classic", "modern"] as const)("renders generic Gallery content around the specialized collection in authored order through %s", (template) => {

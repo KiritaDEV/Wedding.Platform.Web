@@ -226,7 +226,7 @@ describe('private RSVP trust states', () => {
     expect(markup).toContain('data-private-rsvp-state="trusted"')
     expect(markup).toContain('Guest One')
     expect(markup).toContain('Guest Two')
-    expect(markup).toContain('1 attending')
+    expect(markup).not.toContain('1 attending')
     expect(markup).toContain('deadline has passed')
     expect(markup).not.toContain('<button')
     expect(markup).not.toContain('Open Invitation')

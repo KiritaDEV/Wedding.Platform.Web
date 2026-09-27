@@ -26,7 +26,7 @@ export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, v
   useDecorativeSourceAvailability();
   const elements = new Map(flow.elements.map((element) => [element.id, element]));
   return <SectionRootFlow inlineAlignment={inlineAlignment}>{flow.order.map((reference) => {
-    if (reference.kind === "specialized") return <div key="specialized:content">{specialized}</div>;
+    if (reference.kind === "specialized") return specialized === null ? null : <div key="specialized:content">{specialized}</div>;
     const element = elements.get(reference.id);
     if (!element || !isElementRenderable(element, templateKey, mode, media, eventDate)) return null;
     const selected = selectedElementId === element.id;

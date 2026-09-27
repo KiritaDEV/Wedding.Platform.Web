@@ -18,6 +18,11 @@ import { BackgroundMediaEditor } from "./BackgroundMediaEditor";
 import { GalleryCollectionEditor } from "./GalleryCollectionEditor";
 import type { GalleryContent } from "../types";
 import { resolveOwnedSectionAppearance } from "../sectionAppearance";
+import { Select } from "../../../components/ui/Select";
+import {
+  RSVP_EDITOR_PREVIEW_STATES,
+  type RsvpEditorPreviewState,
+} from "../../websiteRenderer/rsvpEditorPreview";
 
 type EditorProps = {
   section: WebsiteSection;
@@ -28,36 +33,9 @@ type EditorProps = {
   resolvedMedia: Record<string, ResolvedWebsiteMedia>;
   onMediaResolved: (media: ResolvedWebsiteMedia) => void;
   viewport?: ResponsiveViewport;
+  rsvpPreviewState?: RsvpEditorPreviewState;
+  onRsvpPreviewStateChange?: (state: RsvpEditorPreviewState) => void;
 };
-type Field = {
-  name: string;
-  label: string;
-  multiline?: boolean;
-  note?: string;
-};
-
-function SimpleEditor(props: EditorProps & { fields: Field[] }) {
-  const semantic = props.content.semantic as Record<string, unknown>;
-  return (
-    <EditorForm>
-      {props.section.mediaCapability?.mode === "single" && <SectionMediaEditor {...props} />}
-      {props.fields.map((field) => (
-        <TextField
-          key={field.name}
-          label={field.label}
-          id={`${props.section.id}-${field.name}`}
-          multiline={field.multiline}
-          note={field.note}
-          value={String(semantic[field.name] ?? "")}
-          onChange={(value) =>
-            props.onChange({ ...props.content, semantic: { ...semantic, [field.name]: value } })
-          }
-        />
-      ))}
-    </EditorForm>
-  );
-}
-
 function SectionMediaEditor(props: EditorProps) {
   const media = props.appearance?.backgroundMedia ?? null;
   return <BackgroundMediaEditor ownerId={props.section.id} viewport={props.viewport ?? "desktop"} media={media} resolvedMedia={props.resolvedMedia} onMediaResolved={props.onMediaResolved} onChange={(backgroundMedia) => props.onAppearanceChange?.({ ...props.appearance!, backgroundMedia })} />;
@@ -265,18 +243,26 @@ export function SectionEditor(props: EditorProps) {
       return <GalleryEditor {...props} />;
     case "rsvp":
       return (
-        <SimpleEditor
-          {...props}
-          fields={[
-            { name: "heading", label: "Heading" },
-            { name: "description", label: "Description", multiline: true },
-            {
-              name: "buttonLabel",
-              label: "Button label",
-              note: "This controls Website presentation only. Guest RSVP configuration is managed separately.",
-            },
-          ]}
-        />
+        <EditorForm>
+          {props.rsvpPreviewState && props.onRsvpPreviewStateChange ? (
+            <div>
+              <label className="mb-0.5 block text-xs font-medium xl:text-sm" id={`${props.section.id}-preview-state-label`}>
+                Preview state
+              </label>
+              <Select
+                id={`${props.section.id}-preview-state`}
+                aria-labelledby={`${props.section.id}-preview-state-label`}
+                value={props.rsvpPreviewState}
+                options={[...RSVP_EDITOR_PREVIEW_STATES]}
+                onChange={(value) => props.onRsvpPreviewStateChange?.(value as RsvpEditorPreviewState)}
+              />
+              <p className="mt-1.5 text-xs text-foreground-muted">
+                Preview different RSVP states while designing. This setting is not saved.
+              </p>
+            </div>
+          ) : null}
+          <p className="text-xs text-foreground-muted">Select RSVP form in Structure to preview its operational states. Add and arrange authored content blocks from the RSVP Section row.</p>
+        </EditorForm>
       );
     default:
       return (

@@ -1,7 +1,8 @@
-import { EditableText } from "../../../websiteEditor/inline/EditableText";
-import type { RsvpContent } from "../../../websiteEditor/types";
 import { SectionContentInset } from "../../SectionContentInset";
 import { PrivateRsvpRuntime } from "../../PrivateRsvpRuntime";
+import type { RsvpPresentationEnvironment } from "../../rsvpPresentationResolution";
+import { RsvpEditorPreview } from "../../RsvpEditorPreviewRenderer";
+import type { RsvpEditorPreviewState } from "../../rsvpEditorPreview";
 
 export function ModernEditorialGallery({
   collection,
@@ -22,50 +23,16 @@ export function ModernEditorialGallery({
   );
 }
 export function ModernEditorialRsvp({
-  sectionId,
-  content,
+  presentationEnvironment,
+  editorPreviewState,
+  privateRuntime,
 }: {
-  sectionId: string;
-  content: RsvpContent["semantic"];
+  presentationEnvironment?: RsvpPresentationEnvironment;
+  editorPreviewState?: RsvpEditorPreviewState;
+  privateRuntime: boolean;
 }) {
-  return (
-    <EditorialSection
-      number="10"
-      containLongContent
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "heading"]}
-          value={content.heading}
-          fallback="Kindly Respond"
-          placeholder="Add heading"
-          label="RSVP heading"
-        />
-      }
-    >
-      <p className="w-full max-w-xl whitespace-pre-line text-lg [overflow-wrap:anywhere]">
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "description"]}
-          value={content.description}
-          fallback="We would be honored to celebrate this day with you."
-          placeholder="Add description"
-          label="RSVP description"
-          multiline
-        />
-      </p>
-      <PrivateRsvpRuntime buttonClassName="mt-10 inline-block max-w-full whitespace-normal border-2 border-[var(--me-theme-text)] px-8 py-4 text-xs font-bold uppercase tracking-[0.22em] [overflow-wrap:anywhere]">
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "buttonLabel"]}
-          value={content.buttonLabel}
-          fallback="RSVP"
-          placeholder="Add button label"
-          label="RSVP button label"
-        />
-      </PrivateRsvpRuntime>
-    </EditorialSection>
-  );
+  if (editorPreviewState) return <RsvpEditorPreview key={editorPreviewState} state={editorPreviewState} environment={presentationEnvironment ?? {}} />;
+  return privateRuntime ? <PrivateRsvpRuntime presentationEnvironment={presentationEnvironment}>{null}</PrivateRsvpRuntime> : null;
 }
 
 function EditorialSection({

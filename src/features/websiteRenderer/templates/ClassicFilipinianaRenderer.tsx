@@ -2,7 +2,6 @@ import type {
   GalleryContent,
   ResolvedWebsiteMedia,
   ResponsiveViewport,
-  RsvpContent,
   WebsiteSection,
   WebsiteSectionAppearance,
 } from "../../websiteEditor/types";
@@ -25,6 +24,7 @@ import { resolveSectionComposition } from "../../websiteEditor/sectionCompositio
 import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
 import { GalleryCollectionRenderer } from "../GalleryCollectionRenderer";
 import { resolveOwnedSectionAppearance } from "../../websiteEditor/sectionAppearance";
+import { RsvpSectionRenderer } from "../RsvpSectionRenderer";
 
 export function ClassicFilipinianaRenderer({
   event,
@@ -37,6 +37,8 @@ export function ClassicFilipinianaRenderer({
   selectedElementId,
   onElementSelect,
   onElementEdit,
+  rsvpEditorPreviewState,
+  audience,
 }: WebsiteRendererProps) {
   const candidates =
     scope.kind === "single-section"
@@ -82,6 +84,8 @@ export function ClassicFilipinianaRenderer({
           selectedElementId={selectedElementId}
           onElementSelect={onElementSelect}
           onElementEdit={onElementEdit}
+          rsvpEditorPreviewState={rsvpEditorPreviewState}
+          audience={audience}
         />
       ))}
     </article>
@@ -102,6 +106,8 @@ function ClassicSection({
   selectedElementId,
   onElementSelect,
   onElementEdit,
+  rsvpEditorPreviewState,
+  audience,
 }: {
   section: WebsiteSection;
   showLeadingDivider: boolean;
@@ -119,6 +125,8 @@ function ClassicSection({
   selectedElementId?: string | null;
   onElementSelect?: (sectionId: string, elementId: string) => void;
   onElementEdit?: (sectionId: string, elementId: string) => void;
+  rsvpEditorPreviewState?: import("../rsvpEditorPreview").RsvpEditorPreviewState;
+  audience?: WebsiteRendererProps["audience"];
 }) {
   const appearance = resolveClassicFilipinianaSectionAppearance(
     section.type,
@@ -181,7 +189,7 @@ function ClassicSection({
         selectedElementId={selectedElementId}
         onElementSelect={onElementSelect}
         onElementEdit={onElementEdit}
-      /></> : <SectionSurfaceDecoration templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} library={library} projectColors={designSettings.customColors} sectionId={section.id} mode={mode}>{showLeadingDivider && <ClassicSectionDivider />}<Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={designSettings.customColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /></SectionSurfaceDecoration>}
+      /></> : <SectionSurfaceDecoration templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} library={library} projectColors={designSettings.customColors} sectionId={section.id} mode={mode}>{showLeadingDivider && <ClassicSectionDivider />}<Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={designSettings.customColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} rsvpEditorPreviewState={rsvpEditorPreviewState} audience={audience} /></SectionSurfaceDecoration>}
     </section>
   );
 }
@@ -197,6 +205,8 @@ function Section({
   selectedElementId,
   onElementSelect,
   onElementEdit,
+  rsvpEditorPreviewState,
+  audience,
 }: {
   section: WebsiteSection;
   eventDate: string | null;
@@ -210,6 +220,8 @@ function Section({
   selectedElementId?: string | null;
   onElementSelect?: (sectionId: string, elementId: string) => void;
   onElementEdit?: (sectionId: string, elementId: string) => void;
+  rsvpEditorPreviewState?: import("../rsvpEditorPreview").RsvpEditorPreviewState;
+  audience?: WebsiteRendererProps["audience"];
 }) {
   switch (section.type) {
     case "blank": {
@@ -227,13 +239,14 @@ function Section({
           collection={<GalleryCollectionRenderer sectionId={section.id} items={(section.content as GalleryContent).semantic.items} media={media} appearance={resolveOwnedSectionAppearance(section.appearance, targetViewport)} viewport={targetViewport} mode={mode} />}
         />} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
     }
-    case "rsvp":
-      return (
-        <ClassicFilipinianaRsvp
-          sectionId={section.id}
-          content={(section.content as RsvpContent).semantic}
-        />
-      );
+    case "rsvp": {
+      const resolved = resolveSectionComposition(section, targetViewport);
+      return <RsvpSectionRenderer section={section} composition={resolved.composition} specialized={rsvpEditorPreviewState || audience === "private-site" ? <ClassicFilipinianaRsvp
+        presentationEnvironment={{ templateKey: "classic-filipiniana-v1", viewport: targetViewport, library, projectColors, context: section.resolvedDesignContext, authored: (section.content as import("../../websiteEditor/types").RsvpContent).semantic.runtimeAppearance }}
+        editorPreviewState={rsvpEditorPreviewState}
+        privateRuntime={audience === "private-site"}
+      /> : null} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
+    }
     default:
       return mode === "editor" ? (
         <div className="px-6 py-10 text-center text-sm text-[var(--cf-muted)]">
