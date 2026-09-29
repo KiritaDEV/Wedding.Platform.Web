@@ -1,4 +1,5 @@
 import { Select } from "../../../components/ui/Select";
+import { Italic, Strikethrough, Underline } from "lucide-react";
 import type { ResolvedDesignContext, TemplateDesignLibrary } from "../../websiteCapabilities/types";
 import type { ProjectColor } from "../../websiteColors/projectColors";
 import { SPACING_PRESETS } from "../../websiteElements/spacing";
@@ -12,8 +13,11 @@ import type { ResolvedRsvpPresentation } from "../../websiteRenderer/rsvpPresent
 import type { ResponsiveViewport } from "../types";
 import { FONT_SIZE_OPTIONS } from "./fontSizeOptions";
 import { FontPicker } from "./FontPicker";
+import { TextFormattingButton } from "./TextFormattingButton";
 import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import { updateActionColor, updateChoiceColor, updateRuntimeTextColor, updateRuntimeTextEffect } from "../rsvpAppearanceUpdates";
+import { textFontCapabilities } from "../../websiteElements/text";
+import { friendlyFontWeightOptions } from "../../websiteElements/textAppearance";
 
 type Props = {
   value: RsvpRuntimeAppearance;
@@ -69,15 +73,24 @@ function TextRole(props: Omit<Props, "resolved" | "onChange"> & { title: string;
     ? setGlobal(key, value)
     : props.onChange(compact({ ...props.authored, responsive: compact({ ...props.authored.responsive, [props.viewport]: compact({ ...props.authored.responsive?.[props.viewport], [key]: value }) }) }));
   const responsive = props.viewport === "desktop" ? props.resolved : { ...props.resolved, ...props.authored.responsive?.[props.viewport] };
+  const effectiveFontFamilyId = props.authored.fontFamilyId ?? props.resolved.fontFamilyId;
+  const formatting = [
+    { key: "italic" as const, label: "Italic", icon: <Italic size={16} />, disabled: !textFontCapabilities(effectiveFontFamilyId).italic },
+    { key: "underline" as const, label: "Underline", icon: <Underline size={16} /> },
+    { key: "strikethrough" as const, label: "Strikethrough", icon: <Strikethrough size={16} /> },
+  ];
   return <details className="rounded-md bg-surface-muted/40 px-3 py-2"><summary className="cursor-pointer text-xs font-semibold">{props.title}</summary><div className="mt-3 space-y-3">
     <Field label="Font family"><FontPicker value={props.authored.fontFamilyId ?? props.resolved.fontFamilyId ?? ""} role="body" library={{ ...props.library, fontFamilies: props.library.fontFamilies.filter(({ id }) => props.allowedFontIds.includes(id)) }} onChange={(value) => setGlobal("fontFamilyId", value)} /></Field>
     <Field label="Font size"><Select aria-label={`${props.title} font size`} value={responsive.fontSize ?? "m"} options={FONT_SIZE_OPTIONS} onChange={(value) => setResponsive("fontSize", value)} /></Field>
-    <Field label="Font weight"><Select aria-label={`${props.title} font weight`} value={String(props.authored.fontWeight ?? props.resolved.fontWeight ?? 400)} options={[400, 600, 700].map((value) => ({ value: String(value), label: String(value) }))} onChange={(value) => setGlobal("fontWeight", Number(value))} /></Field>
+    <Field label="Font weight"><Select aria-label={`${props.title} font weight`} value={String(props.authored.fontWeight ?? props.resolved.fontWeight ?? 400)} options={friendlyFontWeightOptions(effectiveFontFamilyId)} onChange={(value) => setGlobal("fontWeight", Number(value))} /></Field>
     <Field label="Line height"><Select aria-label={`${props.title} line height`} value={props.authored.lineHeight ?? props.resolved.lineHeight ?? "normal"} options={options(TEXT_LINE_HEIGHTS)} onChange={(value) => setGlobal("lineHeight", value)} /></Field>
     <Field label="Letter spacing"><Select aria-label={`${props.title} letter spacing`} value={props.authored.letterSpacing ?? props.resolved.letterSpacing ?? "normal"} options={options(TEXT_LETTER_SPACINGS)} onChange={(value) => setGlobal("letterSpacing", value)} /></Field>
     <Field label="Alignment"><Select aria-label={`${props.title} alignment`} value={responsive.alignment ?? "start"} options={options(TEXT_ALIGNMENTS)} onChange={(value) => setResponsive("alignment", value)} /></Field>
     <Field label="Case"><Select aria-label={`${props.title} case`} value={props.authored.textTransform ?? props.resolved.textTransform ?? "none"} options={options(TEXT_TRANSFORMS)} onChange={(value) => setGlobal("textTransform", value)} /></Field>
-    <div className="grid grid-cols-3 gap-2 text-xs">{(["italic", "underline", "strikethrough"] as const).map((key) => <label key={key} className="flex items-center gap-1"><input type="checkbox" checked={props.authored[key] ?? props.resolved[key] ?? false} onChange={(event) => setGlobal(key, event.target.checked || undefined)} />{key === "strikethrough" ? "Strike" : key[0].toUpperCase() + key.slice(1)}</label>)}</div>
+    <Field label="Formatting"><div className="flex flex-wrap gap-2">{formatting.map(({ key, label, icon, disabled }) => {
+      const pressed = props.authored[key] ?? props.resolved[key] ?? false;
+      return <TextFormattingButton key={key} label={`${props.title} ${label.toLowerCase()}`} pressed={pressed} disabled={disabled} onClick={() => setGlobal(key, pressed ? undefined : true)}>{icon}</TextFormattingButton>;
+    })}</div></Field>
     <ColorField label="Text color"><WebsiteColorSwatchControl previewTarget={`rsvp:${props.id}:color`} label={`${props.title} text color`} colorId={props.authored.colorId} allowedTemplateColorIds={props.allowedColorIds} templateColors={props.library.colors} projectColors={props.projectColors} inheritLabel="Use Theme" onChange={(value) => setColor("colorId", value)} onAddColor={props.onAddColor} /></ColorField>
     <Field label="Text shadow"><Select aria-label={`${props.title} text shadow`} value={props.authored.textShadow ?? props.resolved.textShadow ?? "none"} options={options(TEXT_EFFECT_STRENGTHS)} onChange={(value) => setEffect("textShadow", value)} /></Field>
     {(props.authored.textShadow ?? props.resolved.textShadow ?? "none") !== "none" && <ColorField label="Shadow color"><WebsiteColorSwatchControl previewTarget={`rsvp:${props.id}:shadow-color`} label={`${props.title} shadow color`} colorId={props.authored.textShadowColorId} allowedTemplateColorIds={props.allowedColorIds} templateColors={props.library.colors} projectColors={props.projectColors} inheritLabel="Use Theme" onChange={(value) => setColor("textShadowColorId", value)} onAddColor={props.onAddColor} /></ColorField>}
@@ -104,7 +117,7 @@ function ChoiceEditor(props: Omit<Props, "resolved" | "onChange"> & { authored: 
       {(["textColorId", "backgroundColorId", "borderColorId"] as const).map((key) => {
         const field = key === "textColorId" ? "Text color" : key === "backgroundColorId" ? "Background color" : "Border color";
         const accessibleLabel = `${state === "selected" ? "Selected" : "Unselected"} ${field.toLowerCase()}`;
-        return <ColorField key={key} label={field}><WebsiteColorSwatchControl label={accessibleLabel} colorId={props.authored[state]?.[key]} allowedTemplateColorIds={props.allowedColorIds} templateColors={props.library.colors} projectColors={props.projectColors} inheritLabel="Use Theme" onChange={(value) => stateColor(state, key, value)} onAddColor={props.onAddColor} /></ColorField>;
+        return <ColorField key={key} label={field}><WebsiteColorSwatchControl previewTarget={`rsvp:choice:${state}:${key === "textColorId" ? "text-color" : key === "backgroundColorId" ? "background-color" : "border-color"}`} label={accessibleLabel} colorId={props.authored[state]?.[key]} allowedTemplateColorIds={props.allowedColorIds} templateColors={props.library.colors} projectColors={props.projectColors} inheritLabel="Use Theme" onChange={(value) => stateColor(state, key, value)} onAddColor={props.onAddColor} /></ColorField>;
       })}
     </div>)}
   </div>;
@@ -128,7 +141,7 @@ function ActionEditor(props: Omit<Props, "resolved" | "onChange"> & { authored: 
       <h4 className="text-xs font-semibold">Colors</h4>
       {(["textColorId", "backgroundColorId", "borderColorId"] as const).map((key) => {
         const field = key === "textColorId" ? "Text color" : key === "backgroundColorId" ? "Background color" : "Border color";
-        return <ColorField key={key} label={field}><WebsiteColorSwatchControl label={`Action ${field.toLowerCase()}`} colorId={props.authored[key]} allowedTemplateColorIds={props.allowedColorIds} templateColors={props.library.colors} projectColors={props.projectColors} inheritLabel="Use Theme" onChange={(value) => setColor(key, value)} onAddColor={props.onAddColor} /></ColorField>;
+        return <ColorField key={key} label={field}><WebsiteColorSwatchControl previewTarget={`rsvp:action:${key === "textColorId" ? "text-color" : key === "backgroundColorId" ? "background-color" : "border-color"}`} label={`Action ${field.toLowerCase()}`} colorId={props.authored[key]} allowedTemplateColorIds={props.allowedColorIds} templateColors={props.library.colors} projectColors={props.projectColors} inheritLabel="Use Theme" onChange={(value) => setColor(key, value)} onAddColor={props.onAddColor} /></ColorField>;
       })}
     </div>
   </div>;

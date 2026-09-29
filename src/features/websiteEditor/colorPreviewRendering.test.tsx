@@ -4,6 +4,7 @@ import { ColorPreviewContext, createColorPreviewStore, scopedColorPreviewTarget 
 import { WebsiteLeafElementRenderer } from "../websiteRenderer/WebsiteLeafElementRenderer";
 import type { WebsiteLeafElement } from "../websiteElements/types";
 import type { TemplateDesignLibrary } from "../websiteCapabilities/types";
+import { RsvpEditorPreview } from "../websiteRenderer/RsvpEditorPreviewRenderer";
 
 // Exercise the client snapshot while rendering the real dispatch/render tree.
 vi.mock("react", async (original) => ({ ...await original<typeof import("react")>(), useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot() }));
@@ -43,4 +44,20 @@ it.each([["textShadowColor", "textShadow"], ["glowColor", "glow"]] as const)("pr
   expect(render("public")).toBe(publicBefore);
   session.clear();
   expect(render("editor")).not.toContain("#ABCDEF");
+});
+
+it.each([
+  ["rsvp:status:color", "color:#abcdef"],
+  ["rsvp:choice:selected:background-color", "background-color:#abcdef"],
+  ["rsvp:action:background-color", "background-color:#abcdef"],
+] as const)("previews RSVP %s before a custom color is committed", (target, expectedStyle) => {
+  const store = createColorPreviewStore();
+  const render = (editor: boolean) => renderToStaticMarkup(<ColorPreviewContext value={store}><RsvpEditorPreview state="form-partial" environment={{ sectionId: "rsvp-section", editor, templateKey: "classic-filipiniana-v1", viewport: "desktop", library, context }} /></ColorPreviewContext>);
+  const publicBefore = render(false);
+  const session = store.begin(scopedColorPreviewTarget("rsvp-section", target));
+  session.update("#ABCDEF");
+  expect(render(true).toLowerCase()).toContain(expectedStyle);
+  expect(render(false)).toBe(publicBefore);
+  session.clear();
+  expect(render(true).toLowerCase()).not.toContain(expectedStyle);
 });

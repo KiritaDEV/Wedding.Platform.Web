@@ -117,4 +117,48 @@ describe("RSVP runtime Appearance inspector", () => {
     expect(updateRuntimeTextEffect({ textShadow: "soft", textShadowColorId: "accent", glow: "strong", glowColorId: "body" }, "textShadow", "none")).toEqual({ textShadow: "none", glow: "strong", glowColorId: "body" });
     expect(updateRuntimeTextEffect({ glow: "strong", glowColorId: "accent" }, "glow", "none")).toEqual({ glow: "none" });
   });
+
+  it("uses the canonical Text formatting-button design for every runtime typography role", () => {
+    const html = renderToStaticMarkup(<RsvpRuntimeAppearanceEditor
+      value={{ status: { italic: true }, guestName: { underline: true }, responseLabel: { strikethrough: true } }}
+      resolved={resolveRsvpPresentation({ templateKey: "classic-filipiniana-v1", viewport: "desktop", library })}
+      viewport="desktop"
+      library={library}
+      allowedFontIds={["inter"]}
+      allowedColorIds={["body", "accent"]}
+      projectColors={[]}
+      onAddColor={vi.fn()}
+      onChange={vi.fn()}
+    />);
+    for (const role of ["Status", "Guest names", "Response labels", "Supporting text", "Action typography"]) {
+      for (const format of ["italic", "underline", "strikethrough"]) expect(html).toContain(`aria-label="${role} ${format}"`);
+    }
+    expect(html).toMatch(/aria-label="Status italic"[^>]*aria-pressed="true"/);
+    expect(html).toMatch(/aria-label="Guest names underline"[^>]*aria-pressed="true"/);
+    expect(html).toMatch(/aria-label="Response labels strikethrough"[^>]*aria-pressed="true"/);
+    expect(html).not.toContain('type="checkbox"');
+    expect(html).toContain("lucide-italic");
+    expect(html).toContain("lucide-underline");
+    expect(html).toContain("lucide-strikethrough");
+  });
+
+  it("uses canonical human-readable Text font-weight options for every runtime typography role", () => {
+    const html = renderToStaticMarkup(<RsvpRuntimeAppearanceEditor
+      value={{}}
+      resolved={resolveRsvpPresentation({ templateKey: "classic-filipiniana-v1", viewport: "desktop", library, context: { headingFontId: "inter", bodyFontId: "inter", headingColorId: "body", bodyColorId: "body", accentColorId: "accent" } })}
+      viewport="desktop"
+      library={library}
+      allowedFontIds={["inter"]}
+      allowedColorIds={["body", "accent"]}
+      projectColors={[]}
+      onAddColor={vi.fn()}
+      onChange={vi.fn()}
+    />);
+    const expected = { Status: "Semi-bold", "Guest names": "Semi-bold", "Response labels": "Semi-bold", "Supporting text": "Normal", "Action typography": "Semi-bold" };
+    for (const [role, label] of Object.entries(expected)) {
+      const control = html.match(new RegExp(`aria-label="${role} font weight"[\\s\\S]*?</button>`))?.[0] ?? "";
+      expect(control).toContain(`>${label}<`);
+      expect(control).not.toMatch(/>400<|>600<|>700</);
+    }
+  });
 });

@@ -234,7 +234,7 @@ function Section({
     case "rsvp": {
       const resolved = resolveSectionComposition(section, targetViewport);
       return <RsvpSectionRenderer section={section} composition={resolved.composition} specialized={rsvpEditorPreviewState || audience === "private-site" ? <ModernEditorialRsvp
-        presentationEnvironment={{ templateKey: "modern-editorial-v1", viewport: targetViewport, library, projectColors, context: section.resolvedDesignContext, authored: (section.content as import("../../websiteEditor/types").RsvpContent).semantic.runtimeAppearance }}
+        presentationEnvironment={{ sectionId: section.id, editor: mode === "editor", templateKey: "modern-editorial-v1", viewport: targetViewport, library, projectColors, context: section.resolvedDesignContext, authored: (section.content as import("../../websiteEditor/types").RsvpContent).semantic.runtimeAppearance }}
         editorPreviewState={rsvpEditorPreviewState}
         privateRuntime={audience === "private-site"}
       /> : null} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;

@@ -31,6 +31,7 @@ import { Select } from "../../../components/ui/Select";
 import type { TextElement } from "../../websiteElements/types";
 import type { ResponsiveViewport } from "../types";
 import { FontPicker } from "./FontPicker";
+import { TextFormattingButton } from "./TextFormattingButton";
 import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import { ElementEffectsControl } from "./ElementEffectsControl";
 import { dispatchTextCommand, type TextCommand } from "../textCommands";
@@ -376,18 +377,15 @@ function MobileTool({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
+    <TextFormattingButton
+      label={label}
       disabled={disabled}
       onPointerDown={(event) => {
         event.preventDefault();
         if (!disabled) dispatchTextCommand(elementId, command);
       }}
-      className="grid size-10 place-items-center rounded-md border border-border text-foreground-muted outline-none hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-accent/40"
     >
       {children}
-    </button>
+    </TextFormattingButton>
   );
 }

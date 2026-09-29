@@ -9,6 +9,8 @@ import type { RsvpRuntimeAppearance } from "../websitePresentation/rsvpThemePres
 
 export type ResolvedRsvpPresentation = RsvpThemePresentation;
 export type RsvpPresentationEnvironment = {
+  sectionId?: string;
+  editor?: boolean;
   templateKey?: string;
   viewport?: ResponsiveViewport;
   library?: TemplateDesignLibrary;

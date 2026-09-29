@@ -1,4 +1,5 @@
 import { ColorPreviewScopeContext } from "../../features/websiteEditor/colorPreview";
+import { specializedSectionIdFromTarget } from "../../features/websiteEditor/specializedCanvasSelection";
 import { ColorPreviewProvider } from "../../features/websiteEditor/ColorPreviewProvider";
 import {
   ArrowLeft,
@@ -2235,9 +2236,21 @@ function PreviewCanvas({
             }}
           >
             <PreviewViewport viewport={previewMode}>
-              <InlineEditProvider
-                value={editorMode === "edit" ? inlineValue : null}
+              <div
+                onPointerDownCapture={(event) => {
+                  if (editorMode !== "edit") return;
+                  const sectionId = specializedSectionIdFromTarget(event.target);
+                  if (sectionId) onChildSelect(sectionId, { kind: "specialized", key: "content" });
+                }}
+                onClickCapture={(event) => {
+                  if (editorMode !== "edit" || event.detail !== 0) return;
+                  const sectionId = specializedSectionIdFromTarget(event.target);
+                  if (sectionId) onChildSelect(sectionId, { kind: "specialized", key: "content" });
+                }}
               >
+                <InlineEditProvider
+                  value={editorMode === "edit" ? inlineValue : null}
+                >
                 <WebsiteRenderer
                   event={event}
                   website={draft}
@@ -2332,7 +2345,8 @@ function PreviewCanvas({
                       : { kind: "full" }
                   }
                 />
-              </InlineEditProvider>
+                </InlineEditProvider>
+              </div>
             </PreviewViewport>
           </div>
         </div>

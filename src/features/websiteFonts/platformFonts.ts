@@ -1,6 +1,7 @@
 import type { RenderableWebsite } from "../websiteEditor/types";
 import { listSectionCompositions } from "../websiteEditor/sectionComposition";
 import type { WebsiteElement } from "../websiteElements/types";
+import type { RsvpContent } from "../websiteEditor/types";
 
 export type FontCategory = "serif" | "sans" | "script" | "display" | "mono" | "legacy";
 export type FontRole = "heading" | "body" | "accent";
@@ -50,9 +51,17 @@ export function collectRequiredFontIds(website: RenderableWebsite): string[] {
     if (section.resolvedDesignContext) { ids.add(section.resolvedDesignContext.headingFontId); ids.add(section.resolvedDesignContext.bodyFontId); }
     if (section.designDefaults.headingFontId) ids.add(section.designDefaults.headingFontId);
     if (section.designDefaults.bodyFontId) ids.add(section.designDefaults.bodyFontId);
+    if (section.type === "rsvp") collectRsvpRuntimeFontIds((section.content as RsvpContent).semantic.runtimeAppearance, ids);
     listSectionCompositions(section).forEach(({ composition }) => composition.childFlow.elements.forEach((element) => collectElementFontIds(element, ids)));
   }
   return [...ids];
+}
+
+function collectRsvpRuntimeFontIds(appearance: RsvpContent["semantic"]["runtimeAppearance"], ids: Set<string>) {
+  if (!appearance) return;
+  for (const role of [appearance.status, appearance.guestName, appearance.responseLabel, appearance.supporting, appearance.action?.typography]) {
+    if (role?.fontFamilyId) ids.add(role.fontFamilyId);
+  }
 }
 
 function collectElementFontIds(element: WebsiteElement, ids: Set<string>) {

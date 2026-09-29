@@ -50,4 +50,25 @@ describe("fontStylesheetUrl", () => {
     delete (website.sections[0].content as { compositions: { custom?: unknown } }).compositions.custom;
     expect(collectRequiredFontIds(website)).toEqual(["inter"]);
   });
+
+  it("collects every authored RSVP runtime font, including Action typography", () => {
+    const website = {
+      designSettings: { fontSet: "none", projectDefaults: {} },
+      projectDesignDefaults: null,
+      template: { capabilities: { designLibrary: { typographyPresets: [] } } },
+      sections: [{
+        type: "rsvp",
+        resolvedDesignContext: null,
+        designDefaults: {},
+        content: { semantic: { runtimeAppearance: {
+          status: { fontFamilyId: "playfair-display" },
+          guestName: { fontFamilyId: "lora" },
+          responseLabel: { fontFamilyId: "inter" },
+          supporting: { fontFamilyId: "nunito" },
+          action: { typography: { fontFamilyId: "montserrat" } },
+        } }, compositions: { shared: { childFlow: { elements: [], order: [{ kind: "specialized", key: "content" }] } } } },
+      }],
+    } as unknown as WebsiteDraft;
+    expect(collectRequiredFontIds(website)).toEqual(["playfair-display", "lora", "inter", "nunito", "montserrat"]);
+  });
 });

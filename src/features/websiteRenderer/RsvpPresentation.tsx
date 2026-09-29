@@ -11,6 +11,7 @@ import type { PrivateInvitationRuntime } from "../privateEventSite/api";
 import type { RsvpDraft } from "../privateEventSite/rsvpForm";
 import { elementFontSizes, elementLetterSpacings, elementLineHeights } from "./elementTypography";
 import { rsvpSubmitLabel, type ResolvedRsvpPresentation, type RsvpPresentationEnvironment } from "./rsvpPresentationResolution";
+import { scopedColorPreviewTarget, useEditorColorPreview } from "../websiteEditor/colorPreview";
 
 type RsvpProjection = NonNullable<PrivateInvitationRuntime["rsvp"]>;
 
@@ -72,11 +73,13 @@ export function RsvpFormPresentation({ rsvp, presentation, environment, draft, e
 export function ChoiceGroup({ appearance, labelAppearance, environment, name, value, disabled, onChange }: { appearance: ChoiceAppearance; labelAppearance: RuntimeTextAppearance; environment: RsvpPresentationEnvironment; name: string; value: "attending" | "declined" | null; disabled?: boolean; onChange: (response: "attending" | "declined") => void }) {
   const direction = appearance.direction ?? "row";
   const choicePadding = { compact: ["0.5rem", "0.75rem"], normal: ["0.5rem", "0.75rem"], large: ["0.75rem", "1rem"] }[appearance.size ?? "normal"];
+  const selectedPreview = useChoiceColorPreview(environment, "selected");
+  const unselectedPreview = useChoiceColorPreview(environment, "unselected");
   return <div className="mt-3 min-w-0 max-w-full" data-rsvp-choice-layout={appearance.layout ?? "cards"} style={{ display: "flex", flexDirection: direction, gap: SPACING_PRESET_CSS[appearance.gap ?? "s"] }}>
     {(["attending", "declined"] as const).map((response) => {
       const selected = value === response;
       const state = selected ? appearance.selected : appearance.unselected;
-      const colors = resolveChoiceColors(state, environment);
+      const colors = resolveChoiceColors(state, environment, selected ? selectedPreview : unselectedPreview);
       const emphasis = selected ? ({ normal: 400, semibold: 600, bold: 700 } as const)[appearance.selected?.emphasis ?? "semibold"] : undefined;
       return <label key={response} className="relative flex min-h-11 min-w-0 max-w-full flex-1 cursor-pointer items-center justify-center gap-2 whitespace-normal outline-none [overflow-wrap:anywhere] focus-within:ring-2 focus-within:ring-current focus-within:ring-offset-2 disabled:cursor-not-allowed" style={{ ...colors, width: direction === "column" ? "100%" : undefined, paddingBlock: choicePadding[0], paddingInline: choicePadding[1], borderStyle: "solid", borderWidth: WEBSITE_BORDER_WIDTH_CSS[appearance.borderWidth ?? "thin"], borderRadius: WEBSITE_RADIUS_CSS[appearance.radius ?? "soft"], opacity: disabled ? appearance.disabled?.opacity === "soft" ? .7 : .5 : 1 }} data-rsvp-choice={response} data-selected={selected || undefined}>
         <input className="sr-only" type="radio" name={name} value={response} checked={selected} disabled={disabled} onChange={() => onChange(response)} />
@@ -88,38 +91,64 @@ export function ChoiceGroup({ appearance, labelAppearance, environment, name, va
 }
 
 export function WebsiteAction({ appearance, environment, className = "", danger = false, ...props }: { appearance: ActionAppearance; environment: RsvpPresentationEnvironment; className?: string; danger?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const colors = resolveActionColors(appearance, environment);
+  const textPreview = useRsvpColorPreview(environment, "rsvp:action:text-color");
+  const backgroundPreview = useRsvpColorPreview(environment, "rsvp:action:background-color");
+  const borderPreview = useRsvpColorPreview(environment, "rsvp:action:border-color");
+  const typographyPreview = useRuntimeTextColorPreview(environment, "action-typography");
+  const colors = resolveActionColors(appearance, environment, { color: textPreview, backgroundColor: backgroundPreview, borderColor: borderPreview });
   const padding = actionPadding(appearance);
   return <div className={`flex min-w-0 max-w-full ${className}`} style={{ width: appearance.width === "full" ? "100%" : undefined, justifyContent: { start: "flex-start", center: "center", end: "flex-end" }[appearance.alignment ?? "center"] }}>
-    <button {...props} data-rsvp-action className={`inline-flex min-h-11 max-w-full items-center justify-center whitespace-normal outline-none [overflow-wrap:anywhere] focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${appearance.width === "full" ? "w-full" : "w-auto"} ${danger ? "brightness-90" : ""}`} style={{ ...runtimeTextStyle(appearance.typography ?? {}, environment), ...colors, ...padding, borderStyle: "solid", borderWidth: WEBSITE_BORDER_WIDTH_CSS[appearance.borderWidth ?? "thin"], borderRadius: WEBSITE_RADIUS_CSS[appearance.radius ?? "soft"] }} />
+    <button {...props} data-rsvp-action className={`inline-flex min-h-11 max-w-full items-center justify-center whitespace-normal outline-none [overflow-wrap:anywhere] focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${appearance.width === "full" ? "w-full" : "w-auto"} ${danger ? "brightness-90" : ""}`} style={{ ...runtimeTextStyle(appearance.typography ?? {}, environment, typographyPreview), ...colors, ...padding, borderStyle: "solid", borderWidth: WEBSITE_BORDER_WIDTH_CSS[appearance.borderWidth ?? "thin"], borderRadius: WEBSITE_RADIUS_CSS[appearance.radius ?? "soft"] }} />
   </div>;
 }
 
 export function RuntimeText({ as: Component = "span", appearance, environment, kind, className, style, ...props }: { as?: ElementType; appearance: RuntimeTextAppearance; environment: RsvpPresentationEnvironment; kind: "guestName" | "responseLabel" | "supportingText" | "statusHeading"; className?: string; style?: CSSProperties; [key: string]: unknown }) {
-  return <Component {...props} data-rsvp-text={kind} className={className} style={{ ...runtimeTextStyle(appearance, environment), ...style }} />;
+  const previewId = { guestName: "guest-name", responseLabel: "response-label", supportingText: "supporting", statusHeading: "status" }[kind];
+  const preview = useRuntimeTextColorPreview(environment, previewId);
+  return <Component {...props} data-rsvp-text={kind} className={className} style={{ ...runtimeTextStyle(appearance, environment, preview), ...style }} />;
 }
 
-function runtimeTextStyle(appearance: RuntimeTextAppearance, environment: RsvpPresentationEnvironment): CSSProperties {
+function runtimeTextStyle(appearance: RuntimeTextAppearance, environment: RsvpPresentationEnvironment, preview: { color?: string; shadow?: string; glow?: string } = {}): CSSProperties {
   const library = environment.library;
   const resources = library ? resolveRuntimeTextResources(appearance, { templateKey: environment.templateKey ?? "", library, projectColors: environment.projectColors, context: environment.context }) : { fontFamily: "inherit", color: "inherit", supportsItalic: true, supportedWeights: [400, 600, 700] };
   const decorations = [appearance.underline && "underline", appearance.strikethrough && "line-through"].filter(Boolean).join(" ") || undefined;
-  const textShadow = library ? resolveTextEffects(appearance.textShadow, resolveWebsiteColor(appearance.textShadowColorId, library, environment.projectColors ?? []), appearance.glow, resolveWebsiteColor(appearance.glowColorId, library, environment.projectColors ?? [])) : undefined;
-  return { fontFamily: resources.fontFamily, color: resources.color, fontSize: elementFontSizes[appearance.fontSize ?? "m"], fontWeight: appearance.fontWeight ?? 400, fontStyle: appearance.italic && resources.supportsItalic ? "italic" : undefined, lineHeight: elementLineHeights[appearance.lineHeight ?? "normal"], letterSpacing: elementLetterSpacings[appearance.letterSpacing ?? "normal"], textAlign: appearance.alignment, textDecorationLine: decorations, textTransform: appearance.textTransform === "none" ? undefined : appearance.textTransform, textShadow };
+  const textShadow = library ? resolveTextEffects(appearance.textShadow, preview.shadow ?? resolveWebsiteColor(appearance.textShadowColorId, library, environment.projectColors ?? []), appearance.glow, preview.glow ?? resolveWebsiteColor(appearance.glowColorId, library, environment.projectColors ?? [])) : undefined;
+  return { fontFamily: resources.fontFamily, color: preview.color ?? resources.color, fontSize: elementFontSizes[appearance.fontSize ?? "m"], fontWeight: appearance.fontWeight ?? 400, fontStyle: appearance.italic && resources.supportsItalic ? "italic" : undefined, lineHeight: elementLineHeights[appearance.lineHeight ?? "normal"], letterSpacing: elementLetterSpacings[appearance.letterSpacing ?? "normal"], textAlign: appearance.alignment, textDecorationLine: decorations, textTransform: appearance.textTransform === "none" ? undefined : appearance.textTransform, textShadow };
 }
 
-function resolveChoiceColors(state: ChoiceAppearance["selected"], environment: RsvpPresentationEnvironment): CSSProperties {
+function resolveChoiceColors(state: ChoiceAppearance["selected"], environment: RsvpPresentationEnvironment, preview: CSSProperties = {}): CSSProperties {
   if (!environment.library) return {};
   const project = environment.projectColors ?? [];
-  return { color: resolveWebsiteColor(state?.textColorId, environment.library, project), backgroundColor: resolveWebsiteColor(state?.backgroundColorId, environment.library, project), borderColor: resolveWebsiteColor(state?.borderColorId, environment.library, project) ?? "currentColor" };
+  return { color: preview.color ?? resolveWebsiteColor(state?.textColorId, environment.library, project), backgroundColor: preview.backgroundColor ?? resolveWebsiteColor(state?.backgroundColorId, environment.library, project), borderColor: preview.borderColor ?? resolveWebsiteColor(state?.borderColorId, environment.library, project) ?? "currentColor" };
 }
 
-function resolveActionColors(appearance: ActionAppearance, environment: RsvpPresentationEnvironment): CSSProperties {
+function resolveActionColors(appearance: ActionAppearance, environment: RsvpPresentationEnvironment, preview: CSSProperties = {}): CSSProperties {
   if (!environment.library) return {};
   const project = environment.projectColors ?? [];
   const textColor = resolveWebsiteColor(appearance.textColorId, environment.library, project);
   const background = resolveWebsiteColor(appearance.backgroundColorId, environment.library, project);
   const border = resolveWebsiteColor(appearance.borderColorId, environment.library, project);
-  return { color: textColor, backgroundColor: appearance.variant === "filled" ? background : "transparent", borderColor: appearance.variant === "minimal" ? "transparent" : border ?? textColor ?? "currentColor" };
+  return { color: preview.color ?? textColor, backgroundColor: appearance.variant === "filled" ? preview.backgroundColor ?? background : "transparent", borderColor: appearance.variant === "minimal" ? "transparent" : preview.borderColor ?? border ?? preview.color ?? textColor ?? "currentColor" };
+}
+
+function useRsvpColorPreview(environment: RsvpPresentationEnvironment, target: string) {
+  return useEditorColorPreview(scopedColorPreviewTarget(environment.sectionId ?? "", target), environment.editor === true);
+}
+
+function useRuntimeTextColorPreview(environment: RsvpPresentationEnvironment, id: string) {
+  return {
+    color: useRsvpColorPreview(environment, `rsvp:${id}:color`),
+    shadow: useRsvpColorPreview(environment, `rsvp:${id}:shadow-color`),
+    glow: useRsvpColorPreview(environment, `rsvp:${id}:glow-color`),
+  };
+}
+
+function useChoiceColorPreview(environment: RsvpPresentationEnvironment, state: "selected" | "unselected"): CSSProperties {
+  return {
+    color: useRsvpColorPreview(environment, `rsvp:choice:${state}:text-color`),
+    backgroundColor: useRsvpColorPreview(environment, `rsvp:choice:${state}:background-color`),
+    borderColor: useRsvpColorPreview(environment, `rsvp:choice:${state}:border-color`),
+  };
 }
 
 function actionPadding(appearance: ActionAppearance): CSSProperties {
