@@ -34,6 +34,23 @@ describe("GalleryCollectionRenderer", () => {
     expect(html).not.toContain('role="grid"');
   });
 
+  it("applies the canonical Media radius and shadow treatment to every Gallery item", () => {
+    const items = [item("a"), item("b"), item("c")];
+    const media = Object.fromEntries(items.map(({ mediaId }) => [mediaId, asset(mediaId)]));
+    const html = renderToStaticMarkup(<GalleryCollectionRenderer items={items} media={media} appearance={{ ...appearance, radius: "rounded", shadow: "strong" }} viewport="desktop" mode="public" />);
+    expect(html.match(/border-radius:1\.25rem/g)).toHaveLength(3);
+    expect(html.match(/box-shadow:0 18px 45px rgb\(0 0 0 \/ \.24\)/g)).toHaveLength(3);
+  });
+
+  it("applies Gallery content inner spacing around the grid without changing item styling", () => {
+    const html = renderToStaticMarkup(<GalleryCollectionRenderer items={[item("a")]} media={{ a: asset("a") }} appearance={{ ...appearance, galleryContentInnerSpacing: { top: "xs", right: "s", bottom: "m", left: "xl" } }} viewport="desktop" mode="public" />);
+    expect(html).toContain("data-gallery-content");
+    expect(html).toContain("padding-top:0.25rem");
+    expect(html).toContain("padding-right:0.5rem");
+    expect(html).toContain("padding-bottom:1rem");
+    expect(html).toContain("padding-left:2rem");
+  });
+
   it("preserves unresolved positions in editor and removes them publicly", () => {
     const items = [item("a"), item("b"), item("c")];
     const media = { a: asset("a"), c: asset("c") };

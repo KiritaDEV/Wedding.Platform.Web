@@ -33,6 +33,7 @@ type EditorProps = {
   resolvedMedia: Record<string, ResolvedWebsiteMedia>;
   onMediaResolved: (media: ResolvedWebsiteMedia) => void;
   viewport?: ResponsiveViewport;
+  galleryContentSelected?: boolean;
   rsvpPreviewState?: RsvpEditorPreviewState;
   onRsvpPreviewStateChange?: (state: RsvpEditorPreviewState) => void;
 };
@@ -240,7 +241,9 @@ export function SectionEditor(props: EditorProps) {
     case "hero":
       return <EditorForm><SectionMediaEditor {...props} /><p className="text-sm text-foreground-muted">Add and arrange Hero content blocks from the Structure panel.</p></EditorForm>;
     case "gallery":
-      return <GalleryEditor {...props} />;
+      return props.galleryContentSelected
+        ? <GalleryEditor {...props} />
+        : <div className="rounded-xl border border-dashed border-border bg-surface-muted p-4 text-sm text-foreground-muted">Select Gallery content in Structure or on the canvas to manage images. Add and arrange surrounding content blocks from the Gallery Section row.</div>;
     case "rsvp":
       return (
         <EditorForm>

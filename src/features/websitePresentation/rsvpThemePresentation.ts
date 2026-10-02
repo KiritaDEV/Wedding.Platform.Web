@@ -38,8 +38,8 @@ export const PLATFORM_RSVP_PRESENTATION_FALLBACK: RsvpThemePresentation = {
   supportingText: { fontSize: "s", fontWeight: 400, lineHeight: "normal" },
   statusHeading: { fontSize: "l", fontWeight: 600, lineHeight: "tight", alignment: "center" },
   choice: {
-    layout: "cards", direction: "row", size: "normal", radius: "soft", borderWidth: "thin", gap: "s",
-    selected: { emphasis: "semibold" }, disabled: { opacity: "muted" },
+    layout: "cards", direction: "row", size: "normal", radius: "soft", gap: "s",
+    selected: { borderWidth: "thin", emphasis: "semibold" }, unselected: { borderWidth: "thin" }, disabled: { opacity: "muted" },
   },
   primaryAction: { variant: "filled", size: "normal", radius: "soft", borderWidth: "thin", width: "intrinsic", alignment: "center", paddingX: "l", paddingY: "s" },
   secondaryAction: { variant: "outline", size: "normal", radius: "soft", borderWidth: "thin", width: "intrinsic", alignment: "center", paddingX: "l", paddingY: "s" },

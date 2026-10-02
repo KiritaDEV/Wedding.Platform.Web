@@ -27,8 +27,8 @@ describe("editor-safe RSVP preview", () => {
     expect(
       pending.guests.map(({ id, name, response }) => ({ id, name, response })),
     ).toEqual([
-      { id: "rsvp-preview-alex", name: "Alex Santos", response: null },
-      { id: "rsvp-preview-jamie", name: "Jamie Santos", response: null },
+      { id: "rsvp-preview-alex", name: "Juan Dela Cruz", response: null },
+      { id: "rsvp-preview-jamie", name: "Aurora Dela Cruz", response: null },
     ]);
     expect(partial).toMatchObject({
       status: "partial",
@@ -75,8 +75,8 @@ describe("editor-safe RSVP preview", () => {
     );
     expect(markup).toContain("data-rsvp-editor-preview");
     expect(markup).toContain("data-rsvp-shared-presentation");
-    expect(markup).toContain("Alex Santos");
-    expect(markup).toContain("Jamie Santos");
+    expect(markup).toContain("Juan Dela Cruz");
+    expect(markup).toContain("Aurora Dela Cruz");
     expect(markup).toContain('name="rsvp-rsvp-preview-alex"');
     expect(markup).toContain("Submit RSVP");
     expect(markup).toContain("w-full");
@@ -97,8 +97,8 @@ describe("editor-safe RSVP preview", () => {
     );
     expect(markup).toContain(heading);
     for (const count of counts) expect(markup).not.toContain(count);
-    expect(markup).toContain("Alex Santos");
-    expect(markup).toContain("Jamie Santos");
+    expect(markup).toContain("Juan Dela Cruz");
+    expect(markup).toContain("Aurora Dela Cruz");
   });
 
   it("renders read-only sample states and runtime-owned copy via the shared renderer", () => {

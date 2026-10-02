@@ -81,7 +81,8 @@ describe("ActionAppearance", () => {
 
 describe("ChoiceAppearance", () => {
   it("accepts state appearance without semantic response values", () => {
-    expect(choiceAppearanceSchema.safeParse({ layout: "cards", direction: "row", size: "normal", selected: { backgroundColorId: "accent", emphasis: "bold" }, disabled: { opacity: "muted" } }).success).toBe(true);
+    expect(choiceAppearanceSchema.safeParse({ layout: "cards", direction: "row", size: "normal", selected: { backgroundColorId: "accent", borderWidth: "thick", emphasis: "bold" }, unselected: { borderWidth: "none" }, disabled: { opacity: "muted" } }).success).toBe(true);
+    expect(choiceAppearanceSchema.safeParse({ borderWidth: "thick" }).success).toBe(false);
     expect(choiceAppearanceSchema.safeParse({ layout: "buttons" }).success).toBe(false);
     expect(choiceAppearanceSchema.safeParse({ response: "attending" }).success).toBe(false);
     expect(choiceAppearanceSchema.safeParse({ responsive: { mobile: { gap: "m" } } }).success).toBe(false);

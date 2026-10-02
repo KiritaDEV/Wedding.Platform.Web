@@ -1,8 +1,8 @@
-import type { WebsiteSectionAppearance } from "./types";
+import type { RsvpSectionAppearance, WebsiteSectionAppearance } from "./types";
 
 export type LegacySectionBackgroundState = { label: string; color?: string };
 
-export function applySectionBackgroundColor(appearance: WebsiteSectionAppearance, colorId?: string): WebsiteSectionAppearance {
+export function applySectionBackgroundColor(appearance: WebsiteSectionAppearance | RsvpSectionAppearance, colorId?: string, directSurface = false): WebsiteSectionAppearance | RsvpSectionAppearance {
   const next = structuredClone(appearance);
   const decorativeAppearance = { ...next.decorativeAppearance };
   const background = { ...(decorativeAppearance.background ?? {}) };
@@ -12,12 +12,13 @@ export function applySectionBackgroundColor(appearance: WebsiteSectionAppearance
   else delete decorativeAppearance.background;
   if (Object.keys(decorativeAppearance).length) next.decorativeAppearance = decorativeAppearance;
   else delete next.decorativeAppearance;
-  next.backgroundTreatment = colorId === undefined ? "inherit" : "custom";
+  if (!directSurface && "backgroundTreatment" in next) next.backgroundTreatment = colorId === undefined ? "inherit" : "custom";
   return next;
 }
 
-export function legacySectionBackgroundState(appearance: WebsiteSectionAppearance): LegacySectionBackgroundState | null {
+export function legacySectionBackgroundState(appearance: WebsiteSectionAppearance | RsvpSectionAppearance): LegacySectionBackgroundState | null {
   const background = appearance.decorativeAppearance?.background;
+  if (!("backgroundTreatment" in appearance)) return null;
   if (appearance.backgroundTreatment === "inherit" || background?.colorId) return null;
   if (appearance.backgroundTreatment === "custom" && background?.customColor) return { label: `Legacy Custom · ${background.customColor}`, color: background.customColor };
   if (["plain", "soft", "accent"].includes(appearance.backgroundTreatment)) {

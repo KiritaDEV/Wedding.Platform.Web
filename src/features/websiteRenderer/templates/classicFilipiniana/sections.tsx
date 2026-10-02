@@ -16,6 +16,7 @@ export function ClassicFilipinianaGallery({
       heading={null}
       headingParticipates={false}
       foundationOrnamentParticipates={false}
+      fullWidth
     >
       {collection}
     </ContentSection>
@@ -45,6 +46,7 @@ function ContentSection({
   bodyParticipates = true,
   renderFlow,
   specializedClassName = "",
+  fullWidth = false,
 }: {
   eyebrow?: React.ReactNode;
   heading: React.ReactNode;
@@ -55,6 +57,7 @@ function ContentSection({
   bodyParticipates?: boolean;
   renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
   specializedClassName?: string;
+  fullWidth?: boolean;
 }) {
   const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
@@ -65,7 +68,7 @@ function ContentSection({
         const specialized = (
           <div
             data-section-specialized-content
-            className={`relative mx-auto max-w-5xl overflow-hidden text-center ${specializedClassName}`}
+            className={`relative overflow-hidden text-center ${fullWidth ? "w-full max-w-none" : "mx-auto max-w-5xl"} ${specializedClassName}`}
           >
             {foundationOrnamentParticipates && (
               <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />

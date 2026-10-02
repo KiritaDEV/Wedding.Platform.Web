@@ -41,10 +41,10 @@ export function RsvpRuntimeAppearanceEditor(props: Props) {
     <InspectorGroup title="Runtime text">
       <TextRole {...props} title="Status" id="status" authored={props.value.status ?? {}} resolved={props.resolved.statusHeading} onChange={(value) => setRole("status", value)} />
       <TextRole {...props} title="Guest names" id="guest-name" authored={props.value.guestName ?? {}} resolved={props.resolved.guestName} onChange={(value) => setRole("guestName", value)} />
-      <TextRole {...props} title="Response labels" id="response-label" authored={props.value.responseLabel ?? {}} resolved={props.resolved.responseLabel} onChange={(value) => setRole("responseLabel", value)} />
       <TextRole {...props} title="Supporting text" id="supporting" authored={props.value.supporting ?? {}} resolved={props.resolved.supportingText} onChange={(value) => setRole("supporting", value)} />
     </InspectorGroup>
     <InspectorGroup title="Choices">
+      <TextRole {...props} title="Response labels" id="response-label" authored={props.value.responseLabel ?? {}} resolved={props.resolved.responseLabel} onChange={(value) => setRole("responseLabel", value)} />
       <ChoiceEditor {...props} authored={props.value.choice ?? {}} resolved={props.resolved.choice} onChange={(value) => setRole("choice", value)} />
     </InspectorGroup>
     <InspectorGroup title="Actions">
@@ -109,11 +109,11 @@ function ChoiceEditor(props: Omit<Props, "resolved" | "onChange"> & { authored: 
     <Field label="Size"><Select aria-label="Choice size" value={(props.viewport === "desktop" ? props.authored.size : props.authored.responsive?.[props.viewport]?.size) ?? props.resolved.size ?? "normal"} options={options(WEBSITE_CONTROL_SIZES)} onChange={(value) => setResponsive("size", value)} /></Field>
     <Field label="Gap"><Select aria-label="Choice gap" value={props.authored.gap ?? props.resolved.gap ?? "s"} options={options(SPACING_PRESETS)} onChange={(value) => set("gap", value)} /></Field>
     <Field label="Radius"><Select aria-label="Choice radius" value={props.authored.radius ?? props.resolved.radius ?? "soft"} options={options(WEBSITE_RADII)} onChange={(value) => set("radius", value)} /></Field>
-    <Field label="Border width"><Select aria-label="Choice border width" value={props.authored.borderWidth ?? props.resolved.borderWidth ?? "thin"} options={options(WEBSITE_BORDER_WIDTHS)} onChange={(value) => set("borderWidth", value)} /></Field>
     <Field label="Selected emphasis"><Select aria-label="Selected choice emphasis" value={props.authored.selected?.emphasis ?? props.resolved.selected?.emphasis ?? "semibold"} options={options(["normal", "semibold", "bold"])} onChange={(value) => props.onChange(compact({ ...props.authored, selected: compact({ ...props.authored.selected, emphasis: value as "normal" | "semibold" | "bold" }) }))} /></Field>
     <Field label="Disabled treatment"><Select aria-label="Choice disabled treatment" value={props.authored.disabled?.opacity ?? props.resolved.disabled?.opacity ?? "muted"} options={options(["soft", "muted"])} onChange={(value) => props.onChange(compact({ ...props.authored, disabled: { opacity: value as "soft" | "muted" } }))} /></Field>
     {(["selected", "unselected"] as const).map((state) => <div key={state} className="space-y-3 rounded-md border border-border/70 p-3">
       <h4 className="text-xs font-semibold">{state === "selected" ? "Selected" : "Unselected"}</h4>
+      <Field label="Border width"><Select aria-label={`${state === "selected" ? "Selected" : "Unselected"} choice border width`} value={props.authored[state]?.borderWidth ?? props.resolved[state]?.borderWidth ?? "thin"} options={options(WEBSITE_BORDER_WIDTHS)} onChange={(value) => props.onChange(compact({ ...props.authored, [state]: compact({ ...props.authored[state], borderWidth: value }) }))} /></Field>
       {(["textColorId", "backgroundColorId", "borderColorId"] as const).map((key) => {
         const field = key === "textColorId" ? "Text color" : key === "backgroundColorId" ? "Background color" : "Border color";
         const accessibleLabel = `${state === "selected" ? "Selected" : "Unselected"} ${field.toLowerCase()}`;

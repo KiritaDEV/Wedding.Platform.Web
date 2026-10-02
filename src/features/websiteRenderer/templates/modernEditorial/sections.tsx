@@ -13,10 +13,10 @@ export function ModernEditorialGallery({
   return (
     <EditorialSection
       number={null}
-      editorialRail
       containLongContent
       heading={null}
       headingParticipates={false}
+      fullWidth
     >
       {collection}
     </EditorialSection>
@@ -48,6 +48,7 @@ function EditorialSection({
   renderFlow,
   specializedClassName = "",
   containLongContent = false,
+  fullWidth = false,
 }: {
   number: string | null;
   eyebrow?: React.ReactNode;
@@ -61,6 +62,7 @@ function EditorialSection({
   renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
   specializedClassName?: string;
   containLongContent?: boolean;
+  fullWidth?: boolean;
 }) {
   const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
@@ -70,7 +72,7 @@ function EditorialSection({
     >
       {(() => { const specialized = <div data-section-specialized-content
         className={
-          `mx-auto w-full max-w-5xl ${specializedClassName} ${containLongContent ? "min-w-0 max-w-full" : ""} ${!number && !editorialRail
+          `${fullWidth ? "w-full max-w-none" : "mx-auto w-full max-w-5xl"} ${specializedClassName} ${containLongContent ? "min-w-0 max-w-full" : ""} ${!number && !editorialRail
             ? "block"
             : tabletEditorial
             ? "grid grid-cols-[3rem_minmax(0,1fr)] gap-5"

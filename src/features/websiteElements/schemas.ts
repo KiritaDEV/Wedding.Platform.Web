@@ -9,6 +9,7 @@ import { normalizeTextContent, validateTextFontTuple } from "./text";
 import { canonicalRuntimeTextAppearanceSchema, canonicalTextResponsiveAppearanceSchema, TEXT_SIZES } from "./textAppearanceContract";
 import { normalizeEditorName } from "./blockIdentity";
 import { isUnsupportedVideoProviderUrl } from "./videoUrl";
+import { authoredAnimationSchema } from "../websiteAnimation/contract";
 export const elementIdSchema = z
   .string()
   .max(WEBSITE_ELEMENT_LIMITS.id)
@@ -37,8 +38,8 @@ export const textAlignmentSchema = z.enum(["start", "center", "end"]);
 export const textTransformSchema = z.enum(["none", "uppercase", "lowercase", "capitalize"]);
 export const groupSpacingSchema = z.enum(["none", "xs", "s", "m", "l", "xl"]);
 export const groupPaddingSchema = z.object({ top: groupSpacingSchema.optional(), right: groupSpacingSchema.optional(), bottom: groupSpacingSchema.optional(), left: groupSpacingSchema.optional() }).strict();
-const blockSpacingResponsiveSchema = z.object({ outerSpacing: groupPaddingSchema.optional() }).strict();
-const blockSpacingAppearanceShape = { outerSpacing: groupPaddingSchema.optional() };
+const blockSpacingResponsiveSchema = z.object({ outerSpacing: groupPaddingSchema.optional(), animation: authoredAnimationSchema.optional() }).strict();
+const blockSpacingAppearanceShape = { outerSpacing: groupPaddingSchema.optional(), animation: authoredAnimationSchema.optional() };
 export const textResponsiveAppearanceSchema = canonicalTextResponsiveAppearanceSchema.extend({
   ...blockSpacingAppearanceShape,
 }).strict();
@@ -346,6 +347,7 @@ const groupContentPositionSchema = z.enum(['top-start', 'top-center', 'top-end',
 const groupLayoutOverrideSchema = z.object({ width: groupLayoutValues.width.optional(), direction: groupLayoutValues.direction.optional(), gap: groupLayoutValues.gap.optional(), padding: groupLayoutValues.padding.optional(), alignment: groupLayoutValues.alignment.optional(), division: groupLayoutValues.division.optional(), contentPosition: groupContentPositionSchema.optional() }).strict();
 const groupAppearanceSchema = z.object({
   outerSpacing: groupPaddingSchema.optional(),
+  animation: authoredAnimationSchema.optional(),
   backgroundColorId: z.string().min(1).optional(),
   backgroundImageOpacity: z.number().int().min(0).max(100).optional(),
   shadow: z.enum(["none", "soft", "medium", "strong"]).optional(),

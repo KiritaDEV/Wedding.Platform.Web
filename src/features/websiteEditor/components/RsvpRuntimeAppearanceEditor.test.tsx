@@ -26,7 +26,10 @@ describe("RSVP runtime Appearance inspector", () => {
       onChange={vi.fn()}
     />);
     for (const label of ["Runtime text", "Status", "Guest names", "Response labels", "Supporting text", "Choices", "Actions", "Choice direction", "Action width"]) expect(html).toContain(label);
-    expect(html).not.toContain("Alex Santos");
+    expect(html.indexOf("Supporting text")).toBeLessThan(html.indexOf(">Choices<"));
+    expect(html.indexOf(">Choices<")).toBeLessThan(html.indexOf("Response labels"));
+    expect(html.indexOf("Response labels")).toBeLessThan(html.indexOf(">Actions<"));
+    expect(html).not.toContain("Juan Dela Cruz");
     expect(html).not.toContain("Submit RSVP");
     expect(html).not.toContain("textarea");
     expect(html).toContain("data-rsvp-runtime-appearance-editor");
@@ -45,9 +48,13 @@ describe("RSVP runtime Appearance inspector", () => {
       onChange={vi.fn()}
     />);
     for (const group of ["Selected", "Unselected", "Colors"]) expect(html).toContain(`>${group}<`);
+    expect(html).toContain('aria-label="Selected choice border width"');
+    expect(html).toContain('aria-label="Unselected choice border width"');
+    expect(html).not.toContain('aria-label="Choice border width"');
     expect(html.match(/>Text color</g)).toHaveLength(8);
     expect(html.match(/>Background color</g)).toHaveLength(3);
     expect(html.match(/>Border color</g)).toHaveLength(3);
+    expect(html.match(/>Border width</g)).toHaveLength(3);
     for (const name of [
       "Selected text color", "Selected background color", "Selected border color",
       "Unselected text color", "Unselected background color", "Unselected border color",

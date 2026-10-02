@@ -28,4 +28,5 @@ export type WebsiteRendererProps = {
   onElementChange?: (sectionId: string, element: WebsiteElement) => void
   onTextDocumentChange?: (sectionId: string, elementId: string, document: TextDocument) => void
   onAddColor?: (value: string) => Promise<ProjectColor>
+  motionSessionKey?: string | number
 }

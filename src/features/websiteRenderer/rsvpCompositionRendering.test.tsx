@@ -31,6 +31,18 @@ const privateRuntime: PrivateInvitationRendererRuntime = {
 const render = (props: Partial<React.ComponentProps<typeof WebsiteRenderer>>) => renderToStaticMarkup(<WebsiteRenderer event={event} website={website} mode="public" targetViewport="desktop" {...props} />);
 
 describe("RSVP authored composition audiences", () => {
+  it("applies RSVP Section inner spacing around the complete composition", () => {
+    const spacedWebsite = { ...website, sections: [{ ...section, appearance: { innerSpacing: { top: "xl", right: "s", bottom: "m", left: "xs" } } }] } as unknown as WebsiteDraft;
+    const markup = renderToStaticMarkup(<WebsiteRenderer event={event} website={spacedWebsite} mode="editor" audience="management-preview" rsvpEditorPreviewState="form-partial" targetViewport="desktop" />);
+    expect(markup).toContain('data-rsvp-foreground="true"');
+    expect(markup).toContain("padding-top:2rem");
+    expect(markup).toContain("padding-right:0.5rem");
+    expect(markup).toContain("padding-bottom:1rem");
+    expect(markup).toContain("padding-left:0.25rem");
+    expect(markup.indexOf("Before RSVP")).toBeGreaterThan(markup.indexOf("data-rsvp-foreground"));
+    expect(markup.indexOf("Juan Dela Cruz")).toBeGreaterThan(markup.indexOf("data-rsvp-foreground"));
+  });
+
   it("omits the complete RSVP Section for the public audience", () => {
     const markup = render({ audience: "public-site" });
     expect(markup).not.toContain("Before RSVP");
@@ -46,8 +58,8 @@ describe("RSVP authored composition audiences", () => {
 
   it("hydrates the same slot with the Builder sample", () => {
     const markup = render({ audience: "management-preview", rsvpEditorPreviewState: "form-partial" });
-    expect(markup.indexOf("Before RSVP")).toBeLessThan(markup.indexOf("Alex Santos"));
-    expect(markup.indexOf("Alex Santos")).toBeLessThan(markup.indexOf("After RSVP"));
+    expect(markup.indexOf("Before RSVP")).toBeLessThan(markup.indexOf("Juan Dela Cruz"));
+    expect(markup.indexOf("Juan Dela Cruz")).toBeLessThan(markup.indexOf("After RSVP"));
     expect(markup).not.toContain("Real Guest");
   });
 
@@ -55,6 +67,6 @@ describe("RSVP authored composition audiences", () => {
     const markup = render({ audience: "private-site", privateInvitationRuntime: privateRuntime });
     expect(markup.indexOf("Before RSVP")).toBeLessThan(markup.indexOf("Real Guest"));
     expect(markup.indexOf("Real Guest")).toBeLessThan(markup.indexOf("After RSVP"));
-    expect(markup).not.toContain("Alex Santos");
+    expect(markup).not.toContain("Juan Dela Cruz");
   });
 });

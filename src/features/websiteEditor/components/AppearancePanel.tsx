@@ -66,7 +66,6 @@ import {
 import { FourSidedSpacingControl as InnerSpacingControl } from "./FourSidedSpacingControl";
 import type { SpacingChanges } from "./spacingControlModel";
 import { ContentPositionControl } from "./ContentPositionControl";
-import { GalleryAppearanceControls } from "./GalleryAppearanceControls";
 import { HERO_MINIMUM_HEIGHT_MAX, HERO_MINIMUM_HEIGHT_MIN, HERO_MINIMUM_HEIGHT_STEP, setHeroHeightMode, setHeroMinimumHeight } from "../heroMinimumHeight";
 
 export function AppearancePanel({
@@ -131,6 +130,32 @@ export function AppearancePanel({
     delete responsive[targetViewport];
     onChange(pruneResponsiveAppearance({ ...appearance, responsive }));
   };
+  if (sectionCapability.id === "rsvp") {
+    return (
+      <div className="space-y-5">
+        {error && (
+          <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">
+            {error}
+          </p>
+        )}
+        <SectionInnerSpacingControls
+          appearance={appearance}
+          targetViewport={targetViewport}
+          onChange={onChange}
+        />
+        <SectionDecorativeAppearanceControls
+          sectionLabel="Section"
+          templateKey={templateKey}
+          sectionCapability={sectionCapability}
+          appearance={appearance}
+          library={library}
+          projectColors={projectColors}
+          onAddColor={onAddColor}
+          onChange={onChange}
+        />
+      </div>
+    );
+  }
   if (sectionCapability.id === "blank" || sectionCapability.id === "hero" || sectionCapability.id === "gallery") {
     return (
       <div className="space-y-5">
@@ -149,9 +174,8 @@ export function AppearancePanel({
             onChange={onChange}
           />
         )}
-        {sectionCapability.id === "gallery" && <GalleryAppearanceControls appearance={appearance} viewport={targetViewport} onChange={onChange} />}
-        {sectionCapability.id === "blank" && (
-          <BlankInnerSpacingControls
+        {(sectionCapability.id === "blank" || sectionCapability.id === "gallery") && (
+          <SectionInnerSpacingControls
             appearance={appearance}
             targetViewport={targetViewport}
             onChange={onChange}
@@ -344,7 +368,7 @@ export function AppearancePanel({
   );
 }
 
-function BlankInnerSpacingControls({
+function SectionInnerSpacingControls({
   appearance,
   onChange,
 }: {
@@ -649,7 +673,7 @@ export function SectionDecorativeAppearanceControls({
     appearance.decorativeAppearance?.background?.colorId;
   const legacyBackground = legacySectionBackgroundState(appearance);
   const updateBackgroundColor = (colorId?: string) => {
-    onChange(applySectionBackgroundColor(appearance, colorId));
+    onChange(applySectionBackgroundColor(appearance, colorId, sectionCapability.id === "rsvp") as WebsiteSectionAppearance);
   };
   return (
     <div className="space-y-5">
@@ -657,6 +681,7 @@ export function SectionDecorativeAppearanceControls({
         <div>
           <p className="mb-1.5 text-xs font-medium">Background Color</p>
           <WebsiteColorSwatchControl
+            previewTarget="backgroundColor"
             label={`${sectionLabel} background color`}
             inheritLabel={
               sectionLabel === "Section" ? "No surface color" : "Use Template"

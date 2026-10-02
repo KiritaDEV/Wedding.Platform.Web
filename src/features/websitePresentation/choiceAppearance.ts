@@ -7,6 +7,7 @@ const choiceColorsSchema = z.object({
   textColorId: z.string().min(1).optional(),
   backgroundColorId: z.string().min(1).optional(),
   borderColorId: z.string().min(1).optional(),
+  borderWidth: z.enum(WEBSITE_BORDER_WIDTHS).optional(),
 }).strict();
 
 const selectedChoiceAppearanceSchema = choiceColorsSchema.extend({
@@ -23,7 +24,6 @@ export const choiceAppearanceSchema = z.object({
   direction: z.enum(["row", "column"]).optional(),
   size: z.enum(WEBSITE_CONTROL_SIZES).optional(),
   radius: z.enum(WEBSITE_RADII).optional(),
-  borderWidth: z.enum(WEBSITE_BORDER_WIDTHS).optional(),
   gap: z.enum(SPACING_PRESETS).optional(),
   unselected: choiceColorsSchema.optional(),
   selected: selectedChoiceAppearanceSchema.optional(),

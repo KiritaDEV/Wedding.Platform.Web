@@ -48,7 +48,7 @@ describe('functional Section boundaries', () => {
       { choice: { layout: 'buttons' } },
       { action: { width: 'overflow' } },
       { previewState: 'completed' },
-      { guests: [{ name: 'Alex Santos' }] },
+      { guests: [{ name: 'Juan Dela Cruz' }] },
     ]) expect(rsvpContentSchema.safeParse({ ...content, semantic: { runtimeAppearance } }).success).toBe(false)
     expect(rsvpContentSchema.safeParse({ semantic: { heading: 'Legacy' }, compositions: content.compositions }).success).toBe(false)
     expect(rsvpContentSchema.safeParse({ semantic: {}, compositions: { shared: { childFlow: { elements: [text], order: [{ kind: 'element', id: 'text' }] } } } }).success).toBe(false)

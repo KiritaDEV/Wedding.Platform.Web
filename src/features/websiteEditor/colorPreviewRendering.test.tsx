@@ -5,6 +5,8 @@ import { WebsiteLeafElementRenderer } from "../websiteRenderer/WebsiteLeafElemen
 import type { WebsiteLeafElement } from "../websiteElements/types";
 import type { TemplateDesignLibrary } from "../websiteCapabilities/types";
 import { RsvpEditorPreview } from "../websiteRenderer/RsvpEditorPreviewRenderer";
+import { WebsiteRenderer } from "../websiteRenderer/WebsiteRenderer";
+import type { WebsiteDraft } from "./types";
 
 // Exercise the client snapshot while rendering the real dispatch/render tree.
 vi.mock("react", async (original) => ({ ...await original<typeof import("react")>(), useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot() }));
@@ -60,4 +62,19 @@ it.each([
   expect(render(false)).toBe(publicBefore);
   session.clear();
   expect(render(true).toLowerCase()).not.toContain(expectedStyle);
+});
+
+it.each(["classic-filipiniana-v1", "modern-editorial-v1"] as const)("previews %s Section background before commit without changing public output", (templateKey) => {
+  const store = createColorPreviewStore();
+  const section = { id: "rsvp-section", type: "rsvp", displayName: "RSVP", editorName: null, sortOrder: 90, isEnabled: true, content: { semantic: {}, compositions: { shared: { childFlow: { elements: [], order: [{ kind: "specialized", key: "content" }] } } } }, appearance: {}, designDefaults: {}, resolvedDesignContext: null, appearanceOptions: null, mediaCapability: null, itemMediaCapability: null, presentationCapability: null };
+  const website = { schemaVersion: 5, id: "website", eventId: "event", name: "Website", templateKey, designSettings: { colorTheme: templateKey === "classic-filipiniana-v1" ? "terracotta" : "ink", fontSet: "editorial", artStyle: "clean", projectDefaults: {}, customColors: [] }, projectDesignDefaults: null, template: { key: templateKey, displayName: "Template", designOptions: { colorThemes: [], fontSets: [], artStyles: [] }, capabilities: { globalDesign: { controls: [] }, designLibrary: library, projectDesignDefaults: { typography: { heading: { allowedFontIds: [] }, body: { allowedFontIds: [] } }, colors: { headingColor: { allowedColorIds: [] }, bodyColor: { allowedColorIds: [] }, accentColor: { allowedColorIds: [] } } }, projectColorLibrary: { enabled: true, maximum: 32, format: "opaqueHex" }, elementCapabilities: [], sections: [] } }, sections: [section], media: {} } as unknown as WebsiteDraft;
+  const event = { id: "event", name: "Event", type: "wedding" as const, eventDate: null };
+  const render = (mode: "editor" | "public") => renderToStaticMarkup(<ColorPreviewContext value={store}><WebsiteRenderer event={event} website={website} mode={mode} targetViewport="desktop" /></ColorPreviewContext>);
+  const publicBefore = render("public");
+  const session = store.begin(scopedColorPreviewTarget("rsvp-section", "backgroundColor"));
+  session.update("#ABCDEF");
+  expect(render("editor").toLowerCase()).toContain("background-color:#abcdef");
+  expect(render("public")).toBe(publicBefore);
+  session.clear();
+  expect(render("editor").toLowerCase()).not.toContain("background-color:#abcdef");
 });

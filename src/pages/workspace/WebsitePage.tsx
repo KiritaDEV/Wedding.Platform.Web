@@ -1,5 +1,6 @@
 import { ColorPreviewScopeContext } from "../../features/websiteEditor/colorPreview";
 import { specializedSectionIdFromTarget } from "../../features/websiteEditor/specializedCanvasSelection";
+import { isSurfaceOnlyParentSelection, resolveOwnedInspectorPanelMode } from "../../features/websiteEditor/sectionInspectorOwnership";
 import { ColorPreviewProvider } from "../../features/websiteEditor/ColorPreviewProvider";
 import {
   ArrowLeft,
@@ -62,6 +63,7 @@ import { MediaElementEditor } from "../../features/websiteEditor/components/Medi
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionCompositionControls } from "../../features/websiteEditor/components/SectionCompositionControls";
 import { RsvpRuntimeAppearanceEditor } from "../../features/websiteEditor/components/RsvpRuntimeAppearanceEditor";
+import { GalleryAppearanceControls } from "../../features/websiteEditor/components/GalleryAppearanceControls";
 import { resolveRsvpPresentation } from "../../features/websiteRenderer/rsvpPresentationResolution";
 import {
   createCustomSectionComposition,
@@ -108,6 +110,10 @@ import {
   DEFAULT_RSVP_EDITOR_PREVIEW_STATE,
   type RsvpEditorPreviewState,
 } from "../../features/websiteRenderer/rsvpEditorPreview";
+import {
+  editorElementId,
+  editorElementReference,
+} from "../../features/websiteRenderer/rsvpEditorSelection";
 import {
   authoredPropertyViewport,
   mergeScopedComposition,
@@ -236,6 +242,7 @@ function WebsitePageContent() {
   } | null>(null);
   const [mode, setMode] = useState<BuilderMode>("content");
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
+  const [previewMotionSession, setPreviewMotionSession] = useState(0);
   const [rsvpEditorPreviewState, setRsvpEditorPreviewState] =
     useState<RsvpEditorPreviewState>(DEFAULT_RSVP_EDITOR_PREVIEW_STATE);
   const [sectionPanelMode, setSectionPanelMode] =
@@ -387,12 +394,15 @@ function WebsitePageContent() {
       else {
         setSelectedChild(null);
         setPreviewMode(next);
+        if (editorMode === "preview")
+          setPreviewMotionSession((current) => current + 1);
       }
     }, 0);
     return () => window.clearTimeout(timer);
   }, [
     accessibleViewports,
     previewMode,
+    editorMode,
     sectionDirty,
     workingContent,
     workingSelected,
@@ -457,7 +467,13 @@ function WebsitePageContent() {
     if (isStandaloneTextEditingTarget(inlineEditingTarget))
       setInlineEditingTarget(null);
     setSelectedChild(null);
+    applyPreviewMode(next);
+  }
+
+  function applyPreviewMode(next: ResponsiveViewport) {
     setPreviewMode(next);
+    if (editorMode === "preview")
+      setPreviewMotionSession((current) => current + 1);
   }
 
   function changeMode(
@@ -995,7 +1011,10 @@ function WebsitePageContent() {
 
   function changeEditorMode(next: EditorMode) {
     setEditorMode(next);
-    if (next === "preview") setInlineEditingTarget(null);
+    if (next === "preview") {
+      setInlineEditingTarget(null);
+      setPreviewMotionSession((current) => current + 1);
+    }
   }
 
   function contentSaved(updated: WebsiteDraft) {
@@ -1588,6 +1607,7 @@ function WebsitePageContent() {
             draft={previewDraft}
             mode={mode}
             editorMode={editorMode}
+            motionSessionKey={previewMotionSession}
             selectedId={effectiveSelectedId}
             previewMode={previewMode}
             rsvpEditorPreviewState={rsvpEditorPreviewState}
@@ -1676,7 +1696,7 @@ function WebsitePageContent() {
             if (pendingMode) setMode(pendingMode);
             if (pendingDrawerMode) applyDrawerMode(pendingDrawerMode);
             if (pendingPreviewMode) {
-              setPreviewMode(pendingPreviewMode.viewport);
+              applyPreviewMode(pendingPreviewMode.viewport);
               setSelectedChild(null);
               setInlineEditingTarget(null);
             }
@@ -1730,7 +1750,7 @@ function WebsitePageContent() {
           if (pendingMode) setMode(pendingMode);
           if (pendingDrawerMode) applyDrawerMode(pendingDrawerMode);
           if (pendingPreviewMode) {
-            setPreviewMode(pendingPreviewMode.viewport);
+            applyPreviewMode(pendingPreviewMode.viewport);
             setSelectedChild(null);
           }
           if (pendingSelection || pendingMode) {
@@ -2042,6 +2062,7 @@ function PreviewCanvas({
   draft,
   mode,
   editorMode,
+  motionSessionKey,
   selectedId,
   previewMode,
   rsvpEditorPreviewState,
@@ -2059,6 +2080,7 @@ function PreviewCanvas({
   draft: WebsiteDraft;
   mode: BuilderMode;
   editorMode: EditorMode;
+  motionSessionKey: number;
   selectedId: string | null;
   previewMode: ResponsiveViewport;
   rsvpEditorPreviewState: RsvpEditorPreviewState;
@@ -2255,6 +2277,7 @@ function PreviewCanvas({
                   event={event}
                   website={draft}
                   mode={editorMode === "edit" ? "editor" : "public"}
+                  motionSessionKey={motionSessionKey}
                   selectedSectionId={
                     editorMode === "edit" && mode === "content"
                       ? selectedId
@@ -2265,17 +2288,17 @@ function PreviewCanvas({
                   }
                   onGalleryAdd={editorMode === "edit" ? onGalleryAdd : undefined}
                   selectedElementId={
-                    editorMode === "edit" && selectedChild?.kind === "element"
-                      ? selectedChild.id
+                    editorMode === "edit"
+                      ? editorElementId(selectedChild, draft.sections.find(({ id }) => id === selectedId)?.type)
                       : null
                   }
                   onElementSelect={
                     editorMode === "edit"
                       ? (sectionId, elementId) =>
-                          onChildSelect(sectionId, {
-                            kind: "element",
-                            id: elementId,
-                          })
+                          onChildSelect(
+                            sectionId,
+                            editorElementReference(elementId),
+                          )
                       : undefined
                   }
                   onElementChange={
@@ -2510,6 +2533,10 @@ function SectionInspector({
   const selectedMedia =
     selectedElement?.type === "media" ? selectedElement : null;
   const selectedRsvpRuntime = selected.type === "rsvp" && selectedChild?.kind === "specialized";
+  const selectedGalleryContent = selected.type === "gallery" && selectedChild?.kind === "specialized";
+  const specializedSelected = selectedRsvpRuntime || selectedGalleryContent;
+  const surfaceOnlyParent = isSurfaceOnlyParentSelection(selected.type, specializedSelected);
+  const activePanelMode = resolveOwnedInspectorPanelMode(selected.type, specializedSelected, panelMode);
   const textCapability = capabilities
     ? templateElementCapability(capabilities, "text")
     : undefined;
@@ -2528,7 +2555,7 @@ function SectionInspector({
     selectedDivider ??
     selectedMedia;
   const showBlockSpacingEditor =
-    selectedLeaf && childFlow && (!selectedMedia || panelMode === "appearance");
+    selectedLeaf && childFlow && (!selectedMedia || activePanelMode === "appearance");
   const blockSpacingEditor =
     showBlockSpacingEditor ? (
       <GenericBlockOuterSpacingEditor
@@ -2559,6 +2586,8 @@ function SectionInspector({
             <Heading className="xl:text-base!" level={2} variant="panel">
               {selectedRsvpRuntime
                 ? "RSVP form"
+                : selectedGalleryContent
+                  ? "Gallery content"
                 : selectedText
                 ? "Text"
                 : selectedDate
@@ -2584,6 +2613,7 @@ function SectionInspector({
             )}
           </div>
           {showModeSwitch &&
+            !surfaceOnlyParent &&
             !selectedText &&
             !selectedDate &&
             !selectedAccordion &&
@@ -2592,7 +2622,7 @@ function SectionInspector({
             !selectedGroup &&
             !selectedDivider && (
               <SegmentedControl
-                value={panelMode}
+                value={activePanelMode}
                 options={[
                   { value: "content", label: "Content" },
                   { value: "appearance", label: "Appearance" },
@@ -2607,7 +2637,7 @@ function SectionInspector({
             ? "Edit content directly on the canvas. Customize this element's appearance here."
             : selectedGroup
               ? "Arrange this Group's children and responsive layout."
-              : panelMode === "content"
+              : activePanelMode === "content"
                 ? "Edit semantic content."
                 : "Customize this Section's presentation."}
         </Text>
@@ -2721,7 +2751,7 @@ function SectionInspector({
             element={selectedMedia}
             eventId={eventId}
             viewport={authoringViewport}
-            mode={panelMode}
+            mode={activePanelMode}
             resolvedMedia={resolvedMedia}
             onMediaResolved={onMediaResolved}
             onChange={(element) =>
@@ -2752,7 +2782,15 @@ function SectionInspector({
             />
           </ColorPreviewScopeContext>
         </div>
-      ) : selectedRsvpRuntime && panelMode === "appearance" && capabilities ? (
+      ) : selectedGalleryContent && activePanelMode === "appearance" ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <GalleryAppearanceControls
+            appearance={workingAppearance}
+            viewport={targetViewport}
+            onChange={onAppearanceChange}
+          />
+        </div>
+      ) : selectedRsvpRuntime && activePanelMode === "appearance" && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <RsvpRuntimeAppearanceEditor
@@ -2782,7 +2820,7 @@ function SectionInspector({
             />
           </ColorPreviewScopeContext>
         </div>
-      ) : panelMode === "content" ? (
+      ) : activePanelMode === "content" ? (
         <div className="min-h-0 flex-1">
           <SectionEditor
             viewport={authoringViewport}
@@ -2793,6 +2831,7 @@ function SectionInspector({
             onAppearanceChange={onAppearanceChange}
             resolvedMedia={resolvedMedia}
             onMediaResolved={onMediaResolved}
+            galleryContentSelected={selectedGalleryContent}
             rsvpPreviewState={selectedRsvpRuntime ? rsvpPreviewState : undefined}
             onRsvpPreviewStateChange={selectedRsvpRuntime ? onRsvpPreviewStateChange : undefined}
           />

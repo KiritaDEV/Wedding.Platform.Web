@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { WebsiteSectionAppearance } from '../../../websiteEditor/types'
+import type { RsvpSectionAppearance, WebsiteSectionAppearance } from '../../../websiteEditor/types'
 import { resolveSectionCustomBackground } from '../../sectionSurface'
 import type { TemplateDesignLibrary } from '../../../websiteCapabilities/types'
 import type { ProjectColor } from '../../../websiteColors/projectColors'
@@ -15,16 +15,22 @@ const bodyAlignment = {
   right: '[&_[data-section-specialized-content]_[data-section-body]]:text-right [&_[data-section-specialized-content]_[data-section-body]_*]:text-right',
 }
 
-export function resolveModernEditorialSectionAppearance(sectionType: string, appearance: WebsiteSectionAppearance, library: TemplateDesignLibrary, projectColors: readonly ProjectColor[]) {
-  const heading = appearance.headingAlignment === 'inherit' ? 'left' : appearance.headingAlignment
-  const body = appearance.bodyAlignment === 'inherit' ? 'left' : appearance.bodyAlignment
+export function resolveModernEditorialSectionAppearance(sectionType: string, appearance: WebsiteSectionAppearance | RsvpSectionAppearance, library: TemplateDesignLibrary, projectColors: readonly ProjectColor[]) {
+  const headingAlignmentValue = 'headingAlignment' in appearance ? appearance.headingAlignment : 'inherit'
+  const bodyAlignmentValue = 'bodyAlignment' in appearance ? appearance.bodyAlignment : 'inherit'
+  const backgroundTreatment = 'backgroundTreatment' in appearance ? appearance.backgroundTreatment : 'inherit'
+  const sectionEmphasis = 'emphasis' in appearance ? appearance.emphasis : 'inherit'
+  const heading = headingAlignmentValue === 'inherit' ? 'left' : headingAlignmentValue
+  const body = bodyAlignmentValue === 'inherit' ? 'left' : bodyAlignmentValue
   const customBackground = resolveSectionCustomBackground(appearance, library, projectColors)
-  const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? modernBackgroundDefault(sectionType) : appearance.backgroundTreatment
-  const emphasis = appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
+  const background = backgroundTreatment === 'inherit' || backgroundTreatment === 'custom' ? modernBackgroundDefault(sectionType) : backgroundTreatment
+  const emphasis = sectionEmphasis === 'inherit' ? 'standard' : sectionEmphasis
   const backgroundResult = resolveBackground(background)
+  const alignmentClass = sectionType === 'rsvp' ? '' : `${headingAlignment[heading]} ${bodyAlignment[body]}`
+  const emphasisClass = sectionType === 'rsvp' ? '' : emphasis === 'featured' ? '[&_[data-section-specialized-content]]:py-28' : emphasis === 'subtle' ? 'opacity-90 [&_[data-section-specialized-content]]:py-14' : ''
 
   return {
-    sectionClass: `${backgroundResult.className} ${headingAlignment[heading]} ${bodyAlignment[body]} ${emphasis === 'featured' ? '[&_[data-section-specialized-content]]:py-28' : emphasis === 'subtle' ? 'opacity-90 [&_[data-section-specialized-content]]:py-14' : ''}`,
+    sectionClass: `${backgroundResult.className} ${alignmentClass} ${emphasisClass}`,
     sectionStyle: customBackground ? { ...backgroundResult.style, ...customBackground } : backgroundResult.style,
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useId, useMemo, useRef } from 'react'
 import { collectRequiredFontIds } from '../websiteFonts/platformFonts'
 import { ensureProjectFonts } from '../websiteFonts/fontLoader'
 import { resolveSectionAppearanceForViewport } from '../websiteEditor/responsiveAppearance'
@@ -11,6 +11,7 @@ import { WebsiteElementChangeContext } from './WebsiteElementChangeContext'
 import { sectionsForAudience } from './audience'
 import { PrivateInvitationRuntimeProvider } from './PrivateInvitationRuntimeContext'
 import { useEditorDeviceCategory } from '../websiteEditor/responsiveViewport'
+import { WebsiteMotionRuntime } from '../websiteAnimation/runtime'
 
 const templateRenderers = {
   'classic-filipiniana-v1': ClassicFilipinianaRenderer,
@@ -23,6 +24,7 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
   const Renderer = templateRenderers[props.website.templateKey as keyof typeof templateRenderers]
   const requiredFontIds = useMemo(() => collectRequiredFontIds(props.website), [props.website])
   const requiredFontSignature = requiredFontIds.sort().join('|')
+  const runtimeSessionId = useId()
 
   useEffect(() => {
     const documentTarget = rootRef.current?.ownerDocument
@@ -56,5 +58,5 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     }),
   }
 
-  return <div ref={rootRef}><PrivateInvitationRuntimeProvider value={props.privateInvitationRuntime}><WebsiteElementChangeContext.Provider value={{ onGalleryAdd: props.onGalleryAdd, onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></PrivateInvitationRuntimeProvider></div>
+  return <div ref={rootRef}><WebsiteMotionRuntime enabled={props.mode !== 'editor'} sessionKey={props.motionSessionKey ?? runtimeSessionId}><PrivateInvitationRuntimeProvider value={props.privateInvitationRuntime}><WebsiteElementChangeContext.Provider value={{ onGalleryAdd: props.onGalleryAdd, onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></PrivateInvitationRuntimeProvider></WebsiteMotionRuntime></div>
 }

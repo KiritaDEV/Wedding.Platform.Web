@@ -19,7 +19,7 @@ const context = { headingFontId: "playfair-display", bodyFontId: "inter", headin
 
 function runtime(guests: NonNullable<PrivateInvitationRendererRuntime["rsvp"]>["guests"] = [
   { id: "one", name: "Alexandria Very Long Santos Name That Must Wrap", response: null },
-  { id: "two", name: "Jamie Santos", response: null },
+  { id: "two", name: "Aurora Dela Cruz", response: null },
 ]): PrivateInvitationRendererRuntime {
   return {
     linkStatus: "current", invitationStatus: "active", trustState: "trusted", canOpen: false,
@@ -49,7 +49,7 @@ describe("shared RSVP functional presentation", () => {
   it("renders semantic radio groups, explicit labels, selection cues, focus, and target sizing", () => {
     const value = runtime([
       { id: "one", name: "Alexandria Very Long Santos Name That Must Wrap", response: "attending" },
-      { id: "two", name: "Jamie Santos", response: null },
+      { id: "two", name: "Aurora Dela Cruz", response: null },
     ]);
     value.rsvp = { ...value.rsvp!, status: "partial", attendingCount: 1, pendingCount: 1 };
     const markup = render("classic-filipiniana-v1", "desktop", value);
@@ -65,6 +65,14 @@ describe("shared RSVP functional presentation", () => {
     expect(markup).toContain("Partial");
     expect(markup).not.toContain("1 attending");
     expect(markup).not.toContain("1 pending");
+  });
+
+  it("applies independent selected and unselected Choice border widths", () => {
+    const markup = render("classic-filipiniana-v1", "desktop", runtime([
+      { id: "one", name: "Alex Santos", response: "attending" },
+    ]), { choice: { selected: { borderWidth: "thick" }, unselected: { borderWidth: "none" } } });
+    expect(markup).toMatch(/<label[^>]*style="[^"]*border-width:3px[^"]*"[^>]*data-rsvp-choice="attending"/);
+    expect(markup).toMatch(/<label[^>]*style="[^"]*border-width:0[^"]*"[^>]*data-rsvp-choice="declined"/);
   });
 
   it("applies functional font minimums and mobile Choice/Action resolution", () => {

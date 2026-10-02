@@ -91,6 +91,22 @@ const rsvpFlow = (...texts: string[]) => ({
 });
 
 describe("Section renderer boundary", () => {
+  it.each(["editor", "public"] as const)("does not inject automatic Classic boundary decoration in %s output", (mode) => {
+    const sections = [
+      hero(),
+      section("gallery", "gallery", { items: [{ id: "photo", type: "image", mediaId: "image" }] }),
+      section("rsvp", "rsvp", { childFlow: rsvpFlow("RSVP") }),
+      section("blank", "blank", { childFlow: { elements: [textElement("blank-text", "Blank")], order: [{ kind: "element", id: "blank-text" }] } }),
+    ];
+    for (const viewport of ["desktop", "tablet", "mobile"] as const) {
+      const markup = render("classic", sections, viewport, mode);
+      expect(markup.match(/data-section-surface/g)).toHaveLength(4);
+      expect(markup).not.toContain("section-divider.svg");
+      expect(markup).not.toContain("-translate-y-1/2");
+      expect(markup).not.toContain("top-0 z-[1] h-7 w-40");
+    }
+  });
+
   it.each(["classic", "modern"] as const)("resolves %s Hero composition independently while retaining semantic media", (template) => {
     const value = hero();
     const content = value.content as import("../websiteEditor/types").HeroContent;
@@ -416,6 +432,31 @@ describe("Section renderer boundary", () => {
 
     expect(markup).toContain("data-gallery-collection");
     expect(markup).not.toContain("Memories");
+  });
+
+  it.each(["classic", "modern"] as const)("applies %s Gallery inner spacing around generic and specialized content", (template) => {
+    const gallery = section("gallery", "gallery", { items: [{ id: "photo", type: "image", mediaId: "image" }] });
+    gallery.appearance = { shared: { ...appearance, innerSpacing: { top: "xl", right: "s", bottom: "m", left: "xs" } } };
+    const markup = render(template, [gallery], "desktop", "editor");
+
+    expect(markup).toContain('data-gallery-foreground="true"');
+    expect(markup).toContain("padding-top:2rem");
+    expect(markup).toContain("padding-right:0.5rem");
+    expect(markup).toContain("padding-bottom:1rem");
+    expect(markup).toContain("padding-left:0.25rem");
+    expect(markup.indexOf('data-gallery-foreground="true"')).toBeLessThan(markup.indexOf('data-gallery-collection="true"'));
+  });
+
+  it.each(["classic", "modern"] as const)("makes %s Gallery content selectable only in the editor", (template) => {
+    const gallery = section("gallery", "gallery", { items: [{ id: "photo", type: "image", mediaId: "image" }] });
+    const editor = render(template, [gallery], "desktop", "editor");
+    const published = render(template, [gallery], "desktop", "public");
+
+    expect(editor).toContain('data-editor-website-element="gallery-content"');
+    expect(editor).toContain('aria-label="Select Gallery content"');
+    expect(editor.indexOf('data-editor-website-element="gallery-content"')).toBeLessThan(editor.indexOf('data-gallery-collection="true"'));
+    expect(published).toContain('data-gallery-collection="true"');
+    expect(published).not.toContain('data-editor-website-element="gallery-content"');
   });
 
   it("renders an empty Classic Gallery editor without an implicit heading", () => {

@@ -2,6 +2,7 @@ import type { ContextDefaultsIntent, ResolvedDesignContext, TemplateCapabilities
 import type { ProjectColor } from '../websiteColors/projectColors'
 import type { SectionChildFlow } from './sectionChildFlow'
 import type { BackgroundMedia } from '../websiteMedia/backgroundMedia'
+import type { AuthoredAnimation } from '../websiteAnimation/contract'
 
 export type SectionDesignDefaults = ContextDefaultsIntent
 
@@ -52,6 +53,13 @@ export type SectionDecorativeAppearance = {
     colorId?: string
   }
 }
+export type RsvpSectionAppearance = {
+  decorativeAppearance?: SectionDecorativeAppearance
+  innerSpacing?: import('../websiteElements/group').InnerSpacing
+  animation?: AuthoredAnimation
+  specialized?: { content?: { animation?: AuthoredAnimation } }
+  responsive?: Partial<Record<'tablet' | 'mobile', Pick<WebsiteSectionResponsiveAppearance, 'animation' | 'specialized'>>>
+}
 export type SectionEmphasis = 'inherit' | 'standard' | 'featured' | 'subtle'
 export type MediaSpacingValue = 'none' | 'small' | 'medium' | 'large'
 export type MediaSpacing = { top: MediaSpacingValue; right: MediaSpacingValue; bottom: MediaSpacingValue; left: MediaSpacingValue }
@@ -70,11 +78,16 @@ export type WebsiteSectionResponsiveAppearance = {
   headingAlignment?: string
   bodyAlignment?: string
   mediaSpacing?: { top: string; right: string; bottom: string; left: string }
+  animation?: AuthoredAnimation
+  specialized?: { content?: { animation?: AuthoredAnimation } }
 }
 export type WebsiteSectionAppearance = {
   columns?: number
   gap?: 'small' | 'medium' | 'large'
   aspectRatio?: 'square' | 'portrait' | 'landscape'
+  radius?: 'square' | 'soft' | 'rounded' | 'pill'
+  shadow?: 'none' | 'soft' | 'medium' | 'strong'
+  galleryContentInnerSpacing?: import('../websiteElements/group').InnerSpacing
   backgroundMedia?: SectionMedia
   contentPosition?: import('../websiteRenderer/heroContentPosition').HeroContentPosition
   innerSpacing?: import('../websiteElements/group').InnerSpacing
@@ -95,6 +108,8 @@ export type WebsiteSectionAppearance = {
   responsive?: Partial<Record<'tablet' | 'mobile', WebsiteSectionResponsiveAppearance>>
   backgroundImageOpacity?: number
   height?: HeroMinimumHeight
+  animation?: AuthoredAnimation
+  specialized?: { content?: { animation?: AuthoredAnimation } }
 }
 export type WebsiteSectionAppearanceEnvelope = {
   shared: WebsiteSectionAppearance

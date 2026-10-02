@@ -49,8 +49,8 @@ function projection(
   lastUpdated: string | null = null,
 ): RsvpProjection {
   const guests = [
-    { id: "rsvp-preview-alex", name: "Alex Santos", response: alex },
-    { id: "rsvp-preview-jamie", name: "Jamie Santos", response: jamie },
+    { id: "rsvp-preview-alex", name: "Juan Dela Cruz", response: alex },
+    { id: "rsvp-preview-jamie", name: "Aurora Dela Cruz", response: jamie },
   ];
   return {
     status,

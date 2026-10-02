@@ -13,6 +13,7 @@ import { galleryImageItemSchema, groupPaddingSchema } from '../websiteElements/s
 import { canonicalRuntimeTextAppearanceSchema } from '../websitePresentation/runtimeTextAppearance'
 import { choiceAppearanceSchema } from '../websitePresentation/choiceAppearance'
 import { actionAppearanceSchema } from '../websitePresentation/actionAppearance'
+import { authoredAnimationSchema } from '../websiteAnimation/contract'
 
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
 export const backgroundTreatmentSchema = z.enum(['inherit', 'plain', 'soft', 'accent', 'custom'])
@@ -23,6 +24,9 @@ const responsiveMediaSpacingSchema = z.object({
   right: nonEmptyString,
   bottom: nonEmptyString,
   left: nonEmptyString,
+}).strict()
+const specializedAnimationAppearanceSchema = z.object({
+  content: z.object({ animation: authoredAnimationSchema.optional() }).strict().optional(),
 }).strict()
 const responsiveAppearanceSchema = z.object({
   columns: z.number().int().min(1).max(6).optional(),
@@ -36,6 +40,8 @@ const responsiveAppearanceSchema = z.object({
   headingAlignment: nonEmptyString.optional(),
   bodyAlignment: nonEmptyString.optional(),
   mediaSpacing: responsiveMediaSpacingSchema.optional(),
+  animation: authoredAnimationSchema.optional(),
+  specialized: specializedAnimationAppearanceSchema.optional(),
 }).strict()
 const responsiveControlSchema = z.object({
   mediaPlacement: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
@@ -183,6 +189,9 @@ export const sectionAppearanceSchema = z.object({
     columns: z.number().int().min(1).max(6).optional(),
     gap: z.enum(['small', 'medium', 'large']).optional(),
     aspectRatio: z.enum(['square', 'portrait', 'landscape']).optional(),
+    radius: z.enum(['square', 'soft', 'rounded', 'pill']).optional(),
+    shadow: z.enum(['none', 'soft', 'medium', 'strong']).optional(),
+    galleryContentInnerSpacing: groupPaddingSchema.optional(),
     backgroundMedia: backgroundMediaSchema,
     headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),
     bodyAlignment: z.enum(['inherit', 'left', 'center', 'right']),
@@ -227,7 +236,19 @@ export const sectionAppearanceSchema = z.object({
     height: z.object({ unit: z.literal('svh'), value: z.number().int().min(25).max(150) }).strict().optional(),
     contentPosition: z.enum(['top-start', 'top-center', 'top-end', 'center-start', 'center', 'center-end', 'bottom-start', 'bottom-center', 'bottom-end']).optional(),
     innerSpacing: groupPaddingSchema.optional(),
+    animation: authoredAnimationSchema.optional(),
+    specialized: specializedAnimationAppearanceSchema.optional(),
   }).strict()
+export const rsvpSectionAppearanceSchema = z.object({
+  decorativeAppearance: sectionAppearanceSchema.shape.decorativeAppearance,
+  innerSpacing: groupPaddingSchema.optional(),
+  animation: authoredAnimationSchema.optional(),
+  specialized: specializedAnimationAppearanceSchema.optional(),
+  responsive: z.object({
+    tablet: z.object({ animation: authoredAnimationSchema.optional(), specialized: specializedAnimationAppearanceSchema.optional() }).strict().optional(),
+    mobile: z.object({ animation: authoredAnimationSchema.optional(), specialized: specializedAnimationAppearanceSchema.optional() }).strict().optional(),
+  }).strict().optional(),
+}).strict()
 const sectionAppearanceEnvelopeSchema = z.object({
   shared: sectionAppearanceSchema,
   custom: z.object({ desktop: sectionAppearanceSchema.optional(), tablet: sectionAppearanceSchema.optional(), mobile: sectionAppearanceSchema.optional() }).strict().optional(),
@@ -236,7 +257,7 @@ const sectionAppearanceEnvelopeSchema = z.object({
 const sectionSchema = z.object({
   id: z.string(), type: z.enum(['hero', 'gallery', 'rsvp', 'blank']), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
   isEnabled: z.boolean(), content: z.record(z.string(), z.unknown()),
-  appearance: z.union([sectionAppearanceSchema, sectionAppearanceEnvelopeSchema]),
+  appearance: z.union([sectionAppearanceSchema, sectionAppearanceEnvelopeSchema, rsvpSectionAppearanceSchema]),
   designDefaults: z.object({
     headingFontId: nonEmptyString.optional(),
     bodyFontId: nonEmptyString.optional(),
@@ -287,7 +308,13 @@ const sectionSchema = z.object({
       }).strict().nullable(),
     }).strict()).min(1),
   }).strict().nullable(),
-}).strict()
+}).strict().superRefine((section, context) => {
+  const appearanceSchema = section.type === 'rsvp'
+    ? rsvpSectionAppearanceSchema
+    : z.union([sectionAppearanceSchema, sectionAppearanceEnvelopeSchema])
+  const result = appearanceSchema.safeParse(section.appearance)
+  if (!result.success) context.addIssue({ code: 'custom', path: ['appearance'], message: `Invalid ${section.type} Section appearance contract` })
+})
 
 const projectDesignDefaultOverridesSchema = z.object({
   headingFontId: nonEmptyString.optional(),
@@ -369,7 +396,13 @@ const draftSchema = draftCommonSchema.extend({
     if (Array.isArray(value)) return value.forEach((item, index) => rejectResponsive(item, [...path, index]))
     if (!value || typeof value !== 'object') return
     const record = value as Record<string, unknown>
-    if (Object.hasOwn(record, 'responsive')) context.addIssue({ code: 'custom', message: 'Device-specific authored properties require a custom Section owner.', path: [...path, 'responsive'] })
+    if (Object.hasOwn(record, 'responsive')) {
+      const responsive = record.responsive
+      const animationOnly = Boolean(responsive && typeof responsive === 'object' && !Array.isArray(responsive) && Object.entries(responsive as Record<string, unknown>).every(([viewport, override]) =>
+        (viewport === 'tablet' || viewport === 'mobile') && Boolean(override && typeof override === 'object' && !Array.isArray(override) && Object.keys(override as Record<string, unknown>).every((key) => key === 'animation')),
+      ))
+      if (!animationOnly) context.addIssue({ code: 'custom', message: 'Device-specific authored properties require a custom Section owner.', path: [...path, 'responsive'] })
+    }
     Object.entries(record).forEach(([key, item]) => rejectResponsive(item, [...path, key]))
   }
   draft.sections.forEach((section, index) => {
@@ -447,7 +480,13 @@ const draftSchema = draftCommonSchema.extend({
     if (envelope) {
       const content = section.content as { compositions?: { custom?: Record<string, unknown> } }
       for (const viewport of ['desktop', 'tablet', 'mobile'] as const) {
-        if (Boolean(content.compositions?.custom?.[viewport]) !== Boolean(envelope.custom?.[viewport])) context.addIssue({ code: 'custom', message: 'Custom composition and appearance must be paired', path: ['sections', index, 'appearance', 'custom', viewport] })
+        const hasComposition = Boolean(content.compositions?.custom?.[viewport])
+        const customAppearance = envelope.custom?.[viewport]
+        if (hasComposition && !customAppearance) context.addIssue({ code: 'custom', message: 'Custom composition requires a paired appearance owner', path: ['sections', index, 'appearance', 'custom', viewport] })
+        if (!hasComposition && customAppearance) {
+          const withoutAnimation = (value: WebsiteSectionAppearance) => { const copy = { ...value }; delete copy.animation; return copy }
+          if (!customAppearance.animation || JSON.stringify(withoutAnimation(customAppearance)) !== JSON.stringify(withoutAnimation(envelope.shared))) context.addIssue({ code: 'custom', message: 'Appearance-only device ownership may differ from shared appearance only by animation', path: ['sections', index, 'appearance', 'custom', viewport] })
+        }
       }
     }
     const appearances = envelope ? [envelope.shared, ...Object.values(envelope.custom ?? {})] : [section.appearance as WebsiteSectionAppearance]

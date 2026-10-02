@@ -26,7 +26,7 @@ const galleryMedia = Object.fromEntries(galleryItems.map((item, index) => [item.
 const css = `
   *{box-sizing:border-box}html,body{margin:0}.viewport{overflow:hidden}
   [class~="mx-auto"]{margin-inline:auto}[class~="w-full"]{width:100%}[class~="h-full"]{height:100%}[class~="min-w-0"]{min-width:0}[class~="max-w-full"]{max-width:100%}
-  [class~="max-w-xs"]{max-width:20rem}[class~="max-w-lg"]{max-width:32rem}[class~="max-w-xl"]{max-width:36rem}[class~="max-w-2xl"]{max-width:42rem}[class~="max-w-3xl"]{max-width:48rem}[class~="max-w-5xl"]{max-width:64rem}
+  [class~="max-w-xs"]{max-width:20rem}[class~="max-w-lg"]{max-width:32rem}[class~="max-w-xl"]{max-width:36rem}[class~="max-w-2xl"]{max-width:42rem}[class~="max-w-3xl"]{max-width:48rem}[class~="max-w-5xl"]{max-width:64rem}[class~="max-w-none"]{max-width:none}
   [class~="grid"]{display:grid}[class~="flex"]{display:flex}[class~="flex-col"]{flex-direction:column}[class~="inline-block"]{display:inline-block}
   [class~="overflow-hidden"]{overflow:hidden}[class~="whitespace-pre-line"]{white-space:pre-line}[class~="whitespace-normal"]{white-space:normal}
   [class~="[overflow-wrap:anywhere]"]{overflow-wrap:anywhere}[class~="px-8"]{padding-inline:2rem}[class~="py-4"]{padding-block:1rem}[class~="py-3.5"]{padding-block:.875rem}
@@ -85,6 +85,26 @@ describe("specialized Section browser layout", () => {
     expect(modern).toContain("data-gallery-empty");
     expect(modern).not.toContain("Memories");
   });
+
+  it("does not impose template-owned horizontal gutters on Gallery content", () => {
+    const classic = renderToStaticMarkup(<ClassicFilipinianaGallery sectionId="gallery" collection={emptyGallery} />);
+    const modern = renderToStaticMarkup(<ModernEditorialGallery sectionId="gallery" collection={emptyGallery} />);
+
+    for (const markup of [classic, modern]) {
+      expect(markup).toContain("w-full max-w-none");
+      expect(markup).not.toContain("max-w-5xl");
+    }
+  });
+
+  browserIt("lets Gallery content fill the parent content box", () => {
+    const renderers = [["classic", ClassicFilipinianaGallery], ["modern", ModernEditorialGallery]] as const;
+    for (const [template, Renderer] of renderers) {
+      const markup = renderToStaticMarkup(<Renderer sectionId="gallery" collection={emptyGallery} />);
+      const result = chromiumLayout<{ host: number; specialized: number; collection: number }>(1200, markup, `(()=>{const host=document.querySelector('.viewport'),specialized=document.querySelector('[data-section-specialized-content]'),collection=document.querySelector('[data-gallery-collection]');return{host:host.getBoundingClientRect().width,specialized:specialized.getBoundingClientRect().width,collection:collection.getBoundingClientRect().width}})()`);
+      expect(result.specialized, template).toBeCloseTo(result.host, 1);
+      expect(result.collection, template).toBeCloseTo(result.host, 1);
+    }
+  }, 30_000);
 
   browserIt("keeps the temporary Gallery placeholder contained", () => {
     const renderers = [["classic", ClassicFilipinianaGallery], ["modern", ModernEditorialGallery]] as const;
@@ -162,10 +182,11 @@ describe("specialized Section browser layout", () => {
 });
 
 describe("RSVP containment markup", () => {
-  it("opts Modern Gallery into the same shrink-safe grid track without changing its specialized-only contract", () => {
+  it("keeps Modern Gallery shrink-safe without an empty editorial rail", () => {
     const gallery = renderToStaticMarkup(<ModernEditorialGallery sectionId="gallery" collection={emptyGallery} />);
-    expect(gallery).toContain("md:grid-cols-[5rem_minmax(0,1fr)]");
+    expect(gallery).not.toContain("md:grid-cols-[5rem_minmax(0,1fr)]");
     expect(gallery).not.toContain("md:grid-cols-[5rem_1fr]");
+    expect(gallery).toContain("block");
     expect(gallery).toContain("min-w-0 max-w-full");
     expect(gallery).toContain("[overflow-wrap:anywhere]");
     expect(gallery).not.toContain("data-section-root-flow");
