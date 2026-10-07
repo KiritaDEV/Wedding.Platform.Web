@@ -5,6 +5,7 @@ import type { TextDocument, WebsiteElement } from '../websiteElements/types'
 import type { ProjectColor } from '../websiteColors/projectColors'
 import type { PrivateInvitationRendererRuntime } from './privateInvitationRuntime'
 import type { RsvpEditorPreviewState } from './rsvpEditorPreview'
+import type { EditMotionReplay } from '../websiteAnimation/runtime'
 
 export type WebsiteRenderScope =
   | { kind: 'full' }
@@ -29,4 +30,5 @@ export type WebsiteRendererProps = {
   onTextDocumentChange?: (sectionId: string, elementId: string, document: TextDocument) => void
   onAddColor?: (value: string) => Promise<ProjectColor>
   motionSessionKey?: string | number
+  editMotionReplay?: EditMotionReplay
 }

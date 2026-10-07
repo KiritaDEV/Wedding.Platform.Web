@@ -33,8 +33,8 @@ export function assertPairedSectionPresentation(section: Pick<WebsiteSection, 't
     const customAppearance = appearance.custom?.[viewport]
     if (hasComposition && !customAppearance) throw new Error(`Section presentation has mismatched ${viewport} custom ownership.`)
     if (!hasComposition && customAppearance) {
-      const withoutAnimation = (value: WebsiteSectionAppearance) => { const copy = { ...value }; delete copy.animation; return copy }
-      if (!customAppearance.animation || JSON.stringify(withoutAnimation(customAppearance)) !== JSON.stringify(withoutAnimation(appearance.shared))) throw new Error(`Section presentation has non-animation ${viewport} appearance without a custom composition.`)
+      const withoutAnimation = (value: WebsiteSectionAppearance) => { const copy = { ...value }; delete copy.animation; delete copy.galleryItemAnimation; return copy }
+      if ((!customAppearance.animation && !customAppearance.galleryItemAnimation) || JSON.stringify(withoutAnimation(customAppearance)) !== JSON.stringify(withoutAnimation(appearance.shared))) throw new Error(`Section presentation has non-animation ${viewport} appearance without a custom composition.`)
     }
   }
 }

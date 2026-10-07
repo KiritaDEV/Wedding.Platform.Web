@@ -1,6 +1,6 @@
-import type { ResponsiveViewport, WebsiteSectionAppearance } from "../websiteEditor/types";
+import type { ResponsiveViewport, WebsiteSectionAppearance, WebsiteSectionAppearanceEnvelope } from "../websiteEditor/types";
 import type { WebsiteElement } from "../websiteElements/types";
-import { normalizeAuthoredAnimation, type AuthoredAnimation } from "./contract";
+import { normalizeAuthoredAnimation, normalizeGalleryItemAnimation, type AuthoredAnimation, type GalleryItemAnimation } from "./contract";
 
 type ResponsiveAnimationAppearance = {
   animation?: AuthoredAnimation;
@@ -22,7 +22,11 @@ export function resolveElementAnimation(element: WebsiteElement, viewport: Respo
   return resolveAppearanceAnimation(appearance, viewport);
 }
 
-export function resolveSectionAnimation(appearance: WebsiteSectionAppearance, viewport: ResponsiveViewport): AuthoredAnimation | undefined {
+export function resolveSectionAnimation(appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope, viewport: ResponsiveViewport): AuthoredAnimation | undefined {
+  if ("shared" in appearance) {
+    const authored = appearance.custom?.[viewport]?.animation ?? appearance.shared.animation;
+    return normalizeAuthoredAnimation(authored, { preserveExplicitNone: true });
+  }
   return resolveAppearanceAnimation(appearance, viewport);
 }
 
@@ -33,3 +37,9 @@ export function resolveRsvpSpecializedAnimation(appearance: WebsiteSectionAppear
   return normalizeAuthoredAnimation(specialized, { preserveExplicitNone: true });
 }
 
+export function resolveGalleryItemAnimation(appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope, viewport: ResponsiveViewport): GalleryItemAnimation | undefined {
+  const authored = "shared" in appearance
+    ? appearance.custom?.[viewport]?.galleryItemAnimation ?? appearance.shared.galleryItemAnimation
+    : appearance.galleryItemAnimation;
+  return normalizeGalleryItemAnimation(authored, { preserveExplicitNone: true });
+}

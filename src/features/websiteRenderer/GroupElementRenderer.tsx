@@ -17,6 +17,7 @@ import { heroContentPositionStyle } from "./heroContentPosition";
 import { OuterSpacingWrapper } from "./OuterSpacingWrapper";
 import { WebsiteMotion } from "../websiteAnimation/runtime";
 import { resolveElementAnimation } from "../websiteAnimation/resolve";
+import { elementMotionOwnerId } from "../websiteAnimation/identity";
 
 const spaces = INNER_SPACING_CSS;
 const widths = { full: "100%", wide: "72rem", medium: "48rem", narrow: "32rem" } as const;
@@ -63,7 +64,7 @@ export function GroupElementRenderer({ group, sectionId, mode, viewport, templat
     {mode === "editor" && visibleChildren.length === 0 && <span className="pointer-events-none absolute inset-0 grid place-items-center px-3 text-center text-xs text-foreground-muted" data-empty-group>Empty Group · add children in Structure</span>}
     {visibleChildren.map((element) => {
     const childSelected = selectedElementId === element.id;
-    const frame = <OuterSpacingWrapper element={element} viewport={viewport} sectionId={sectionId} selected={childSelected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}><WebsiteMotion ownerId={`element:${element.id}`} animation={resolveElementAnimation(element, viewport)} className="min-w-0 max-w-full"><WebsiteElementFrame mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type === "media" ? "Media" : element.type} selected={childSelected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}>
+    const frame = <OuterSpacingWrapper element={element} viewport={viewport} sectionId={sectionId} selected={childSelected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}><WebsiteMotion ownerId={elementMotionOwnerId(element.id)} animation={resolveElementAnimation(element, viewport)} className="min-w-0 max-w-full"><WebsiteElementFrame mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type === "media" ? "Media" : element.type} selected={childSelected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}>
       {element.type === "compositionGroup"
         ? <GroupElementRenderer media={media} eventDate={eventDate} group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
         : <WebsiteLeafElementRenderer media={media} eventDate={eventDate} element={element} mode={mode} sectionId={sectionId} selected={childSelected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}

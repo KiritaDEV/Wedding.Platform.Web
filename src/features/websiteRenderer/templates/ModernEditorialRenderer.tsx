@@ -26,6 +26,7 @@ import { scopedColorPreviewTarget, useEditorColorPreview } from "../../websiteEd
 import { RsvpSectionRenderer } from "../RsvpSectionRenderer";
 import { WebsiteMotion } from "../../websiteAnimation/runtime";
 import { resolveSectionAnimation } from "../../websiteAnimation/resolve";
+import { sectionMotionOwnerId } from "../../websiteAnimation/identity";
 
 export function ModernEditorialRenderer({
   event,
@@ -68,7 +69,7 @@ export function ModernEditorialRenderer({
         </div>
       )}
       {sections.map(({ section }) => (
-        <WebsiteMotion key={section.id} ownerId={`section:${section.id}`} animation={resolveSectionAnimation(section.appearance as unknown as WebsiteSectionAppearance, targetViewport)} className="w-full min-w-0 max-w-full">
+        <WebsiteMotion key={section.id} ownerId={sectionMotionOwnerId(section.id)} animation={resolveSectionAnimation(section.appearance as unknown as WebsiteSectionAppearance, targetViewport)} className="w-full min-w-0 max-w-full">
         <ModernSection
           section={section}
           eventDate={event.eventDate}

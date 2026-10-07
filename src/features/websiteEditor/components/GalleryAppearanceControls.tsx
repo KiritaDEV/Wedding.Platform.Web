@@ -5,11 +5,15 @@ import { resolveGalleryGridAppearance } from "../../websiteRenderer/galleryGridA
 import { SURFACE_RADII, SURFACE_SHADOWS } from "../../websiteRenderer/surfaceEffects";
 import { FourSidedSpacingControl } from "./FourSidedSpacingControl";
 import { resolveInnerSpacing, type InnerSpacing } from "../../websiteElements/group";
+import type { GalleryItemAnimation } from "../../websiteAnimation/contract";
+import { GalleryItemAnimationControls } from "./GalleryItemAnimationControls";
 
-export function GalleryAppearanceControls({ appearance, viewport, onChange }: {
+export function GalleryAppearanceControls({ appearance, viewport, onChange, itemAnimation, effectiveItemAnimation, exactDevice = false, itemAnimationConflict, itemAnimationReplayed, onItemAnimationChange, onItemAnimationReset, onItemAnimationReplay }: {
   appearance: WebsiteSectionAppearance;
   viewport: ResponsiveViewport;
   onChange: (appearance: WebsiteSectionAppearance) => void;
+  itemAnimation?: GalleryItemAnimation; effectiveItemAnimation?: GalleryItemAnimation; exactDevice?: boolean; itemAnimationConflict?: string; itemAnimationReplayed?: boolean;
+  onItemAnimationChange?: (value: GalleryItemAnimation | undefined) => void; onItemAnimationReset?: () => void; onItemAnimationReplay?: () => void;
 }) {
   const grid = resolveGalleryGridAppearance(appearance, viewport);
   const innerSpacing = resolveInnerSpacing(appearance.galleryContentInnerSpacing, undefined);
@@ -45,5 +49,6 @@ export function GalleryAppearanceControls({ appearance, viewport, onChange }: {
       <legend className="mb-2 text-sm font-semibold xl:text-xs!">Inner spacing</legend>
       <FourSidedSpacingControl spacing={innerSpacing} onChange={setInnerSpacing} />
     </fieldset>
+    {onItemAnimationChange && onItemAnimationReplay && <GalleryItemAnimationControls authored={itemAnimation} effective={effectiveItemAnimation} exactDevice={exactDevice} conflict={itemAnimationConflict} replayed={itemAnimationReplayed} onChange={onItemAnimationChange} onReset={onItemAnimationReset} onReplay={onItemAnimationReplay} />}
   </InspectorSection>;
 }

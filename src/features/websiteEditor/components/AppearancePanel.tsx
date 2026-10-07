@@ -67,6 +67,8 @@ import { FourSidedSpacingControl as InnerSpacingControl } from "./FourSidedSpaci
 import type { SpacingChanges } from "./spacingControlModel";
 import { ContentPositionControl } from "./ContentPositionControl";
 import { HERO_MINIMUM_HEIGHT_MAX, HERO_MINIMUM_HEIGHT_MIN, HERO_MINIMUM_HEIGHT_STEP, setHeroHeightMode, setHeroMinimumHeight } from "../heroMinimumHeight";
+import { AnimationAppearanceControls } from "./AnimationAppearanceControls";
+import type { AuthoredAnimation } from "../../websiteAnimation/contract";
 
 export function AppearancePanel({
   appearance,
@@ -78,6 +80,9 @@ export function AppearancePanel({
   projectColors,
   onAddColor,
   onChange,
+  onAnimationReplay,
+  animationReplayed,
+  showAnimation = true,
 }: {
   appearance: WebsiteSectionAppearance;
   templateKey: string;
@@ -88,6 +93,9 @@ export function AppearancePanel({
   projectColors: ProjectColor[];
   onAddColor: (value: string) => Promise<ProjectColor>;
   onChange: (appearance: WebsiteSectionAppearance) => void;
+  onAnimationReplay?: () => void;
+  animationReplayed?: boolean;
+  showAnimation?: boolean;
 }) {
   const presentation =
     appearance.presentation ??
@@ -130,6 +138,38 @@ export function AppearancePanel({
     delete responsive[targetViewport];
     onChange(pruneResponsiveAppearance({ ...appearance, responsive }));
   };
+  const animationUsesResponsive = sectionCapability.id === "rsvp";
+  const exactAnimationOwner = animationUsesResponsive && targetViewport !== "desktop";
+  const authoredAnimation = exactAnimationOwner
+    ? appearance.responsive?.[targetViewport]?.animation
+    : appearance.animation;
+  const effectiveAnimation = effectiveAppearance.animation;
+  const changeAnimation = (animation: AuthoredAnimation | undefined) => {
+    if (!exactAnimationOwner) {
+      const next = { ...appearance };
+      if (animation) next.animation = animation;
+      else delete next.animation;
+      onChange(next);
+      return;
+    }
+    const responsive = { ...appearance.responsive };
+    const branch = { ...responsive[targetViewport] };
+    if (animation) branch.animation = animation;
+    else delete branch.animation;
+    if (Object.keys(branch).length) responsive[targetViewport] = branch;
+    else delete responsive[targetViewport];
+    onChange(pruneResponsiveAppearance({ ...appearance, responsive }));
+  };
+  const animationControls = <AnimationAppearanceControls
+    ownerLabel={`${sectionCapability.id} Section`}
+    authored={authoredAnimation}
+    effective={effectiveAnimation}
+    exactDevice={exactAnimationOwner}
+    replayed={animationReplayed}
+    onReplay={onAnimationReplay}
+    onChange={changeAnimation}
+    onReset={exactAnimationOwner ? () => changeAnimation(undefined) : undefined}
+  />;
   if (sectionCapability.id === "rsvp") {
     return (
       <div className="space-y-5">
@@ -153,6 +193,7 @@ export function AppearancePanel({
           onAddColor={onAddColor}
           onChange={onChange}
         />
+        {showAnimation && animationControls}
       </div>
     );
   }
@@ -191,6 +232,7 @@ export function AppearancePanel({
           onAddColor={onAddColor}
           onChange={onChange}
         />
+        {showAnimation && animationControls}
       </div>
     );
   }
@@ -364,6 +406,7 @@ export function AppearancePanel({
         onAddColor={onAddColor}
         onChange={onChange}
       />
+      {showAnimation && animationControls}
     </div>
   );
 }

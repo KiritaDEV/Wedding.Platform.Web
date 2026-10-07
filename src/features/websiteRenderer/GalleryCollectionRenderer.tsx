@@ -5,6 +5,10 @@ import { resolveGalleryGridAppearance } from "./galleryGridAppearance";
 import { useWebsiteElementChange } from "./WebsiteElementChangeContext";
 import { SURFACE_RADIUS_CSS, SURFACE_SHADOW_CSS } from "./surfaceEffects";
 import { INNER_SPACING_CSS, resolveInnerSpacing } from "../websiteElements/group";
+import { galleryItemAnimationAsAuthored, GALLERY_ANIMATION_STAGGER_MS } from "../websiteAnimation/contract";
+import { resolveGalleryItemAnimation } from "../websiteAnimation/resolve";
+import { galleryItemMotionOwnerId, galleryItemsMotionOwnerId } from "../websiteAnimation/identity";
+import { WebsiteMotion } from "../websiteAnimation/runtime";
 
 export function GalleryCollectionRenderer({ items, media, appearance, viewport, mode, sectionId }: {
   sectionId?: string;
@@ -31,6 +35,9 @@ export function GalleryCollectionRenderer({ items, media, appearance, viewport, 
     ) : null;
   }
   const grid = resolveGalleryGridAppearance(appearance, viewport);
+  const itemAnimation = resolveGalleryItemAnimation(appearance, viewport);
+  const motionAnimation = galleryItemAnimationAsAuthored(itemAnimation);
+  const staggerMs = GALLERY_ANIMATION_STAGGER_MS[itemAnimation?.entrance?.stagger ?? "none"];
   return (
     <div data-gallery-content className="box-border w-full" style={contentStyle}>
       <div
@@ -41,10 +48,9 @@ export function GalleryCollectionRenderer({ items, media, appearance, viewport, 
         className="grid w-full min-w-0 max-w-full"
         style={{ gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))`, gap: grid.gap } as CSSProperties}
       >
-      {renderedItems.map((item) => {
+      {renderedItems.map((item, order) => {
         const asset = media[item.mediaId];
-        return (
-          <div key={item.id} data-gallery-item={item.id} className="min-w-0 overflow-hidden" style={{ aspectRatio: grid.aspectRatio, borderRadius: SURFACE_RADIUS_CSS[appearance.radius ?? "square"], boxShadow: SURFACE_SHADOW_CSS[appearance.shadow ?? "none"] }}>
+        const tile = <div key={item.id} data-gallery-item={item.id} className="w-full min-w-0 overflow-hidden" style={{ aspectRatio: grid.aspectRatio, borderRadius: SURFACE_RADIUS_CSS[appearance.radius ?? "square"], boxShadow: SURFACE_SHADOW_CSS[appearance.shadow ?? "none"] }}>
             {asset ? (
               <ZoomedMediaImage
                 className="h-full w-full"
@@ -59,8 +65,8 @@ export function GalleryCollectionRenderer({ items, media, appearance, viewport, 
                 Media unavailable
               </div>
             )}
-          </div>
-        );
+          </div>;
+        return sectionId ? <WebsiteMotion key={item.id} ownerId={galleryItemMotionOwnerId(sectionId, item.id)} animation={motionAnimation} batch={{ ownerId: galleryItemsMotionOwnerId(sectionId), order, staggerMs }} galleryItemId={item.id} className="min-w-0 max-w-full">{tile}</WebsiteMotion> : tile;
       })}
       </div>
     </div>

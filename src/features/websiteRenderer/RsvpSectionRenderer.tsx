@@ -9,6 +9,7 @@ import { RSVP_FORM_EDITOR_ELEMENT_ID } from "./rsvpEditorSelection";
 import { INNER_SPACING_CSS, resolveInnerSpacing } from "../websiteElements/group";
 import { WebsiteMotion } from "../websiteAnimation/runtime";
 import { resolveRsvpSpecializedAnimation } from "../websiteAnimation/resolve";
+import { rsvpMotionOwnerId } from "../websiteAnimation/identity";
 
 export function RsvpSectionRenderer({ section, composition, specialized, mode, viewport, templateKey, library, projectColors, media, eventDate, selectedElementId, onElementSelect, onElementEdit }: {
   section: WebsiteSection;
@@ -39,7 +40,7 @@ export function RsvpSectionRenderer({ section, composition, specialized, mode, v
     {specialized}
   </WebsiteElementFrame> : specialized;
 
-  const animatedSpecialized = specialized === null ? null : <WebsiteMotion ownerId={`specialized:${section.id}:rsvp-form`} animation={resolveRsvpSpecializedAnimation(appearance, viewport)} className="min-w-0 max-w-full">{selectableSpecialized}</WebsiteMotion>;
+  const animatedSpecialized = specialized === null ? null : <WebsiteMotion ownerId={rsvpMotionOwnerId(section.id)} animation={resolveRsvpSpecializedAnimation(appearance, viewport)} className="min-w-0 max-w-full">{selectableSpecialized}</WebsiteMotion>;
 
   return <SectionContentInset className="relative overflow-hidden">
     <div data-rsvp-foreground className="box-border w-full" style={foregroundStyle}>

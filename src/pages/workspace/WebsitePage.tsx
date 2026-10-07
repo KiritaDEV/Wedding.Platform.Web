@@ -64,6 +64,11 @@ import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/compone
 import { SectionCompositionControls } from "../../features/websiteEditor/components/SectionCompositionControls";
 import { RsvpRuntimeAppearanceEditor } from "../../features/websiteEditor/components/RsvpRuntimeAppearanceEditor";
 import { GalleryAppearanceControls } from "../../features/websiteEditor/components/GalleryAppearanceControls";
+import { AnimationAppearanceControls } from "../../features/websiteEditor/components/AnimationAppearanceControls";
+import { animatedElementAncestor, authoredElementAnimation, updateElementAnimation } from "../../features/websiteAnimation/authoring";
+import { resolveElementAnimation, resolveGalleryItemAnimation, resolveRsvpSpecializedAnimation, resolveSectionAnimation } from "../../features/websiteAnimation/resolve";
+import { hasEntranceAnimation } from "../../features/websiteAnimation/contract";
+import { elementMotionOwnerId, galleryItemsMotionOwnerId, rsvpMotionOwnerId, sectionMotionOwnerId } from "../../features/websiteAnimation/identity";
 import { resolveRsvpPresentation } from "../../features/websiteRenderer/rsvpPresentationResolution";
 import {
   createCustomSectionComposition,
@@ -243,6 +248,7 @@ function WebsitePageContent() {
   const [mode, setMode] = useState<BuilderMode>("content");
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
   const [previewMotionSession, setPreviewMotionSession] = useState(0);
+  const [editMotionReplay, setEditMotionReplay] = useState<import("../../features/websiteAnimation/runtime").EditMotionReplay>();
   const [rsvpEditorPreviewState, setRsvpEditorPreviewState] =
     useState<RsvpEditorPreviewState>(DEFAULT_RSVP_EDITOR_PREVIEW_STATE);
   const [sectionPanelMode, setSectionPanelMode] =
@@ -376,6 +382,13 @@ function WebsitePageContent() {
   const sectionStructureDirty = sectionOrderDirty || sectionVisibilityDirty;
   const globalDirty = sectionStructureDirty || sectionDirty || designDirty;
 
+  function requestAnimationReplay(ownerId: string) {
+    setEditMotionReplay((current) => ({
+      ownerId,
+      generation: current?.ownerId === ownerId ? current.generation + 1 : 1,
+    }));
+  }
+
   useEffect(() => {
     if (accessibleViewports.includes(previewMode)) return;
     const next = accessibleViewports[0];
@@ -393,6 +406,7 @@ function WebsitePageContent() {
         setPendingPreviewMode({ viewport: next, scope: nextScope });
       else {
         setSelectedChild(null);
+        setEditMotionReplay(undefined);
         setPreviewMode(next);
         if (editorMode === "preview")
           setPreviewMotionSession((current) => current + 1);
@@ -409,6 +423,7 @@ function WebsitePageContent() {
   ]);
 
   function selectSection(id: string, requestCanvasScroll = false) {
+    setEditMotionReplay(undefined);
     if (requestCanvasScroll) {
       setCanvasSelectionRequest({
         kind: "section",
@@ -471,6 +486,7 @@ function WebsitePageContent() {
   }
 
   function applyPreviewMode(next: ResponsiveViewport) {
+    setEditMotionReplay(undefined);
     setPreviewMode(next);
     if (editorMode === "preview")
       setPreviewMotionSession((current) => current + 1);
@@ -668,6 +684,7 @@ function WebsitePageContent() {
   }
 
   function updateWorkingContent(content: Record<string, unknown>) {
+    setEditMotionReplay(undefined);
     if (effectiveSelectedId) {
       setContentOverride({
         sectionId: effectiveSelectedId,
@@ -815,6 +832,7 @@ function WebsitePageContent() {
     reference: SectionChildReference,
     requestCanvasScroll = false,
   ) {
+    setEditMotionReplay(undefined);
     const section = workingSections.find(({ id }) => id === sectionId);
     const content =
       sectionId === effectiveSelectedId && workingContent
@@ -1010,6 +1028,7 @@ function WebsitePageContent() {
   }
 
   function changeEditorMode(next: EditorMode) {
+    setEditMotionReplay(undefined);
     setEditorMode(next);
     if (next === "preview") {
       setInlineEditingTarget(null);
@@ -1357,8 +1376,11 @@ function WebsitePageContent() {
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
+        workingAppearanceOwner={workingAppearanceOwner}
         targetViewport={previewMode}
         rsvpPreviewState={rsvpEditorPreviewState}
+        editMotionReplay={editMotionReplay}
+        onAnimationReplay={requestAnimationReplay}
         onRsvpPreviewStateChange={setRsvpEditorPreviewState}
         selectedChild={
           selectedChild &&
@@ -1385,9 +1407,9 @@ function WebsitePageContent() {
         onContentChange={updateWorkingContent}
         onCustomizeComposition={customizeActiveComposition}
         onResetComposition={resetActiveComposition}
-        onAppearanceChange={(appearance) =>
-          selected &&
-          setAppearanceOverride({
+        onAppearanceChange={(appearance) => {
+          setEditMotionReplay(undefined);
+          if (selected) setAppearanceOverride({
             sectionId: selected.id,
             appearance: activeAppearanceTarget
               ? replaceScopedSectionAppearance(
@@ -1396,8 +1418,9 @@ function WebsitePageContent() {
                   appearance,
                 )
               : appearance,
-          })
-        }
+          });
+        }}
+        onAppearanceOwnerChange={(appearance) => { setEditMotionReplay(undefined); if (selected) setAppearanceOverride({ sectionId: selected.id, appearance }); }}
         onSectionDesignChange={(defaults) =>
           void saveSectionDesignDefaults(defaults)
         }
@@ -1433,8 +1456,11 @@ function WebsitePageContent() {
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
+        workingAppearanceOwner={workingAppearanceOwner}
         targetViewport={previewMode}
         rsvpPreviewState={rsvpEditorPreviewState}
+        editMotionReplay={editMotionReplay}
+        onAnimationReplay={requestAnimationReplay}
         onRsvpPreviewStateChange={setRsvpEditorPreviewState}
         selectedChild={
           selectedChild &&
@@ -1461,9 +1487,9 @@ function WebsitePageContent() {
         onContentChange={updateWorkingContent}
         onCustomizeComposition={customizeActiveComposition}
         onResetComposition={resetActiveComposition}
-        onAppearanceChange={(appearance) =>
-          selected &&
-          setAppearanceOverride({
+        onAppearanceChange={(appearance) => {
+          setEditMotionReplay(undefined);
+          if (selected) setAppearanceOverride({
             sectionId: selected.id,
             appearance: activeAppearanceTarget
               ? replaceScopedSectionAppearance(
@@ -1472,8 +1498,9 @@ function WebsitePageContent() {
                   appearance,
                 )
               : appearance,
-          })
-        }
+          });
+        }}
+        onAppearanceOwnerChange={(appearance) => { setEditMotionReplay(undefined); if (selected) setAppearanceOverride({ sectionId: selected.id, appearance }); }}
         onSectionDesignChange={(defaults) =>
           void saveSectionDesignDefaults(defaults)
         }
@@ -1608,6 +1635,7 @@ function WebsitePageContent() {
             mode={mode}
             editorMode={editorMode}
             motionSessionKey={previewMotionSession}
+            editMotionReplay={editMotionReplay}
             selectedId={effectiveSelectedId}
             previewMode={previewMode}
             rsvpEditorPreviewState={rsvpEditorPreviewState}
@@ -2063,6 +2091,7 @@ function PreviewCanvas({
   mode,
   editorMode,
   motionSessionKey,
+  editMotionReplay,
   selectedId,
   previewMode,
   rsvpEditorPreviewState,
@@ -2081,6 +2110,7 @@ function PreviewCanvas({
   mode: BuilderMode;
   editorMode: EditorMode;
   motionSessionKey: number;
+  editMotionReplay?: import("../../features/websiteAnimation/runtime").EditMotionReplay;
   selectedId: string | null;
   previewMode: ResponsiveViewport;
   rsvpEditorPreviewState: RsvpEditorPreviewState;
@@ -2278,6 +2308,7 @@ function PreviewCanvas({
                   website={draft}
                   mode={editorMode === "edit" ? "editor" : "public"}
                   motionSessionKey={motionSessionKey}
+                  editMotionReplay={editorMode === "edit" ? editMotionReplay : undefined}
                   selectedSectionId={
                     editorMode === "edit" && mode === "content"
                       ? selectedId
@@ -2441,8 +2472,11 @@ function SectionInspector({
   selected,
   workingContent,
   workingAppearance,
+  workingAppearanceOwner,
   targetViewport,
   rsvpPreviewState,
+  editMotionReplay,
+  onAnimationReplay,
   onRsvpPreviewStateChange,
   selectedChild,
   panelMode,
@@ -2460,6 +2494,7 @@ function SectionInspector({
   onCustomizeComposition,
   onResetComposition,
   onAppearanceChange,
+  onAppearanceOwnerChange,
   onSectionDesignChange,
 }: {
   eventId: string;
@@ -2470,8 +2505,11 @@ function SectionInspector({
   selected: WebsiteSection | null;
   workingContent?: Record<string, unknown>;
   workingAppearance?: WebsiteSectionAppearance;
+  workingAppearanceOwner?: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope;
   targetViewport: ResponsiveViewport;
   rsvpPreviewState: RsvpEditorPreviewState;
+  editMotionReplay?: import("../../features/websiteAnimation/runtime").EditMotionReplay;
+  onAnimationReplay: (ownerId: string) => void;
   onRsvpPreviewStateChange: (state: RsvpEditorPreviewState) => void;
   selectedChild: SectionChildReference | null;
   panelMode: SectionPanelMode;
@@ -2489,6 +2527,7 @@ function SectionInspector({
   onCustomizeComposition: () => void;
   onResetComposition: () => void;
   onAppearanceChange: (appearance: WebsiteSectionAppearance) => void;
+  onAppearanceOwnerChange: (appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope) => void;
   onSectionDesignChange: (defaults: SectionDesignDefaults) => void;
 }) {
   if (!selected || !workingContent || !workingAppearance) return null;
@@ -2566,6 +2605,126 @@ function SectionInspector({
         }
       />
     ) : null;
+  const showBlockAnimationEditor =
+    selectedElement && childFlow && (!selectedMedia || activePanelMode === "appearance");
+  const composableAppearanceOwner = workingAppearanceOwner && "shared" in workingAppearanceOwner
+    ? workingAppearanceOwner as WebsiteSectionAppearanceEnvelope
+    : undefined;
+  const blockAnimationEditor = showBlockAnimationEditor ? (
+    <AnimationAppearanceControls
+      ownerLabel={selectedElement.type === "compositionGroup" ? "Group" : selectedElement.type}
+      authored={authoredElementAnimation(selectedElement, authoringViewport)}
+      effective={resolveElementAnimation(selectedElement, authoringViewport)}
+      exactDevice={authoringViewport !== "desktop"}
+      conflict={animationConflictMessage(
+        selected,
+        composableAppearanceOwner ?? workingAppearance,
+        childFlow,
+        selectedElement.id,
+        authoringViewport,
+      )}
+      replayed={editMotionReplay?.ownerId === elementMotionOwnerId(selectedElement.id)}
+      onReplay={() => onAnimationReplay(elementMotionOwnerId(selectedElement.id))}
+      onChange={(animation) =>
+        changeSharedFlow(
+          updateSectionElement(
+            childFlow,
+            updateElementAnimation(selectedElement, authoringViewport, animation),
+          ),
+        )
+      }
+      onReset={authoringViewport !== "desktop" ? () =>
+        changeSharedFlow(
+          updateSectionElement(
+            childFlow,
+            updateElementAnimation(selectedElement, authoringViewport, undefined),
+          ),
+        ) : undefined}
+    />
+  ) : null;
+  const blockAppearanceEditors = <>{blockSpacingEditor}{blockAnimationEditor}</>;
+  const rsvpAnimationViewport = authoringViewport;
+  const rsvpAuthoredAnimation = rsvpAnimationViewport === "desktop"
+    ? workingAppearance.specialized?.content?.animation
+    : workingAppearance.responsive?.[rsvpAnimationViewport]?.specialized?.content?.animation;
+  const changeRsvpAnimation = (animation: import("../../features/websiteAnimation/contract").AuthoredAnimation | undefined) => {
+    const next = structuredClone(workingAppearance);
+    const owner = rsvpAnimationViewport === "desktop"
+      ? next
+      : ((next.responsive ??= {})[rsvpAnimationViewport] ??= {});
+    const specialized = { ...(owner.specialized ?? {}) };
+    const content = { ...(specialized.content ?? {}) };
+    if (animation) content.animation = animation;
+    else delete content.animation;
+    if (Object.keys(content).length) specialized.content = content;
+    else delete specialized.content;
+    if (Object.keys(specialized).length) owner.specialized = specialized;
+    else delete owner.specialized;
+    if (rsvpAnimationViewport !== "desktop" && Object.keys(owner).length === 0)
+      delete next.responsive?.[rsvpAnimationViewport];
+    onAppearanceChange(next);
+  };
+  const sectionAnimationViewport = selected.type === "gallery" ? targetViewport : authoringViewport;
+  const sectionExactAnimation = sectionAnimationViewport === "desktop"
+    ? undefined
+    : composableAppearanceOwner?.custom?.[sectionAnimationViewport]?.animation;
+  const sectionAnimationControl = composableAppearanceOwner ? <AnimationAppearanceControls
+    ownerLabel={`${selected.editorName ?? selected.displayName} Section`}
+    authored={sectionAnimationViewport === "desktop" ? composableAppearanceOwner.shared.animation : sectionExactAnimation}
+    effective={resolveSectionAnimation(composableAppearanceOwner, sectionAnimationViewport)}
+    exactDevice={sectionAnimationViewport !== "desktop"}
+    replayed={editMotionReplay?.ownerId === sectionMotionOwnerId(selected.id)}
+    onReplay={() => onAnimationReplay(sectionMotionOwnerId(selected.id))}
+    onChange={(animation) => {
+      const next = structuredClone(composableAppearanceOwner);
+      if (sectionAnimationViewport === "desktop") {
+        if (animation) next.shared.animation = animation;
+        else delete next.shared.animation;
+      } else {
+        const branch = { ...(next.custom?.[sectionAnimationViewport] ?? next.shared) };
+        if (animation) branch.animation = animation;
+        else delete branch.animation;
+        next.custom = { ...next.custom, [sectionAnimationViewport]: branch };
+      }
+      onAppearanceOwnerChange(next);
+    }}
+    onReset={sectionAnimationViewport !== "desktop" ? () => {
+      const next = structuredClone(composableAppearanceOwner);
+      const branch = next.custom?.[sectionAnimationViewport];
+      if (!branch) return;
+      const hasCustomComposition = Boolean((selected.content as { compositions?: { custom?: Partial<Record<ResponsiveViewport, unknown>> } }).compositions?.custom?.[sectionAnimationViewport]);
+      if (hasCustomComposition) delete branch.animation;
+      else delete next.custom?.[sectionAnimationViewport];
+      if (next.custom && Object.keys(next.custom).length === 0) delete next.custom;
+      onAppearanceOwnerChange(next);
+    } : undefined}
+  /> : null;
+  const galleryAnimationViewport = targetViewport;
+  const galleryExactItemAnimation = galleryAnimationViewport === "desktop" ? composableAppearanceOwner?.shared.galleryItemAnimation : composableAppearanceOwner?.custom?.[galleryAnimationViewport]?.galleryItemAnimation;
+  const changeGalleryItemAnimation = (animation: import("../../features/websiteAnimation/contract").GalleryItemAnimation | undefined) => {
+    if (!composableAppearanceOwner) return;
+    const next = structuredClone(composableAppearanceOwner);
+    if (galleryAnimationViewport === "desktop") {
+      if (animation) next.shared.galleryItemAnimation = animation;
+      else delete next.shared.galleryItemAnimation;
+    } else {
+      const branch = { ...(next.custom?.[galleryAnimationViewport] ?? next.shared) };
+      if (animation) branch.galleryItemAnimation = animation;
+      else delete branch.galleryItemAnimation;
+      next.custom = { ...next.custom, [galleryAnimationViewport]: branch };
+    }
+    onAppearanceOwnerChange(next);
+  };
+  const resetGalleryItemAnimation = galleryAnimationViewport === "desktop" || !composableAppearanceOwner ? undefined : () => {
+    const next = structuredClone(composableAppearanceOwner);
+    const branch = next.custom?.[galleryAnimationViewport];
+    if (!branch) return;
+    delete branch.galleryItemAnimation;
+    const hasCustomComposition = Boolean((selected.content as { compositions?: { custom?: Partial<Record<ResponsiveViewport, unknown>> } }).compositions?.custom?.[galleryAnimationViewport]);
+    if (!hasCustomComposition && !branch.animation) delete next.custom?.[galleryAnimationViewport];
+    if (next.custom && Object.keys(next.custom).length === 0) delete next.custom;
+    onAppearanceOwnerChange(next);
+  };
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       {compositionTarget && (
@@ -2644,7 +2803,7 @@ function SectionInspector({
       </div>
       {selectedAccordion && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <AccordionElementEditor
             element={selectedAccordion}
             onChange={(element) =>
@@ -2654,7 +2813,7 @@ function SectionInspector({
         </div>
       ) : selectedSchedule && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <ScheduleElementEditor
             element={selectedSchedule}
             onChange={(element) =>
@@ -2664,7 +2823,7 @@ function SectionInspector({
         </div>
       ) : selectedPeople && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <PeopleEditor
             section={selected}
             content={selectedPeople}
@@ -2684,7 +2843,7 @@ function SectionInspector({
         </div>
       ) : selectedDate && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <DateElementEditor
               element={selectedDate}
@@ -2704,7 +2863,7 @@ function SectionInspector({
         </div>
       ) : selectedText && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <TextElementEditor
               element={selectedText}
@@ -2728,7 +2887,7 @@ function SectionInspector({
         </div>
       ) : selectedDivider && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <DividerElementEditor
               context={selected.resolvedDesignContext}
@@ -2746,7 +2905,7 @@ function SectionInspector({
         </div>
       ) : selectedMedia && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <MediaElementEditor
             element={selectedMedia}
             eventId={eventId}
@@ -2761,6 +2920,7 @@ function SectionInspector({
         </div>
       ) : selectedGroup && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          {blockAnimationEditor}
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <GroupElementEditor
               group={selectedGroup}
@@ -2788,10 +2948,29 @@ function SectionInspector({
             appearance={workingAppearance}
             viewport={targetViewport}
             onChange={onAppearanceChange}
+            itemAnimation={galleryExactItemAnimation}
+            effectiveItemAnimation={composableAppearanceOwner ? resolveGalleryItemAnimation(composableAppearanceOwner, galleryAnimationViewport) : undefined}
+            exactDevice={galleryAnimationViewport !== "desktop"}
+            itemAnimationConflict={hasEntranceAnimation(composableAppearanceOwner ? resolveSectionAnimation(composableAppearanceOwner, galleryAnimationViewport) : undefined) ? "Gallery item animation won't play while the Gallery Section has an entrance animation on this device." : undefined}
+            itemAnimationReplayed={editMotionReplay?.ownerId === galleryItemsMotionOwnerId(selected.id)}
+            onItemAnimationChange={changeGalleryItemAnimation}
+            onItemAnimationReset={resetGalleryItemAnimation}
+            onItemAnimationReplay={() => onAnimationReplay(galleryItemsMotionOwnerId(selected.id))}
           />
         </div>
       ) : selectedRsvpRuntime && activePanelMode === "appearance" && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <AnimationAppearanceControls
+            ownerLabel="RSVP form"
+            authored={rsvpAuthoredAnimation}
+            effective={resolveRsvpSpecializedAnimation(workingAppearance, rsvpAnimationViewport)}
+            exactDevice={rsvpAnimationViewport !== "desktop"}
+            conflict={hasEntranceAnimation(resolveSectionAnimation(workingAppearance, rsvpAnimationViewport)) ? "This animation won't play while its RSVP Section animates on this device." : undefined}
+            replayed={editMotionReplay?.ownerId === rsvpMotionOwnerId(selected.id)}
+            onReplay={() => onAnimationReplay(rsvpMotionOwnerId(selected.id))}
+            onChange={changeRsvpAnimation}
+            onReset={rsvpAnimationViewport !== "desktop" ? () => changeRsvpAnimation(undefined) : undefined}
+          />
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <RsvpRuntimeAppearanceEditor
               value={(workingContent as import("../../features/websiteEditor/types").RsvpContent).semantic.runtimeAppearance ?? {}}
@@ -2851,7 +3030,11 @@ function SectionInspector({
                 projectColors={projectColors}
                 onAddColor={onAddColor}
                 onChange={onAppearanceChange}
+                animationReplayed={editMotionReplay?.ownerId === sectionMotionOwnerId(selected.id)}
+                onAnimationReplay={() => onAnimationReplay(sectionMotionOwnerId(selected.id))}
+                showAnimation={!composableAppearanceOwner}
               />
+              {sectionAnimationControl}
               </ColorPreviewScopeContext>
               {selected.type !== "blank" && (
                 <SectionDesignDefaultsPanel
@@ -2903,6 +3086,21 @@ function EditorLoading({ eventId }: { eventId: string }) {
     </div>
   );
 }
+
+function animationConflictMessage(
+  section: WebsiteSection,
+  appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope,
+  flow: SectionChildFlow,
+  elementId: string,
+  viewport: ResponsiveViewport,
+): string | undefined {
+  if (hasEntranceAnimation(resolveSectionAnimation(appearance, viewport)))
+    return `This animation won't play while its ${section.editorName ?? section.displayName} Section animates on this device.`;
+  const animated = animatedElementAncestor(flow, elementId, viewport);
+  if (!animated) return undefined;
+  return `This animation won't play while its parent ${animated.type === "compositionGroup" ? "Group" : animated.type} animates on this device.`;
+}
+
 function EditorError({
   eventId,
   message,

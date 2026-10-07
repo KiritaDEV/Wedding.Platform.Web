@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { authoredAnimationSchema, normalizeAuthoredAnimation } from "./contract";
-import { resolveAppearanceAnimation } from "./resolve";
+import { ANIMATION_DURATION_MS, GALLERY_ANIMATION_STAGGER_MS, authoredAnimationSchema, cappedGalleryStaggerDelay, galleryItemAnimationSchema, normalizeAuthoredAnimation, normalizeGalleryItemAnimation } from "./contract";
+import { resolveAppearanceAnimation, resolveGalleryItemAnimation } from "./resolve";
 import { WebsiteMotion, WebsiteMotionRuntime } from "./runtime";
 import { websiteElementSchema } from "../websiteElements/schemas";
 import { rsvpSectionAppearanceSchema, sectionAppearanceSchema } from "../websiteEditor/schemas";
@@ -9,6 +9,35 @@ import { rsvpSectionAppearanceSchema, sectionAppearanceSchema } from "../website
 const effects = ["none", "fade", "fade-up", "fade-down", "scale-in"] as const;
 
 describe("canonical Website animation contract", () => {
+  it("keeps the locked speed durations", () => {
+    expect(ANIMATION_DURATION_MS).toEqual({ fast: 250, normal: 450, slow: 700 });
+  });
+
+  it("validates and sparsely normalizes Gallery item animation", () => {
+    expect(GALLERY_ANIMATION_STAGGER_MS).toEqual({ none: 0, short: 60, medium: 100, long: 160 });
+    for (const type of effects) for (const speed of ["fast", "normal", "slow"] as const) for (const stagger of ["none", "short", "medium", "long"] as const) {
+      expect(galleryItemAnimationSchema.safeParse({ entrance: { type, speed, stagger } }).success).toBe(true);
+    }
+    for (const invalid of [{ entrance: { type: "slide" } }, { entrance: { type: "fade", stagger: 60 } }, { entrance: { type: "fade", stagger: "custom" } }, { entrance: { type: "fade", delay: "short" } }, { responsive: { mobile: {} } }]) {
+      expect(galleryItemAnimationSchema.safeParse(invalid).success).toBe(false);
+    }
+    expect(normalizeGalleryItemAnimation({ entrance: { type: "fade", speed: "normal", stagger: "none" } })).toEqual({ entrance: { type: "fade" } });
+    expect(normalizeGalleryItemAnimation({ entrance: { type: "none" } })).toBeUndefined();
+    expect(normalizeGalleryItemAnimation({ entrance: { type: "none" } }, { preserveExplicitNone: true })).toEqual({ entrance: { type: "none" } });
+  });
+
+  it("resolves Gallery item animation from the existing exact-device owner", () => {
+    const base = { headingAlignment: "inherit" as const, bodyAlignment: "inherit" as const, backgroundTreatment: "inherit" as const, emphasis: "inherit" as const };
+    const appearance = { shared: { ...base, galleryItemAnimation: { entrance: { type: "fade-up" as const, stagger: "short" as const } } }, custom: { mobile: { ...base, galleryItemAnimation: { entrance: { type: "none" as const } } } } };
+    expect(resolveGalleryItemAnimation(appearance, "desktop")?.entrance?.type).toBe("fade-up");
+    expect(resolveGalleryItemAnimation(appearance, "mobile")).toEqual({ entrance: { type: "none" } });
+  });
+
+  it("caps each Gallery entry batch after its fifth item", () => {
+    expect([0, 1, 2, 3, 4, 5, 20].map(index => cappedGalleryStaggerDelay(index, 100))).toEqual([0, 100, 200, 300, 400, 400, 400]);
+    expect([0, 1].map(index => cappedGalleryStaggerDelay(index, 100))).toEqual([0, 100]);
+  });
+
   it.each(effects)("accepts %s", (type) => {
     expect(authoredAnimationSchema.safeParse({ entrance: { type } }).success).toBe(true);
   });

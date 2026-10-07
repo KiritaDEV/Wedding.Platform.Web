@@ -9,6 +9,15 @@ const asset = (id: string, width = 1200, height = 800): ResolvedWebsiteMedia => 
 const item = (id: string, extra: Partial<GalleryItem> = {}): GalleryItem => ({ id, type: "image", mediaId: id, ...extra });
 
 describe("GalleryCollectionRenderer", () => {
+  it("uses stable item IDs for transform-safe motion wrappers", () => {
+    const animated = { ...appearance, galleryItemAnimation: { entrance: { type: "fade-up" as const, speed: "slow" as const, stagger: "medium" as const } } };
+    const duplicateReferences = [{ ...item("a"), mediaId: "shared" }, { ...item("b"), mediaId: "shared" }];
+    const html = renderToStaticMarkup(<GalleryCollectionRenderer sectionId="gallery" items={duplicateReferences} media={{ shared: asset("shared") }} appearance={animated} viewport="desktop" mode="public" />);
+    expect(html).toContain('data-website-motion="specialized:gallery:gallery-item:a"');
+    expect(html).toContain('data-website-motion="specialized:gallery:gallery-item:b"');
+    expect(html).toContain('data-gallery-item="a"');
+    expect(html).toContain('data-gallery-item="b"');
+  });
   it("uses canonical viewport defaults and authored appearance", () => {
     expect(resolveGalleryGridAppearance(appearance, "mobile")).toEqual({ columns: 1, gapToken: "medium", aspectRatioToken: "portrait", gap: "1.25rem", aspectRatio: "4 / 5" });
     expect(resolveGalleryGridAppearance(appearance, "tablet").columns).toBe(2);

@@ -16,6 +16,11 @@ const capability = {
 const library = { colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } as unknown as TemplateDesignLibrary;
 
 describe("Blank decorative appearance controls", () => {
+  it.each(["hero", "gallery", "rsvp", "blank"])("exposes Animation for the canonical %s Section", (id) => {
+    const html = renderToStaticMarkup(<AppearancePanel appearance={appearance} templateKey="classic-filipiniana-v1" sectionCapability={{ ...capability, id } as SectionCapability} targetViewport="desktop" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={vi.fn()} />);
+    expect(html).toContain("Animation");
+    expect(html).toContain("None");
+  });
   it("exposes the shared controls without persisting defaults when opened", () => {
     const onChange = vi.fn();
     const html = renderToStaticMarkup(<AppearancePanel appearance={appearance} templateKey="classic-filipiniana-v1" sectionCapability={capability} targetViewport="desktop" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={onChange} />);

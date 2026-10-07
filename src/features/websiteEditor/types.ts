@@ -2,7 +2,7 @@ import type { ContextDefaultsIntent, ResolvedDesignContext, TemplateCapabilities
 import type { ProjectColor } from '../websiteColors/projectColors'
 import type { SectionChildFlow } from './sectionChildFlow'
 import type { BackgroundMedia } from '../websiteMedia/backgroundMedia'
-import type { AuthoredAnimation } from '../websiteAnimation/contract'
+import type { AuthoredAnimation, GalleryItemAnimation } from '../websiteAnimation/contract'
 
 export type SectionDesignDefaults = ContextDefaultsIntent
 
@@ -109,6 +109,7 @@ export type WebsiteSectionAppearance = {
   backgroundImageOpacity?: number
   height?: HeroMinimumHeight
   animation?: AuthoredAnimation
+  galleryItemAnimation?: GalleryItemAnimation
   specialized?: { content?: { animation?: AuthoredAnimation } }
 }
 export type WebsiteSectionAppearanceEnvelope = {

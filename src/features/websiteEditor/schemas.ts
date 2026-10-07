@@ -13,7 +13,7 @@ import { galleryImageItemSchema, groupPaddingSchema } from '../websiteElements/s
 import { canonicalRuntimeTextAppearanceSchema } from '../websitePresentation/runtimeTextAppearance'
 import { choiceAppearanceSchema } from '../websitePresentation/choiceAppearance'
 import { actionAppearanceSchema } from '../websitePresentation/actionAppearance'
-import { authoredAnimationSchema } from '../websiteAnimation/contract'
+import { authoredAnimationSchema, galleryItemAnimationSchema } from '../websiteAnimation/contract'
 
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
 export const backgroundTreatmentSchema = z.enum(['inherit', 'plain', 'soft', 'accent', 'custom'])
@@ -237,6 +237,7 @@ export const sectionAppearanceSchema = z.object({
     contentPosition: z.enum(['top-start', 'top-center', 'top-end', 'center-start', 'center', 'center-end', 'bottom-start', 'bottom-center', 'bottom-end']).optional(),
     innerSpacing: groupPaddingSchema.optional(),
     animation: authoredAnimationSchema.optional(),
+    galleryItemAnimation: galleryItemAnimationSchema.optional(),
     specialized: specializedAnimationAppearanceSchema.optional(),
   }).strict()
 export const rsvpSectionAppearanceSchema = z.object({
@@ -484,12 +485,15 @@ const draftSchema = draftCommonSchema.extend({
         const customAppearance = envelope.custom?.[viewport]
         if (hasComposition && !customAppearance) context.addIssue({ code: 'custom', message: 'Custom composition requires a paired appearance owner', path: ['sections', index, 'appearance', 'custom', viewport] })
         if (!hasComposition && customAppearance) {
-          const withoutAnimation = (value: WebsiteSectionAppearance) => { const copy = { ...value }; delete copy.animation; return copy }
-          if (!customAppearance.animation || JSON.stringify(withoutAnimation(customAppearance)) !== JSON.stringify(withoutAnimation(envelope.shared))) context.addIssue({ code: 'custom', message: 'Appearance-only device ownership may differ from shared appearance only by animation', path: ['sections', index, 'appearance', 'custom', viewport] })
+          const withoutAnimation = (value: WebsiteSectionAppearance) => { const copy = { ...value }; delete copy.animation; delete copy.galleryItemAnimation; return copy }
+          if ((!customAppearance.animation && !customAppearance.galleryItemAnimation) || JSON.stringify(withoutAnimation(customAppearance)) !== JSON.stringify(withoutAnimation(envelope.shared))) context.addIssue({ code: 'custom', message: 'Appearance-only device ownership may differ from shared appearance only by animation', path: ['sections', index, 'appearance', 'custom', viewport] })
         }
       }
     }
     const appearances = envelope ? [envelope.shared, ...Object.values(envelope.custom ?? {})] : [section.appearance as WebsiteSectionAppearance]
+    if (section.type !== 'gallery') appearances.forEach((appearance, appearanceIndex) => {
+      if (appearance.galleryItemAnimation) context.addIssue({ code: 'custom', message: 'Gallery item animation is supported only by Gallery Sections', path: ['sections', index, 'appearance', appearanceIndex, 'galleryItemAnimation'] })
+    })
     const capability = sectionCapability(draft.template!.capabilities, section.type)
     const allowedContextValues = new Map<string, string[]>()
     capability?.contextDefaults.typography.forEach((control) => allowedContextValues.set(control.role === 'heading' ? 'headingFontId' : 'bodyFontId', control.allowedFontIds))
