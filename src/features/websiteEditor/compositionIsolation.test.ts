@@ -60,12 +60,12 @@ describe('block-tree composition isolation', () => {
   it.each(cases)('%s can add every supported generic block using active-tree naming and capacity', (_, scope) => {
     const before = original()
     let flow = structuredClone(get(before, scope).childFlow)
-    for (const type of ['text', 'date', 'media', 'compositionGroup', 'divider', 'accordion', 'schedule', 'people'] as const) {
+    for (const type of ['text', 'date', 'media', 'compositionGroup', 'divider', 'accordion', 'schedule', 'people', 'countdown'] as const) {
       flow = insertSectionElement(flow, createSectionElement(flow, type))
     }
     const after = replaceScopedComposition(before, scope, { childFlow: flow }) as BlankContent
     expectOnlyScopeChanged(before, after, scope)
-    expect(flow.elements.slice(-8).map(({ type }) => type)).toEqual(['text', 'date', 'media', 'compositionGroup', 'divider', 'accordion', 'schedule', 'people'])
+    expect(flow.elements.slice(-9).map(({ type }) => type)).toEqual(['text', 'date', 'media', 'compositionGroup', 'divider', 'accordion', 'schedule', 'people', 'countdown'])
   })
 
   it('preserves an explicitly empty custom composition instead of falling back to shared', () => {

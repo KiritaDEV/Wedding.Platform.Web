@@ -37,11 +37,9 @@ import type { WebsiteSection } from "../types";
 import { SectionChildList } from "./SectionChildList";
 import {
   SECTION_SPECIALIZED_REFERENCE,
-  createSectionElement,
   deleteGenericSectionElement,
   deleteSectionElement,
   duplicateSectionElement,
-  insertSectionElement,
   type SectionChildFlow,
   type SectionChildReference,
 } from "../sectionChildFlow";
@@ -57,6 +55,7 @@ import {
 import { revealStructureRow } from "./structureReveal";
 import type { GenericBlockType } from "../../websiteElements/blockIdentity";
 import { SortableDragHandle } from "./SortableDragHandle";
+import { createRootAddResult, rootAddElementItems } from "./rootAddElementItems";
 type Props = {
   sections: WebsiteSection[];
   selectedId: string | null;
@@ -289,18 +288,7 @@ function SortableSection(
             onOpen={() => {
               if (props.selectedId !== section.id) props.onSelect(section.id);
             }}
-            items={[
-              { type: "text" as const, label: "Text" },
-              { type: "date" as const, label: "Date" },
-              { type: "accordion" as const, label: "Accordion" },
-              { type: "schedule" as const, label: "Schedule" },
-              { type: "people" as const, label: "People" },
-              { type: "divider" as const, label: "Divider" },
-              { type: "media" as const, label: "Media" },
-              { type: "compositionGroup" as const, label: "Group" },
-            ]
-              .filter(({ type }) => allowedGenericTypes.includes(type))
-              .map(({ type, label }) => ({
+            items={rootAddElementItems(allowedGenericTypes).map(({ type, label }) => ({
                 label,
                 onAdd: () => addGeneric(type),
               }))}
@@ -436,12 +424,11 @@ function SortableSection(
   function addGeneric(
     type: GenericBlockType,
   ) {
-    const element = createSectionElement(resolvedChildFlow, type);
     const after =
       props.selectedChild?.sectionId === section.id
         ? props.selectedChild.reference
         : SECTION_SPECIALIZED_REFERENCE;
-    const flow = insertSectionElement(childFlow, element, after);
+    const { element, flow } = createRootAddResult(childFlow, type, after);
     props.onExpandedChange(true);
     props.onChildFlowChange(section.id, flow, {
       kind: "element",

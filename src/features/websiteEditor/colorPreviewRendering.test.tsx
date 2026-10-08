@@ -12,6 +12,52 @@ import type { WebsiteDraft } from "./types";
 vi.mock("react", async (original) => ({ ...await original<typeof import("react")>(), useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot() }));
 const library = { colors: [{ id: "accent", displayName: "Accent", value: "#123456" }], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as unknown as TemplateDesignLibrary;
 const context = { headingFontId: "", bodyFontId: "", headingColorId: "accent", bodyColorId: "accent", accentColorId: "accent" };
+it.each(["numbers", "labels"] as const)("previews Countdown %s shadow and glow colors independently and cancels cleanly", (role) => {
+  const element: Extract<WebsiteLeafElement, { type: "countdown" }> = {
+    id: "same", editorName: "Countdown 1", type: "countdown",
+    target: { source: "custom", instant: "2099-01-01T00:00:00Z", timeZone: "UTC" },
+    appearance: { [role]: { textShadow: "soft", glow: "soft" } },
+  };
+  const store = createColorPreviewStore();
+  const render = (mode: "editor" | "public", sectionId = "section") => renderToStaticMarkup(
+    <ColorPreviewContext value={store}><WebsiteLeafElementRenderer element={element} mode={mode} sectionId={sectionId} viewport="desktop" templateKey="classic-filipiniana-v1" library={library} context={context} /></ColorPreviewContext>,
+  );
+  const before = render("editor");
+  const publicBefore = render("public");
+  for (const effect of ["textShadowColor", "glowColor"]) {
+    const session = store.begin(scopedColorPreviewTarget("section", `same:${role}:${effect}`));
+    session.update("#ABCDEF");
+    expect(render("editor")).toContain("#ABCDEF");
+    expect(render("editor", "other-section")).toBe(before);
+    expect(render("public")).toBe(publicBefore);
+    session.clear();
+    expect(render("editor")).toBe(before);
+  }
+});
+
+it.each(["numbers", "labels"] as const)("previews Countdown %s only in the targeted role and Section, and restores on cancel", (role) => {
+  const element: Extract<WebsiteLeafElement, { type: "countdown" }> = {
+    id: "same", editorName: "Countdown 1", type: "countdown",
+    target: { source: "custom", instant: "2099-01-01T00:00:00Z", timeZone: "UTC" },
+  };
+  const store = createColorPreviewStore();
+  const render = (mode: "editor" | "public", sectionId = "section") => renderToStaticMarkup(
+    <ColorPreviewContext value={store}><WebsiteLeafElementRenderer element={element} mode={mode} sectionId={sectionId} viewport="desktop" templateKey="classic-filipiniana-v1" library={library} context={context} /></ColorPreviewContext>,
+  );
+  const before = render("editor");
+  const publicBefore = render("public");
+  const session = store.begin(scopedColorPreviewTarget("section", `same:${role}:color`));
+  session.update("#ABCDEF");
+  const html = render("editor");
+  expect(html.match(/color:#ABCDEF/g)).toHaveLength(4);
+  expect(html).toMatch(role === "numbers" ? /color:#ABCDEF[^>]*>12</ : /color:#ABCDEF[^>]*>Days</);
+  expect(render("editor", "other-section")).toBe(before);
+  expect(render("public")).toBe(publicBefore);
+  expect(element.appearance).toBeUndefined();
+  session.clear();
+  expect(render("editor")).toBe(before);
+});
+
 const elements: Extract<WebsiteLeafElement, { type: "divider" | "text" | "text" | "date" }>[] = [
   { id: "same", editorName: "Divider 1", type: "divider" },
   { id: "same", editorName: "Text 1", type: "text", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Rich text" }] }] } },

@@ -12,7 +12,7 @@ export type WebsiteRenderScope =
   | { kind: 'single-section'; sectionId: string }
 
 export type WebsiteRendererProps = {
-  event: Pick<EventDetail, 'id' | 'name' | 'eventDate' | 'type'>
+  event: Pick<EventDetail, 'id' | 'name' | 'eventDate' | 'type'> & Partial<Pick<EventDetail, 'startTime' | 'timeZone' | 'startsAtUtc'>>
   website: RenderableWebsite
   mode?: 'editor' | 'public'
   audience?: 'management-preview' | 'public-site' | 'private-site'

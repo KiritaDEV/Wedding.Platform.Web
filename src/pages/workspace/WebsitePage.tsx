@@ -60,6 +60,7 @@ import { DateElementEditor } from "../../features/websiteEditor/components/DateE
 import { AccordionElementEditor } from "../../features/websiteEditor/components/AccordionElementEditor";
 import { ScheduleElementEditor } from "../../features/websiteEditor/components/ScheduleElementEditor";
 import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
+import { CountdownElementEditor } from "../../features/websiteEditor/components/CountdownElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionCompositionControls } from "../../features/websiteEditor/components/SectionCompositionControls";
 import { RsvpRuntimeAppearanceEditor } from "../../features/websiteEditor/components/RsvpRuntimeAppearanceEditor";
@@ -1330,6 +1331,7 @@ function WebsitePageContent() {
                 type === "accordion" ||
                 type === "schedule" ||
                 type === "people" ||
+                type === "countdown" ||
                 type === "divider" ||
                 type === "media" ||
                 type === "compositionGroup",
@@ -2565,6 +2567,8 @@ function SectionInspector({
     selectedElement?.type === "schedule" ? selectedElement : null;
   const selectedPeople =
     selectedElement?.type === "people" ? selectedElement : null;
+  const selectedCountdown =
+    selectedElement?.type === "countdown" ? selectedElement : null;
   const selectedGroup =
     selectedElement?.type === "compositionGroup" ? selectedElement : null;
   const selectedDivider =
@@ -2591,6 +2595,7 @@ function SectionInspector({
     selectedAccordion ??
     selectedSchedule ??
     selectedPeople ??
+    selectedCountdown ??
     selectedDivider ??
     selectedMedia;
   const showBlockSpacingEditor =
@@ -2757,6 +2762,8 @@ function SectionInspector({
                       ? "Schedule"
                       : selectedPeople
                         ? "People"
+                        : selectedCountdown
+                          ? "Countdown"
                         : selectedGroup
                           ? "Group"
                           : selectedDivider
@@ -2778,6 +2785,7 @@ function SectionInspector({
             !selectedAccordion &&
             !selectedSchedule &&
             !selectedPeople &&
+            !selectedCountdown &&
             !selectedGroup &&
             !selectedDivider && (
               <SegmentedControl
@@ -2801,7 +2809,14 @@ function SectionInspector({
                 : "Customize this Section's presentation."}
         </Text>
       </div>
-      {selectedAccordion && childFlow ? (
+      {selectedCountdown && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          {blockAppearanceEditors}
+          <ColorPreviewScopeContext key={selected.id} value={selected.id}>
+          <CountdownElementEditor onAddColor={onAddColor} element={selectedCountdown} viewport={authoringViewport} library={capabilities!.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />
+          </ColorPreviewScopeContext>
+        </div>
+      ) : selectedAccordion && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
           {blockAppearanceEditors}
           <AccordionElementEditor

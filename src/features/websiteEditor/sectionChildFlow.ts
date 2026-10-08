@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createSemanticId } from "./createSemanticId";
 import { websiteElementTreeSchema } from "../websiteElements/schemas";
-import type { CompositionGroup, DateElement, DividerElement, MediaElement, TextElement, WebsiteElement } from "../websiteElements/types";
+import type { CompositionGroup, CountdownElement, DateElement, DividerElement, MediaElement, TextElement, WebsiteElement } from "../websiteElements/types";
 import { canonicalizeTextDocument } from "../websiteElements/textDocument";
 import { GENERIC_BLOCK_LABELS, isGenericBlock, normalizeEditorName, type GenericBlockType } from "../websiteElements/blockIdentity";
 
@@ -44,13 +44,13 @@ export const genericSectionChildFlowSchema = childFlowShapeSchema.superRefine((f
 
 export const textSectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "countdown" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
 export const genericTextSectionChildFlowSchema = genericSectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "countdown" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
@@ -114,7 +114,7 @@ export function visitGenericBlocks(elements: readonly WebsiteElement[], visitor:
 }
 
 function automaticNameState(flow?: SectionChildFlow): Record<GenericBlockType, number> {
-  const state = { text: 0, date: 0, accordion: 0, schedule: 0, people: 0, media: 0, divider: 0, compositionGroup: 0 };
+  const state = { text: 0, date: 0, accordion: 0, schedule: 0, people: 0, countdown: 0, media: 0, divider: 0, compositionGroup: 0 };
   if (!flow) return state;
   visitGenericBlocks(flow.elements, (element) => {
     const match = new RegExp(`^${GENERIC_BLOCK_LABELS[element.type].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} ([1-9]\\d*)$`).exec(element.editorName);
@@ -148,6 +148,10 @@ export function createPeopleElement(editorName: string): import("../websiteEleme
   return { id: createSemanticId("people"), type: "people", editorName, groups: [] };
 }
 
+export function createCountdownElement(editorName: string): CountdownElement {
+  return { id: createSemanticId("countdown"), type: "countdown", editorName, target: { source: "event" } };
+}
+
 export function createDividerElement(editorName: string): DividerElement {
   return { id: createSemanticId("divider"), type: "divider", editorName };
 }
@@ -167,6 +171,7 @@ export function createSectionElement(flow: SectionChildFlow | undefined, type: G
   if (type === "accordion") return createAccordionElement(editorName);
   if (type === "schedule") return createScheduleElement(editorName);
   if (type === "people") return createPeopleElement(editorName);
+  if (type === "countdown") return createCountdownElement(editorName);
   if (type === "divider") return createDividerElement(editorName);
   if (type === "media") return createMediaElement(editorName, mediaId);
   return createGroupElement(editorName);

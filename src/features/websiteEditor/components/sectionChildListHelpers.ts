@@ -29,11 +29,11 @@ export function reorderRootSectionElement(
   return active ? reorderSectionChild(flow, active, over) : flow;
 }
 
-export type GroupAddKind = "text" | "date" | "accordion" | "schedule" | "people" | "divider" | "media" | "group";
+export type GroupAddKind = "text" | "date" | "accordion" | "schedule" | "people" | "countdown" | "divider" | "media" | "group";
 
 export const groupAddKinds = (depth: number): readonly GroupAddKind[] => depth < 2
-  ? ["text", "date", "accordion", "schedule", "people", "divider", "media", "group"]
-  : ["text", "date", "accordion", "schedule", "people", "divider", "media"];
+  ? ["text", "date", "accordion", "schedule", "people", "countdown", "divider", "media", "group"]
+  : ["text", "date", "accordion", "schedule", "people", "countdown", "divider", "media"];
 
 export function addToGroup(
   group: CompositionGroup,

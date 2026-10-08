@@ -145,7 +145,7 @@ export function PrivateEventSiteView({ site, error, opening, openError, onOpen, 
   if (site.status === 'unpublished' || !site.website) return <PrivateState title="This event site isn’t published yet." />
 
   return <main className="min-h-svh overflow-x-hidden"><WebsiteRenderer
-    event={{ id: site.event.id ?? '', name: site.event.name, eventDate: site.event.eventDate ?? null, type: 'wedding' }}
+    event={{ id: site.event.id ?? '', name: site.event.name, eventDate: site.event.eventDate ?? null, startTime: site.event.startTime ?? null, timeZone: site.event.timeZone ?? 'UTC', startsAtUtc: site.event.startsAtUtc ?? null, type: 'wedding' }}
     website={site.website}
     mode="public"
     audience="private-site"

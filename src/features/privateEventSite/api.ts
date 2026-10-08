@@ -5,7 +5,7 @@ import type { RenderableWebsite } from '../websiteEditor/types'
 
 const eventSchema = z.object({
   id: z.string().optional(), name: z.string(), slug: z.string(), type: z.literal('wedding').optional(),
-  eventDate: z.string().nullable().optional(), startTime: z.string().nullable().optional(), timeZone: z.string().nullable().optional(),
+  eventDate: z.string().nullable().optional(), startTime: z.string().nullable().optional(), timeZone: z.string().nullable().optional(), startsAtUtc: z.string().datetime({ offset: false }).nullable().optional(),
 }).strict()
 
 const guestSchema = z.object({

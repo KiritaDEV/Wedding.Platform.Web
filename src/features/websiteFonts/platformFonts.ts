@@ -66,6 +66,10 @@ function collectRsvpRuntimeFontIds(appearance: RsvpContent["semantic"]["runtimeA
 
 function collectElementFontIds(element: WebsiteElement, ids: Set<string>) {
   if (element.type === "text" && element.appearance?.fontFamilyId) ids.add(element.appearance.fontFamilyId);
+  if (element.type === "countdown") {
+    if (element.appearance?.numbers?.fontFamilyId) ids.add(element.appearance.numbers.fontFamilyId);
+    if (element.appearance?.labels?.fontFamilyId) ids.add(element.appearance.labels.fontFamilyId);
+  }
   if (element.type !== "compositionGroup") return;
   element.children.forEach((child) => collectElementFontIds(child as WebsiteElement, ids));
 }

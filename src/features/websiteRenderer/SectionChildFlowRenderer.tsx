@@ -14,6 +14,7 @@ import { sectionChildWidth } from "./sectionChildWidth";
 import { WebsiteMotion } from "../websiteAnimation/runtime";
 import { resolveElementAnimation } from "../websiteAnimation/resolve";
 import { elementMotionOwnerId } from "../websiteAnimation/identity";
+import { useEventTiming } from "./EventTimingContext";
 
 export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, viewport, templateKey, library, projectColors, media = {}, eventDate = null, context, selectedElementId, onElementSelect, onElementEdit, semanticChildWidths = false, inlineAlignment }: {
   sectionId: string;
@@ -27,11 +28,12 @@ export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, v
   inlineAlignment?: CSSProperties["alignItems"];
 }) {
   useDecorativeSourceAvailability();
+  const eventTiming = useEventTiming();
   const elements = new Map(flow.elements.map((element) => [element.id, element]));
   return <SectionRootFlow inlineAlignment={inlineAlignment}>{flow.order.map((reference) => {
     if (reference.kind === "specialized") return specialized === null ? null : <div key="specialized:content" data-section-specialized-child data-editor-specialized-section-id={mode === "editor" ? sectionId : undefined}>{specialized}</div>;
     const element = elements.get(reference.id);
-    if (!element || !isElementRenderable(element, templateKey, mode, media, eventDate)) return null;
+    if (!element || !isElementRenderable(element, templateKey, mode, media, eventDate, eventTiming.startsAtUtc)) return null;
     const selected = selectedElementId === element.id;
     return <OuterSpacingWrapper key={element.id} element={element} viewport={viewport} sectionId={sectionId} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined} width={semanticChildWidths ? sectionChildWidth(element) : "container"}><WebsiteMotion ownerId={elementMotionOwnerId(element.id)} animation={resolveElementAnimation(element, viewport)} className="min-w-0 max-w-full"><WebsiteElementFrame mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type === "media" ? "Media" : element.type} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined} inlineAlignment={element.type === "compositionGroup" ? inlineAlignment : undefined}>
       {element.type === "compositionGroup" ? <GroupElementRenderer media={media} eventDate={eventDate} group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /> : <WebsiteLeafElementRenderer media={media} eventDate={eventDate} element={element} mode={mode} sectionId={sectionId} selected={selected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}

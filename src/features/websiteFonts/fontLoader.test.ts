@@ -51,6 +51,35 @@ describe("fontStylesheetUrl", () => {
     expect(collectRequiredFontIds(website)).toEqual(["inter"]);
   });
 
+  it("collects authored Countdown number and label fonts, including inside Groups", () => {
+    const countdown = {
+      id: "countdown-1",
+      type: "countdown" as const,
+      editorName: "Countdown 1",
+      target: { source: "event" as const },
+      appearance: {
+        numbers: { fontFamilyId: "fira-code" },
+        labels: { fontFamilyId: "great-vibes" },
+      },
+    };
+    const website = {
+      designSettings: { fontSet: "none", projectDefaults: {} },
+      projectDesignDefaults: null,
+      template: { capabilities: { designLibrary: { typographyPresets: [] } } },
+      sections: [{
+        type: "blank",
+        resolvedDesignContext: null,
+        designDefaults: {},
+        content: { semantic: {}, compositions: { shared: { childFlow: {
+          elements: [{ id: "group-1", type: "compositionGroup", editorName: "Group 1", children: [countdown] }],
+          order: [{ kind: "element", id: "group-1" }],
+        } } } },
+      }],
+    } as unknown as WebsiteDraft;
+
+    expect(collectRequiredFontIds(website)).toEqual(["fira-code", "great-vibes"]);
+  });
+
   it("collects every authored RSVP runtime font, including Action typography", () => {
     const website = {
       designSettings: { fontSet: "none", projectDefaults: {} },

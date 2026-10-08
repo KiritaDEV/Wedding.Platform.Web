@@ -12,6 +12,7 @@ import { sectionsForAudience } from './audience'
 import { PrivateInvitationRuntimeProvider } from './PrivateInvitationRuntimeContext'
 import { useEditorDeviceCategory } from '../websiteEditor/responsiveViewport'
 import { WebsiteMotionRuntime } from '../websiteAnimation/runtime'
+import { EventTimingProvider } from './EventTimingContext'
 
 const templateRenderers = {
   'classic-filipiniana-v1': ClassicFilipinianaRenderer,
@@ -58,5 +59,5 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     }),
   }
 
-  return <div ref={rootRef}><WebsiteMotionRuntime enabled={props.mode !== 'editor'} sessionKey={props.motionSessionKey ?? runtimeSessionId} editReplay={props.editMotionReplay}><PrivateInvitationRuntimeProvider value={props.privateInvitationRuntime}><WebsiteElementChangeContext.Provider value={{ onGalleryAdd: props.onGalleryAdd, onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></PrivateInvitationRuntimeProvider></WebsiteMotionRuntime></div>
+  return <div ref={rootRef}><EventTimingProvider value={props.event}><WebsiteMotionRuntime enabled={props.mode !== 'editor'} sessionKey={props.motionSessionKey ?? runtimeSessionId} editReplay={props.editMotionReplay}><PrivateInvitationRuntimeProvider value={props.privateInvitationRuntime}><WebsiteElementChangeContext.Provider value={{ onGalleryAdd: props.onGalleryAdd, onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></PrivateInvitationRuntimeProvider></WebsiteMotionRuntime></EventTimingProvider></div>
 }

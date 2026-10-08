@@ -311,12 +311,37 @@ export const eventTimeElementSchema = z
   })
   .strict();
 
-export const countdownElementSchema = z
-  .object({
-    ...baseShape,
-    type: z.literal("countdown"),
-  })
-  .strict();
+const countdownUnitsSchema = z.object({ days: z.boolean().optional(), hours: z.boolean().optional(), minutes: z.boolean().optional(), seconds: z.boolean().optional() }).strict();
+const countdownLabelsSchema = z.object({
+  days: z.string().trim().max(40).regex(/^[^<>]*$/, "Countdown labels cannot contain HTML.").optional(), hours: z.string().trim().max(40).regex(/^[^<>]*$/, "Countdown labels cannot contain HTML.").optional(), minutes: z.string().trim().max(40).regex(/^[^<>]*$/, "Countdown labels cannot contain HTML.").optional(), seconds: z.string().trim().max(40).regex(/^[^<>]*$/, "Countdown labels cannot contain HTML.").optional(),
+}).strict();
+const countdownRoleAppearanceSchema = canonicalRuntimeTextAppearanceSchema.strict();
+const countdownResponsiveSchema = z.object({
+  numbers: canonicalTextResponsiveAppearanceSchema.optional(), labels: canonicalTextResponsiveAppearanceSchema.optional(),
+  direction: z.enum(["horizontal", "vertical"]).optional(), alignment: textAlignmentSchema.optional(), gap: z.enum(["xs", "s", "m", "l", "xl"]).optional(),
+  ...blockSpacingAppearanceShape,
+}).strict();
+export const countdownElementSchema = z.object({
+  ...genericBlockShape,
+  type: z.literal("countdown"),
+  target: z.discriminatedUnion("source", [
+    z.object({ source: z.literal("event") }).strict(),
+    z.object({ source: z.literal("custom"), instant: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/, "Countdown instant must be canonical UTC RFC 3339."), timeZone: z.string().min(1).max(255).refine((value) => { try { new Intl.DateTimeFormat("en", { timeZone: value }).format(); return true; } catch { return false; } }, "Countdown timezone must be a valid IANA timezone.") }).strict(),
+  ]),
+  units: countdownUnitsSchema.optional(), labels: countdownLabelsSchema.optional(),
+  appearance: z.object({
+    numbers: countdownRoleAppearanceSchema.optional(), labels: countdownRoleAppearanceSchema.optional(),
+    direction: z.enum(["horizontal", "vertical"]).optional(), alignment: textAlignmentSchema.optional(), gap: z.enum(["xs", "s", "m", "l", "xl"]).optional(),
+    ...blockSpacingAppearanceShape,
+    responsive: z.object({ tablet: countdownResponsiveSchema.optional(), mobile: countdownResponsiveSchema.optional() }).strict().optional(),
+  }).strict().optional(),
+}).strict().superRefine((element, context) => {
+  if (["days", "hours", "minutes", "seconds"].every((unit) => element.units?.[unit as keyof typeof element.units] === false)) context.addIssue({ code: "custom", path: ["units"], message: "At least one Countdown unit must be visible." });
+  for (const role of ["numbers", "labels"] as const) {
+    const issue = validateTextFontTuple(element.appearance?.[role] ?? {});
+    if (issue) context.addIssue({ code: "custom", path: ["appearance", role], message: issue });
+  }
+});
 
 export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   headingElementSchema,
@@ -367,7 +392,7 @@ export const groupLayoutSchema = z.object({
   responsive: z.object({ tablet: groupLayoutOverrideSchema.optional(), mobile: groupLayoutOverrideSchema.optional() }).strict().optional(),
 }).strict();
 
-const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, peopleElementSchema, dividerElementSchema, mediaElementSchema]);
+const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, peopleElementSchema, countdownElementSchema, dividerElementSchema, mediaElementSchema]);
 const nestedCompositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional(), backgroundMedia: backgroundMediaSchema }).strict();
 export const compositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional(), backgroundMedia: backgroundMediaSchema }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 

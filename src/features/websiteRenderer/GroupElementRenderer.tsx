@@ -18,6 +18,7 @@ import { OuterSpacingWrapper } from "./OuterSpacingWrapper";
 import { WebsiteMotion } from "../websiteAnimation/runtime";
 import { resolveElementAnimation } from "../websiteAnimation/resolve";
 import { elementMotionOwnerId } from "../websiteAnimation/identity";
+import { useEventTiming } from "./EventTimingContext";
 
 const spaces = INNER_SPACING_CSS;
 const widths = { full: "100%", wide: "72rem", medium: "48rem", narrow: "32rem" } as const;
@@ -28,8 +29,9 @@ export function GroupElementRenderer({ group, sectionId, mode, viewport, templat
   group: CompositionGroup; sectionId: string; mode: "editor" | "public"; viewport: ResponsiveViewport; templateKey: string; library: TemplateDesignLibrary; projectColors: readonly ProjectColor[]; media?: import("../websiteEditor/types").WebsiteDraft["media"]; eventDate?: string | null; context?: ResolvedDesignContext | null; selectedElementId?: string | null; onElementSelect?: (sectionId: string, elementId: string) => void; onElementEdit?: (sectionId: string, elementId: string) => void;
 }) {
   useDecorativeSourceAvailability();
+  const eventTiming = useEventTiming();
   const layout = resolveGroupLayout(group.layout, viewport);
-  const visibleChildren = group.children.filter((child) => isElementRenderable(child, templateKey, mode, media ?? {}, eventDate));
+  const visibleChildren = group.children.filter((child) => isElementRenderable(child, templateKey, mode, media ?? {}, eventDate, eventTiming.startsAtUtc));
   const direction = layout.direction ?? "vertical";
   const alignment = layout.alignment ?? "stretch";
   const division = layout.division ?? "50-50";

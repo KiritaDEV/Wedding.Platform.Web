@@ -11,6 +11,7 @@ const eventSchema = z.object({
   eventDate: z.string().nullable().optional(),
   startTime: z.string().nullable().optional(),
   timeZone: z.string().nullable().optional(),
+  startsAtUtc: z.string().datetime({ offset: false }).nullable().optional(),
 }).strict()
 
 const publicEventSiteEnvelopeSchema = z.object({
