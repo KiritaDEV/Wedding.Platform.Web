@@ -23,7 +23,7 @@ const cases = [
   [textElementSchema, { ...identity, type: "text", document, appearance: spacing }],
   [dateElementSchema, { ...identity, type: "date", appearance: spacing }],
   [accordionElementSchema, { ...identity, type: "accordion", items: [], appearance: spacing }],
-  [scheduleElementSchema, { ...identity, type: "schedule", items: [], appearance: spacing }],
+  [scheduleElementSchema, { ...identity, type: "schedule", days: [{ id: 'day-1', date: null, title: null, visible: true, activities: [] }], appearance: spacing }],
   [peopleElementSchema, { ...identity, type: "people", groups: [], appearance: spacing }],
   [mediaElementSchema, { ...identity, type: "media", items: [], appearance: spacing }],
   [dividerElementSchema, { ...identity, type: "divider", appearance: spacing }],

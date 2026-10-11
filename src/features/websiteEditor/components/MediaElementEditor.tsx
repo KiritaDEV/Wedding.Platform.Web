@@ -71,6 +71,7 @@ export function MediaElementEditor({
       ),
     });
   const chooseImage = (asset: MediaAsset) => {
+    if (!asset.variants.web) return;
     onMediaResolved({
       id: asset.id,
       originalFilename: asset.originalFilename,

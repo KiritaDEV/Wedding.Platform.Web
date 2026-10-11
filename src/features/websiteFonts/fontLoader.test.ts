@@ -4,6 +4,18 @@ import type { WebsiteDraft } from "../websiteEditor/types";
 import { fontStylesheetUrl } from "./fontLoader";
 
 describe("fontStylesheetUrl", () => {
+  it("collects Schedule role fonts from shared and nested custom placements", () => {
+    const schedule = (id: string, fontFamilyId: string) => ({ id, type: "schedule", editorName: "Schedule", contentId: "shared-content", appearance: { typography: { dayHeading: { fontFamilyId }, activityTime: { fontFamilyId: "inter" }, activityMapLink: { fontFamilyId: "lora" } } } });
+    const flow = (element: unknown) => ({ childFlow: { elements: [element], order: [] } });
+    const website = {
+      designSettings: { fontSet: "none", projectDefaults: {} }, projectDesignDefaults: null,
+      template: { capabilities: { designLibrary: { typographyPresets: [] } } },
+      sections: [{ type: "blank", resolvedDesignContext: null, designDefaults: {}, content: { semantic: {}, compositions: {
+        shared: flow(schedule("shared", "playfair-display")), custom: { mobile: flow({ id: "group", type: "compositionGroup", children: [schedule("mobile", "nunito")] }) },
+      } } }],
+    } as unknown as WebsiteDraft;
+    expect(collectRequiredFontIds(website)).toEqual(["playfair-display", "inter", "lora", "nunito"]);
+  });
   it("loads every advertised weight in normal and italic style", () => {
     const font = platformFont("inter");
     expect(font).toBeDefined();

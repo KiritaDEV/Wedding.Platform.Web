@@ -1,3 +1,4 @@
+import { resolveSharedElement, type SharedContentDefinition } from "../websiteEditor/sharedContent";
 import { isElementRenderable } from "./elementRenderability";
 import { useDecorativeSourceAvailability } from "./decorativeSourceAvailability";
 import type { CSSProperties, ReactNode } from "react";
@@ -15,8 +16,14 @@ import { WebsiteMotion } from "../websiteAnimation/runtime";
 import { resolveElementAnimation } from "../websiteAnimation/resolve";
 import { elementMotionOwnerId } from "../websiteAnimation/identity";
 import { useEventTiming } from "./EventTimingContext";
+import type { RootVerticalDistribution } from "./rootFlowDistribution";
+import { textPlainText } from "../websiteElements/textDocument";
+import type { WebsiteElement } from "../websiteElements/types";
 
-export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, viewport, templateKey, library, projectColors, media = {}, eventDate = null, context, selectedElementId, onElementSelect, onElementEdit, semanticChildWidths = false, inlineAlignment }: {
+export function SectionChildFlowRenderer({ sectionId, flow, sharedContentDefinitions = [], specialized, mode, viewport, templateKey, library, projectColors, media = {}, eventDate = null, context, selectedElementId, onElementSelect, onElementEdit, semanticChildWidths = false, inlineAlignment, rootVerticalDistribution = "packed", packedJustification }: {
+  rootVerticalDistribution?: RootVerticalDistribution;
+  packedJustification?: CSSProperties["justifyContent"];
+  sharedContentDefinitions?: readonly SharedContentDefinition[];
   sectionId: string;
   flow: SectionChildFlow; specialized: ReactNode; mode: "editor" | "public"; viewport: ResponsiveViewport;
   templateKey: string; library: TemplateDesignLibrary; projectColors: readonly ProjectColor[]; context?: ResolvedDesignContext | null;
@@ -29,11 +36,20 @@ export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, v
 }) {
   useDecorativeSourceAvailability();
   const eventTiming = useEventTiming();
-  const elements = new Map(flow.elements.map((element) => [element.id, element]));
-  return <SectionRootFlow inlineAlignment={inlineAlignment}>{flow.order.map((reference) => {
+  const elements = new Map(flow.elements.map((element) => [element.id, resolveSharedElement(element, sharedContentDefinitions)]));
+  // Distributed roots must occupy meaningful space in both preview and guest mode.
+  // Empty editor affordances remain accessible through Structure, not extra flex slots.
+  const occupiesSpace = (element: WebsiteElement): boolean => {
+    if (element.isHidden) return false;
+    if (element.type === "text") return textPlainText(element.document).trim().length > 0;
+    if (element.type === "compositionGroup") return element.children.some(occupiesSpace);
+    return isElementRenderable(element, templateKey, "public", media, eventDate, eventTiming.startsAtUtc);
+  };
+  return <SectionRootFlow inlineAlignment={inlineAlignment} distribution={rootVerticalDistribution} packedJustification={packedJustification}>{flow.order.map((reference) => {
     if (reference.kind === "specialized") return specialized === null ? null : <div key="specialized:content" data-section-specialized-child data-editor-specialized-section-id={mode === "editor" ? sectionId : undefined}>{specialized}</div>;
     const element = elements.get(reference.id);
     if (!element || !isElementRenderable(element, templateKey, mode, media, eventDate, eventTiming.startsAtUtc)) return null;
+    if (rootVerticalDistribution === "space-between" && !occupiesSpace(element)) return null;
     const selected = selectedElementId === element.id;
     return <OuterSpacingWrapper key={element.id} element={element} viewport={viewport} sectionId={sectionId} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined} width={semanticChildWidths ? sectionChildWidth(element) : "container"}><WebsiteMotion ownerId={elementMotionOwnerId(element.id)} animation={resolveElementAnimation(element, viewport)} className="min-w-0 max-w-full"><WebsiteElementFrame mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type === "media" ? "Media" : element.type} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined} inlineAlignment={element.type === "compositionGroup" ? inlineAlignment : undefined}>
       {element.type === "compositionGroup" ? <GroupElementRenderer media={media} eventDate={eventDate} group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /> : <WebsiteLeafElementRenderer media={media} eventDate={eventDate} element={element} mode={mode} sectionId={sectionId} selected={selected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}

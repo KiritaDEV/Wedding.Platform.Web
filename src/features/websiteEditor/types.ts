@@ -9,13 +9,13 @@ export type SectionDesignDefaults = ContextDefaultsIntent
 export type SectionMedia = BackgroundMedia
 export type SectionComposition = { childFlow: SectionChildFlow }
 export type SectionCompositions = { shared: SectionComposition; custom?: Partial<Record<ResponsiveViewport, SectionComposition>> }
-export type HeroContent = { semantic: Record<string, never>; compositions: SectionCompositions }
+export type HeroContent = { semantic: Record<string, never>; compositions: SectionCompositions; sharedContentDefinitions?: import('./sharedContent').SharedContentDefinition[] }
 export type PeoplePerson = { id: string; name: string; role?: string | null; media?: SectionMedia }
 export type PeopleGroup = { id: string; name: string; people: PeoplePerson[] }
 export type GalleryItem = { id: string; type: 'image'; mediaId: string; focalPoint?: { x: number; y: number }; zoom?: number }
 export type GalleryContent = { semantic: { items: GalleryItem[] }; compositions: SectionCompositions }
 export type RsvpContent = { semantic: { runtimeAppearance?: import('../websitePresentation/rsvpThemePresentation').RsvpRuntimeAppearance }; compositions: SectionCompositions }
-export type BlankContent = { semantic: Record<string, never>; compositions: SectionCompositions }
+export type BlankContent = { semantic: Record<string, never>; compositions: SectionCompositions; sharedContentDefinitions?: import('./sharedContent').SharedContentDefinition[] }
 
 type SectionBase<TType extends string, TContent> = {
   id: string
@@ -82,6 +82,7 @@ export type WebsiteSectionResponsiveAppearance = {
   specialized?: { content?: { animation?: AuthoredAnimation } }
 }
 export type WebsiteSectionAppearance = {
+  rootVerticalDistribution?: import('../websiteRenderer/rootFlowDistribution').RootVerticalDistribution
   columns?: number
   gap?: 'small' | 'medium' | 'large'
   aspectRatio?: 'square' | 'portrait' | 'landscape'
@@ -178,7 +179,7 @@ export type WebsiteDesignSettings = {
   customColors: ProjectColor[]
 }
 
-export type RenderableWebsite = Omit<WebsiteDraft, 'eventId' | 'name'>
+export type RenderableWebsite = Omit<WebsiteDraft, 'eventId' | 'name' | 'draftRevision'>
 export type ProjectDesignDefaults = {
   headingFontId: string
   bodyFontId: string
@@ -195,6 +196,7 @@ export type WebsiteDesignOptions = {
 export type WebsiteTemplateSummary = { key: string; displayName: string; designOptions: WebsiteDesignOptions; capabilities: TemplateCapabilities }
 
 export type WebsiteDraft = {
+  draftRevision: string
   schemaVersion: 5
   id: string
   eventId: string

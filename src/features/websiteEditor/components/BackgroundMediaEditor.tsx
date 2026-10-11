@@ -14,7 +14,7 @@ export function BackgroundMediaEditor({ media, viewport = "desktop", ownerId, re
   const effective = resolveBackgroundMediaForDevice(media, viewport);
   const resolved = effective ? resolvedMedia[effective.assetId] : undefined;
   const chosenMatches = chosen !== null && chosen.id === effective?.assetId;
-  const url = chosenMatches ? chosen.variants.web.url : resolved?.web.url;
+  const url = chosenMatches ? chosen.variants.web?.url : resolved?.web.url;
   const filename = chosenMatches ? chosen.originalFilename : resolved?.originalFilename;
   const point = effective?.focalPoint ?? { x: 0.5, y: 0.5 };
   const update = (patch: Parameters<typeof setBackgroundMediaDeviceFraming>[2]) => media && onChange(setBackgroundMediaDeviceFraming(media as BackgroundMediaReference, viewport, patch));

@@ -1,3 +1,4 @@
+import { resolveSharedElement } from '../websiteEditor/sharedContent'
 import type { ResolvedWebsiteMedia, ResponsiveViewport, WebsiteSection } from '../websiteEditor/types'
 import { resolveOwnedSectionAppearance } from '../websiteEditor/sectionAppearance'
 import type { WebsiteElement } from '../websiteElements/types'
@@ -29,7 +30,7 @@ export function isHeroSectionRenderable(section: WebsiteSection, templateKey: st
     : element.type === 'text'
       ? textPlainText(element.document).length > 0
     : isElementRenderable(element, templateKey, 'public', media, eventDate)
-  return resolveSectionComposition(section, targetViewport).composition.childFlow.elements.some(isRenderable)
+  return resolveSectionComposition(section, targetViewport).composition.childFlow.elements.map((element) => resolveSharedElement(element, section.content.sharedContentDefinitions ?? [])).some(isRenderable)
     || Boolean(resolveBackgroundMediaForDevice(appearance.backgroundMedia, targetViewport)?.assetId)
     || hasIntentionalSectionSurface(section, targetViewport)
     || Boolean(appearance.height)
@@ -47,7 +48,7 @@ export function isBlankSectionRenderable(
   const isRenderable = (element: WebsiteElement): boolean => element.type === 'compositionGroup'
     ? element.children.some(isRenderable)
     : isElementRenderable(element, templateKey, 'public', media, eventDate)
-  return flow.elements.some(isRenderable)
+  return flow.elements.map((element) => resolveSharedElement(element, section.content.sharedContentDefinitions ?? [])).some(isRenderable)
     || hasIntentionalSectionSurface(section, targetViewport)
 }
 

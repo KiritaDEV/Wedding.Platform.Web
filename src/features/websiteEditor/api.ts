@@ -1,3 +1,4 @@
+import type { WebsiteDraftChanges } from './draftSave'
 import { apiRequest, ensureCsrfCookie } from '../../lib/api'
 import type { ApiResource } from '../../lib/api'
 import { normalizeWebsiteDraftFromApi } from './schemas'
@@ -8,10 +9,29 @@ function projectPath(eventId: string, projectId: string): string {
   return `/api/events/${encodeURIComponent(eventId)}/websites/${encodeURIComponent(projectId)}`
 }
 
-async function mutation(eventId: string, projectId: string, path: string, body: unknown): Promise<WebsiteDraft> {
+export async function saveWebsiteDraft(eventId: string, projectId: string, draftRevision: string, changes: WebsiteDraftChanges): Promise<WebsiteDraft> {
+  const body = structuredClone(changes)
+  body.sections?.forEach((section) => {
+    if (section.content) section.content = canonicalizeWebsiteSectionContentForApi(section.content)
+    if (section.appearance) removeAuthoredResponsiveState(section.appearance)
+  })
+  if (body.designSettings) {
+    const { customColors, ...settings } = body.designSettings
+    void customColors
+    // Project colors are written only through their dedicated endpoint.
+    body.designSettings = settings as WebsiteDesignSettings
+  }
+  await ensureCsrfCookie()
+  const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/draft`, {
+    method: 'PATCH', body, headers: { 'X-Website-Draft-Revision': draftRevision },
+  })
+  return normalizeWebsiteDraftFromApi(response.data)
+}
+
+async function mutation(eventId: string, projectId: string, draftRevision: string, path: string, body: unknown): Promise<WebsiteDraft> {
   await ensureCsrfCookie()
   const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}${path}`, {
-    method: 'PUT', body,
+    method: 'PUT', body, headers: { 'X-Website-Draft-Revision': draftRevision },
   })
   return normalizeWebsiteDraftFromApi(response.data)
 }
@@ -21,24 +41,24 @@ export async function getWebsiteDraft(eventId: string, projectId: string, signal
   return normalizeWebsiteDraftFromApi(response.data)
 }
 
-export function updateWebsiteDesignSettings(eventId: string, projectId: string, designSettings: WebsiteDesignSettings) {
+export function updateWebsiteDesignSettings(eventId: string, projectId: string, draftRevision: string, designSettings: WebsiteDesignSettings) {
   const { customColors: _customColors, ...authorableDesignSettings } = designSettings
   void _customColors
-  return mutation(eventId, projectId, '/design', { designSettings: authorableDesignSettings })
+  return mutation(eventId, projectId, draftRevision, '/design', { designSettings: authorableDesignSettings })
 }
 
-export function addWebsiteProjectColor(eventId: string, projectId: string, value: string) {
+export function addWebsiteProjectColor(eventId: string, projectId: string, draftRevision: string, value: string) {
   return ensureCsrfCookie().then(async () => {
     const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/colors`, {
-      method: 'POST', body: { value },
+      method: 'POST', headers: { 'X-Website-Draft-Revision': draftRevision }, body: { value },
     })
     return normalizeWebsiteDraftFromApi(response.data)
   })
 }
 
-export function updateWebsiteSectionContent(eventId: string, projectId: string, sectionId: string, content: Record<string, unknown>) {
+export function updateWebsiteSectionContent(eventId: string, projectId: string, draftRevision: string, sectionId: string, content: Record<string, unknown>) {
   const canonicalContent = canonicalizeWebsiteSectionContentForApi(content)
-  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}`, { content: canonicalContent })
+  return mutation(eventId, projectId, draftRevision, `/sections/${encodeURIComponent(sectionId)}`, { content: canonicalContent })
 }
 
 export function canonicalizeWebsiteSectionContentForApi(content: Record<string, unknown>): Record<string, unknown> {
@@ -64,51 +84,51 @@ function removeAuthoredResponsiveState(value: unknown): void {
   Object.values(record).forEach(removeAuthoredResponsiveState)
 }
 
-export function updateWebsiteSectionAppearance(eventId: string, projectId: string, sectionId: string, appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope) {
+export function updateWebsiteSectionAppearance(eventId: string, projectId: string, draftRevision: string, sectionId: string, appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope) {
   const canonicalAppearance = structuredClone(appearance)
   removeAuthoredResponsiveState(canonicalAppearance)
-  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/appearance`, { appearance: canonicalAppearance })
+  return mutation(eventId, projectId, draftRevision, `/sections/${encodeURIComponent(sectionId)}/appearance`, { appearance: canonicalAppearance })
 }
 
-export function updateWebsiteSectionPresentation(eventId: string, projectId: string, sectionId: string, content: Record<string, unknown>, appearance: WebsiteSectionAppearanceEnvelope) {
+export function updateWebsiteSectionPresentation(eventId: string, projectId: string, draftRevision: string, sectionId: string, content: Record<string, unknown>, appearance: WebsiteSectionAppearanceEnvelope) {
   const canonicalAppearance = structuredClone(appearance)
   removeAuthoredResponsiveState(canonicalAppearance)
-  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/presentation`, { content: canonicalizeWebsiteSectionContentForApi(content), appearance: canonicalAppearance })
+  return mutation(eventId, projectId, draftRevision, `/sections/${encodeURIComponent(sectionId)}/presentation`, { content: canonicalizeWebsiteSectionContentForApi(content), appearance: canonicalAppearance })
 }
 
-export function updateWebsiteSectionDesignDefaults(eventId: string, projectId: string, sectionId: string, designDefaults: SectionDesignDefaults) {
-  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/design-defaults`, { designDefaults })
+export function updateWebsiteSectionDesignDefaults(eventId: string, projectId: string, draftRevision: string, sectionId: string, designDefaults: SectionDesignDefaults) {
+  return mutation(eventId, projectId, draftRevision, `/sections/${encodeURIComponent(sectionId)}/design-defaults`, { designDefaults })
 }
 
-export function setWebsiteSectionEnabled(eventId: string, projectId: string, sectionId: string, isEnabled: boolean) {
-  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/enabled`, { isEnabled })
+export function setWebsiteSectionEnabled(eventId: string, projectId: string, draftRevision: string, sectionId: string, isEnabled: boolean) {
+  return mutation(eventId, projectId, draftRevision, `/sections/${encodeURIComponent(sectionId)}/enabled`, { isEnabled })
 }
 
-export function reorderWebsiteSections(eventId: string, projectId: string, sectionIds: string[]) {
-  return mutation(eventId, projectId, '/sections/order', { sectionIds })
+export function reorderWebsiteSections(eventId: string, projectId: string, draftRevision: string, sectionIds: string[]) {
+  return mutation(eventId, projectId, draftRevision, '/sections/order', { sectionIds })
 }
 
-export function createWebsiteSection(eventId: string, projectId: string, type: 'blank') {
+export function createWebsiteSection(eventId: string, projectId: string, draftRevision: string, type: 'blank') {
   return ensureCsrfCookie().then(async () => {
-    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/sections`, { method: 'POST', body: { type } })
+    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/sections`, { method: 'POST', headers: { 'X-Website-Draft-Revision': draftRevision }, body: { type } })
     return normalizeWebsiteDraftFromApi(response.data)
   })
 }
 
-export function deleteWebsiteSection(eventId: string, projectId: string, sectionId: string) {
+export function deleteWebsiteSection(eventId: string, projectId: string, draftRevision: string, sectionId: string) {
   return ensureCsrfCookie().then(async () => {
-    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/sections/${encodeURIComponent(sectionId)}`, { method: 'DELETE' })
+    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/sections/${encodeURIComponent(sectionId)}`, { method: 'DELETE', headers: { 'X-Website-Draft-Revision': draftRevision } })
     return normalizeWebsiteDraftFromApi(response.data)
   })
 }
 
-export function duplicateWebsiteSection(eventId: string, projectId: string, sectionId: string) {
+export function duplicateWebsiteSection(eventId: string, projectId: string, draftRevision: string, sectionId: string) {
   return ensureCsrfCookie().then(async () => {
-    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/sections/${encodeURIComponent(sectionId)}/duplicate`, { method: 'POST' })
+    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/sections/${encodeURIComponent(sectionId)}/duplicate`, { method: 'POST', headers: { 'X-Website-Draft-Revision': draftRevision } })
     return normalizeWebsiteDraftFromApi(response.data)
   })
 }
 
-export function renameWebsiteSection(eventId: string, projectId: string, sectionId: string, editorName: string) {
-  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/editor-name`, { editorName })
+export function renameWebsiteSection(eventId: string, projectId: string, draftRevision: string, sectionId: string, editorName: string) {
+  return mutation(eventId, projectId, draftRevision, `/sections/${encodeURIComponent(sectionId)}/editor-name`, { editorName })
 }

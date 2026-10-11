@@ -5,7 +5,7 @@ import { createCustomSectionComposition, createCustomSectionPresentation, getSec
 const shared = { childFlow: { elements: [{ id: 'group', type: 'compositionGroup' as const, editorName: 'Group 1', children: [
   { id: 'media', type: 'media' as const, editorName: 'Media 1', items: [{ id: 'media-item', type: 'image' as const, mediaId: '01MEDIAASSET00000000000000', alt: 'Photo' }], appearance: { responsive: { mobile: { outerSpacing: { top: 'm' as const } } } } },
   { id: 'accordion', type: 'accordion' as const, editorName: 'Accordion 1', items: [{ id: 'accordion-item', title: 'A', content: 'B' }] },
-  { id: 'schedule', type: 'schedule' as const, editorName: 'Schedule 1', items: [{ id: 'schedule-item', time: '10:00', title: 'Ceremony' }] },
+  { id: 'schedule', type: 'schedule' as const, editorName: 'Schedule 1', days: [{ id: 'day-1', date: null, title: null, visible: true, activities: [{ id: 'schedule-item', startTime: '10:00', title: 'Ceremony' , endTime: null, location: null, mapUrl: null, imageMediaId: null, visible: true }] }] },
   { id: 'people', type: 'people' as const, editorName: 'People 1', groups: [{ id: 'people-group', name: 'Family', people: [{ id: 'person', name: 'Neil', media: { assetId: '01MEDIAASSET00000000000000' } }] }] },
 ] }], order: [{ kind: 'element' as const, id: 'group' }] } }
 

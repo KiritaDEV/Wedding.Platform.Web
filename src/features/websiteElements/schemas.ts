@@ -1,3 +1,5 @@
+import { scheduleLayoutAppearanceShape, normalizeScheduleAppearance } from './scheduleAppearance'
+import { scheduleContentSchema } from './scheduleContent'
 import { DIVIDER_WIDTHS } from "./divider";
 import { z } from "zod";
 import { backgroundMediaSchema } from "../websiteMedia/backgroundMedia";
@@ -128,24 +130,18 @@ export const accordionElementSchema = z.object({
   });
 });
 
-export const scheduleItemSchema = z.object({
-  id: elementIdSchema,
-  time: z.string().regex(/^(?:|(?:[01]\d|2[0-3]):[0-5]\d)$/, "Time must use HH:mm format."),
-  title: z.string().max(WEBSITE_ELEMENT_LIMITS.shortText),
-  details: z.string().refine((value) => Array.from(value).length <= WEBSITE_ELEMENT_LIMITS.text, `Details cannot exceed ${WEBSITE_ELEMENT_LIMITS.text} characters.`).transform(normalizeTextContent),
-}).strict();
-
 export const scheduleElementSchema = z.object({
   ...genericBlockShape,
   type: z.literal("schedule"),
-  items: z.array(scheduleItemSchema).max(WEBSITE_ELEMENT_LIMITS.scheduleItems),
-  appearance: z.object({ ...blockSpacingAppearanceShape, responsive: z.object({ tablet: blockSpacingResponsiveSchema.optional(), mobile: blockSpacingResponsiveSchema.optional() }).strict().optional() }).strict().optional(),
+  days: scheduleContentSchema.shape.days.optional(),
+  contentId: z.string().min(1).max(255).regex(/^\S+$/u).optional(),
+  appearance: z.object({ ...scheduleLayoutAppearanceShape, ...blockSpacingAppearanceShape, responsive: z.object({ tablet: blockSpacingResponsiveSchema.optional(), mobile: blockSpacingResponsiveSchema.optional() }).strict().optional() }).strict().transform(normalizeScheduleAppearance).optional(),
 }).strict().superRefine((element, context) => {
-  const seen = new Set<string>();
-  element.items.forEach((item, index) => {
-    if (seen.has(item.id)) context.addIssue({ code: "custom", path: ["items", index, "id"], message: "Schedule item IDs must be unique." });
-    seen.add(item.id);
-  });
+  if ((element.days !== undefined) === (element.contentId !== undefined)) context.addIssue({ code: "custom", message: "Schedule requires exactly one of local days or a contentId." });
+  if (element.days !== undefined) {
+    const result = scheduleContentSchema.safeParse({ days: element.days });
+    if (!result.success) result.error.issues.forEach((issue) => context.addIssue({ ...issue, code: 'custom' }));
+  }
 });
 
 const peopleMediaSchema = z.object({
