@@ -187,6 +187,7 @@ export function validateSectionContent(type: string, content: Record<string, unk
 }
 
 export const sectionAppearanceSchema = z.object({
+    rootVerticalDistribution: z.enum(['packed', 'space-between']).optional(),
     columns: z.number().int().min(1).max(6).optional(),
     gap: z.enum(['small', 'medium', 'large']).optional(),
     aspectRatio: z.enum(['square', 'portrait', 'landscape']).optional(),
@@ -311,6 +312,12 @@ const sectionSchema = z.object({
     }).strict()).min(1),
   }).strict().nullable(),
 }).strict().superRefine((section, context) => {
+  if (section.type !== 'hero') {
+    const owners = 'shared' in section.appearance ? [section.appearance.shared, ...Object.values(section.appearance.custom ?? {})] : [section.appearance]
+    owners.forEach((owner) => {
+      if ('rootVerticalDistribution' in owner) context.addIssue({ code: 'custom', path: ['appearance', 'rootVerticalDistribution'], message: 'Root vertical distribution is supported only by Hero Sections' })
+    })
+  }
   const appearanceSchema = section.type === 'rsvp'
     ? rsvpSectionAppearanceSchema
     : z.union([sectionAppearanceSchema, sectionAppearanceEnvelopeSchema])

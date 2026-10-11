@@ -82,6 +82,7 @@ export type WebsiteSectionResponsiveAppearance = {
   specialized?: { content?: { animation?: AuthoredAnimation } }
 }
 export type WebsiteSectionAppearance = {
+  rootVerticalDistribution?: import('../websiteRenderer/rootFlowDistribution').RootVerticalDistribution
   columns?: number
   gap?: 'small' | 'medium' | 'large'
   aspectRatio?: 'square' | 'portrait' | 'landscape'

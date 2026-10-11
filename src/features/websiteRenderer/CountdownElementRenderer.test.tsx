@@ -9,6 +9,21 @@ const element: CountdownElement = { id: "countdown", type: "countdown", editorNa
 const render = (candidate: CountdownElement, mode: "editor" | "public" = "editor", event: Record<string, string | null> = {}) => renderToStaticMarkup(<EventTimingProvider value={event}><CountdownElementRenderer element={candidate} mode={mode} viewport="desktop" templateKey="classic-filipiniana-v1" library={library} /></EventTimingProvider>);
 
 describe("CountdownElementRenderer", () => {
+  it("protects numbers locally and wraps horizontal units without changing vertical direction", () => {
+    const horizontal = render(element);
+    expect(horizontal).toContain('flex-wrap:wrap');
+    expect(horizontal).toContain('flex-shrink:0');
+    expect(horizontal).toContain('inline-size:max-content');
+    expect(horizontal.match(/white-space:nowrap/g)).toHaveLength(4);
+    expect(horizontal).toContain('overflow-wrap:normal;word-break:normal');
+    expect(horizontal).toContain('max-inline-size:100%;overflow-wrap:anywhere');
+    const vertical = render({ ...element, appearance: { direction: 'vertical' } });
+    expect(vertical).toContain('flex-direction:column');
+    expect(vertical).not.toContain('flex-wrap:wrap');
+    expect(vertical).not.toContain('flex-shrink:0');
+    expect(vertical).toContain('>08<');
+  });
+
   it("resolves independently selected project colors for Numbers and Labels", () => {
     const candidate: CountdownElement = { ...element, appearance: {
       numbers: { colorId: "project-color-numbers" },

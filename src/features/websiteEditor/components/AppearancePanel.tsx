@@ -69,6 +69,7 @@ import { ContentPositionControl } from "./ContentPositionControl";
 import { HERO_MINIMUM_HEIGHT_MAX, HERO_MINIMUM_HEIGHT_MIN, HERO_MINIMUM_HEIGHT_STEP, setHeroHeightMode, setHeroMinimumHeight } from "../heroMinimumHeight";
 import { AnimationAppearanceControls } from "./AnimationAppearanceControls";
 import type { AuthoredAnimation } from "../../websiteAnimation/contract";
+import { setRootVerticalDistribution } from "../../websiteRenderer/rootFlowDistribution";
 
 export function AppearancePanel({
   appearance,
@@ -456,6 +457,7 @@ function HeroSurfaceControls({
   targetViewport: ResponsiveViewport;
   onChange: (appearance: WebsiteSectionAppearance) => void;
 }) {
+  const distribution = appearance.rootVerticalDistribution ?? "packed";
   const heightMode = appearance.height ? "custom" : "automatic";
   const setHeightMode = (mode: "automatic" | "custom") => onChange(setHeroHeightMode(appearance, mode));
   const setHeightValue = (value: number) => onChange(setHeroMinimumHeight(appearance, value));
@@ -542,15 +544,21 @@ function HeroSurfaceControls({
         </div> : <p className="mt-2 text-xs text-foreground-muted">Height follows the Hero content.</p>}
       </fieldset>
       <fieldset>
+        <legend className="mb-2 text-sm xl:text-xs! font-semibold">Vertical distribution</legend>
+        <Select aria-label="Hero vertical distribution" value={distribution} options={[{ value: "packed", label: "Packed" }, { value: "space-between", label: "Space Between" }]} onChange={(value) => onChange(setRootVerticalDistribution(appearance, value as "packed" | "space-between"))} />
+        {distribution === "space-between" && <p className="mt-2 text-xs text-foreground-muted">Multiple visible blocks use the top and bottom of the available height. One visible block keeps its saved vertical position. Switch to Packed to change that position. Empty blocks remain editable in Structure.</p>}
+      </fieldset>
+      <fieldset>
         <div className="mb-2 flex items-center justify-between gap-2">
           <legend className="text-sm xl:text-xs! font-semibold">
-            Content position
+            {distribution === "space-between" ? "Horizontal alignment" : "Content position"}
           </legend>
-          {activePosition !== undefined && (
+          {activePosition !== undefined && distribution === "packed" && (
             <InspectorResetAction onClick={resetPosition} />
           )}
         </div>
         <ContentPositionControl
+          horizontalOnly={distribution === "space-between"}
           value={effectivePosition}
           onChange={setPosition}
         />
