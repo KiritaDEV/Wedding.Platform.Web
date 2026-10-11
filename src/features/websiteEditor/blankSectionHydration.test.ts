@@ -9,7 +9,7 @@ const blank = (id: string, editorName: string) => ({
   appearanceOptions: null, mediaCapability: null, itemMediaCapability: null, presentationCapability: null,
 })
 const draft = (sections: unknown[]) => ({
-  schemaVersion: 5, id: 'website', eventId: 'event', name: 'Website', templateKey: 'classic-filipiniana-v1',
+  draftRevision: '00000000000000000000000000', schemaVersion: 5, id: 'website', eventId: 'event', name: 'Website', templateKey: 'classic-filipiniana-v1',
   designSettings: { colorTheme: 'terracotta', fontSet: 'editorial', artStyle: 'minimal', projectDefaults: {}, customColors: [] },
   projectDesignDefaults: null, template: null, sections, media: {},
 })

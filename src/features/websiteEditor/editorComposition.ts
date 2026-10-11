@@ -1,3 +1,4 @@
+import { reconcileSharedContent, type SharedContentOwner } from './sharedContent'
 import type { ResponsiveViewport, SectionComposition, SectionCompositions, WebsiteSection } from './types'
 import { resolveSectionComposition } from './sectionComposition'
 
@@ -43,4 +44,9 @@ export function replaceScopedComposition(content: Record<string, unknown>, scope
 
 export function mergeScopedComposition(authoritativeContent: Record<string, unknown>, scope: SectionCompositionScope, workingComposition: SectionComposition): Record<string, unknown> {
   return replaceScopedComposition(authoritativeContent, scope, workingComposition)
+}
+
+export function replaceEditedScopedComposition(content: Record<string, unknown>, scope: SectionCompositionScope, composition: SectionComposition): Record<string, unknown> {
+  const next = replaceScopedComposition(content, scope, structuredClone(composition))
+  return reconcileSharedContent(content as SharedContentOwner, next as SharedContentOwner) as unknown as Record<string, unknown>
 }

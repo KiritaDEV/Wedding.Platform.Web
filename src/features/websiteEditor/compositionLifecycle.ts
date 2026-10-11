@@ -1,3 +1,4 @@
+import { pruneSharedContent } from './sharedContent'
 import type { ResponsiveViewport, SectionComposition, SectionCompositions, WebsiteSection, WebsiteSectionAppearanceEnvelope } from './types'
 import { canonicalizeSectionChildFlowText, regenerateSectionCompositionIdentities } from './sectionChildFlow'
 import { resolveSectionComposition } from './sectionComposition'
@@ -34,7 +35,7 @@ export function removeCustomSectionComposition(content: ComposableContent, targe
   const next = structuredClone(content)
   delete next.compositions.custom?.[targetViewport]
   if (next.compositions.custom && Object.keys(next.compositions.custom).length === 0) delete next.compositions.custom
-  return next
+  return pruneSharedContent(next)
 }
 
 export function removeCustomSectionPresentation(content: ComposableContent, appearance: WebsiteSectionAppearanceEnvelope, targetViewport: ResponsiveViewport) {

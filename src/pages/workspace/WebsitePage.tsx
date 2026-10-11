@@ -1,3 +1,7 @@
+import { ScheduleLayoutEditor } from '../../features/websiteEditor/components/ScheduleLayoutEditor';
+import { ScheduleAppearanceEditor } from '../../features/websiteEditor/components/ScheduleAppearanceEditor';
+import { useTrackedOverride } from '../../features/websiteEditor/useTrackedOverride';
+import { draftSaveError, retainUnsubmittedEdit, type WebsiteDraftChanges } from '../../features/websiteEditor/draftSave';
 import { ColorPreviewScopeContext } from "../../features/websiteEditor/colorPreview";
 import { specializedSectionIdFromTarget } from "../../features/websiteEditor/specializedCanvasSelection";
 import { isSurfaceOnlyParentSelection, resolveOwnedInspectorPanelMode } from "../../features/websiteEditor/sectionInspectorOwnership";
@@ -26,6 +30,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
+import { Button } from "../../components/ui/Button";
 import { Heading } from "../../components/ui/Heading";
 import { Select } from "../../components/ui/Select";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
@@ -33,14 +38,11 @@ import { Text } from "../../components/ui/Text";
 import { useEventWorkspace } from "../../features/events/workspace/EventWorkspaceContext";
 import {
   addWebsiteProjectColor,
+  saveWebsiteDraft,
   createWebsiteSection,
   deleteWebsiteSection,
   duplicateWebsiteSection,
-  reorderWebsiteSections,
   renameWebsiteSection,
-  setWebsiteSectionEnabled,
-  updateWebsiteDesignSettings,
-  updateWebsiteSectionAppearance,
   updateWebsiteSectionPresentation,
   updateWebsiteSectionContent,
   updateWebsiteSectionDesignDefaults,
@@ -58,6 +60,7 @@ import { GroupElementEditor } from "../../features/websiteEditor/components/Grou
 import { DividerElementEditor } from "../../features/websiteEditor/components/DividerElementEditor";
 import { DateElementEditor } from "../../features/websiteEditor/components/DateElementEditor";
 import { AccordionElementEditor } from "../../features/websiteEditor/components/AccordionElementEditor";
+import { resolveSchedule, updateSharedSchedule, optInSchedule, type SharedContentOwner } from '../../features/websiteEditor/sharedContent';
 import { ScheduleElementEditor } from "../../features/websiteEditor/components/ScheduleElementEditor";
 import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
 import { CountdownElementEditor } from "../../features/websiteEditor/components/CountdownElementEditor";
@@ -123,7 +126,7 @@ import {
 import {
   authoredPropertyViewport,
   mergeScopedComposition,
-  replaceScopedComposition,
+  replaceEditedScopedComposition as replaceScopedComposition,
   resolveEditorCompositionTarget,
   sameCompositionScope,
   type SectionCompositionScope,
@@ -221,9 +224,11 @@ function messageFor(error: unknown): string {
 }
 
 export function WebsitePage() {
+  const { projectId = "" } = useParams();
+  const event = useEventWorkspace();
   return (
     <ColorPreviewProvider>
-      <WebsitePageContent />
+      <WebsitePageContent key={`${event.id}:${projectId}`} />
     </ColorPreviewProvider>
   );
 }
@@ -260,13 +265,17 @@ function WebsitePageContent() {
     null,
   );
   const [listPending, setListPending] = useState(false);
+  const [atomicSaving, setAtomicSaving] = useState(false);
+  const saveInFlight = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [colorSaving, setColorSaving] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [renameSectionTarget, setRenameSectionTarget] =
     useState<WebsiteSection | null>(null);
   const [deleteSectionTarget, setDeleteSectionTarget] =
     useState<WebsiteSection | null>(null);
-  const [sectionStructureOverride, setSectionStructureOverride] =
-    useState<SectionStructureOverride | null>(null);
+  const [sectionStructureOverride, setSectionStructureOverride, structureRef] =
+    useTrackedOverride<SectionStructureOverride | null>(null);
   const deviceCategory = useEditorDeviceCategory();
   const [previewMode, setPreviewMode] =
     useState<ResponsiveViewport>(deviceCategory);
@@ -275,12 +284,12 @@ function WebsitePageContent() {
     [deviceCategory],
   );
 
-  const [contentOverride, setContentOverride] = useState<{
+  const [contentOverride, setContentOverride, contentRef] = useTrackedOverride<{
     sectionId: string;
     scope?: SectionCompositionScope;
     content: Record<string, unknown>;
   } | null>(null);
-  const [appearanceOverride, setAppearanceOverride] = useState<{
+  const [appearanceOverride, setAppearanceOverride, appearanceRef] = useTrackedOverride<{
     sectionId: string;
     appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope;
   } | null>(null);
@@ -303,8 +312,8 @@ function WebsitePageContent() {
   const canvasSelectionRequestId = useRef(0);
   const [canvasSelectionRequest, setCanvasSelectionRequest] =
     useState<CanvasSelectionRequest | null>(null);
-  const [designOverride, setDesignOverride] =
-    useState<WebsiteDesignSettings | null>(null);
+  const [designOverride, setDesignOverride, designRef] =
+    useTrackedOverride<WebsiteDesignSettings | null>(null);
   const [designError, setDesignError] = useState<string | null>(null);
   const [mediaOverrides, setMediaOverrides] = useState<WebsiteDraft["media"]>(
     {},
@@ -566,7 +575,7 @@ function WebsitePageContent() {
   }
 
   async function createBlankSection() {
-    if (globalDirty || !draft) {
+    if (saveInFlight.current || listPending || globalDirty || !draft) {
       setListError("Save or discard current changes before adding a Section.");
       return;
     }
@@ -574,7 +583,8 @@ function WebsitePageContent() {
     setListError(null);
     try {
       const existing = new Set(draft.sections.map(({ id }) => id));
-      const updated = await createWebsiteSection(event.id, projectId, "blank");
+      const updated = await createWebsiteSection(event.id, projectId,
+          draft!.draftRevision, "blank");
       const created = updated.sections.find(({ id }) => !existing.has(id));
       if (!created) throw new Error("The new Section could not be identified.");
       selectCanonicalSection(updated, created.id);
@@ -589,7 +599,7 @@ function WebsitePageContent() {
     section: WebsiteSection,
     requested: string,
   ): Promise<boolean> {
-    if (globalDirty) {
+    if (saveInFlight.current || listPending || globalDirty) {
       setListError(
         "Save or discard current changes before renaming a Section.",
       );
@@ -604,7 +614,8 @@ function WebsitePageContent() {
     setListError(null);
     try {
       selectCanonicalSection(
-        await renameWebsiteSection(event.id, projectId, section.id, editorName),
+        await renameWebsiteSection(event.id, projectId,
+          draft!.draftRevision, section.id, editorName),
         section.id,
       );
       return true;
@@ -617,7 +628,7 @@ function WebsitePageContent() {
   }
 
   async function duplicateBlankSection(section: WebsiteSection) {
-    if (globalDirty) {
+    if (saveInFlight.current || listPending || globalDirty) {
       setListError(
         "Save or discard current changes before duplicating a Section.",
       );
@@ -629,6 +640,7 @@ function WebsitePageContent() {
       const updated = await duplicateWebsiteSection(
         event.id,
         projectId,
+          draft!.draftRevision,
         section.id,
       );
       const sourceIndex = updated.sections.findIndex(
@@ -646,7 +658,7 @@ function WebsitePageContent() {
   }
 
   async function deleteBlankSection(section: WebsiteSection): Promise<boolean> {
-    if (globalDirty || !draft) {
+    if (saveInFlight.current || listPending || globalDirty || !draft) {
       setListError(
         "Save or discard current changes before deleting a Section.",
       );
@@ -659,6 +671,7 @@ function WebsitePageContent() {
       const updated = await deleteWebsiteSection(
         event.id,
         projectId,
+          draft!.draftRevision,
         section.id,
       );
       const next =
@@ -706,7 +719,7 @@ function WebsitePageContent() {
 
   async function customizeActiveComposition() {
     if (
-      sectionDirty ||
+      saveInFlight.current || listPending || sectionDirty ||
       !authoritativeSelected ||
       !activeCompositionTarget ||
       activeCompositionTarget.scope.kind !== "shared"
@@ -726,6 +739,7 @@ function WebsitePageContent() {
           await updateWebsiteSectionContent(
             event.id,
             projectId,
+          draft!.draftRevision,
             authoritativeSelected.id,
             createCustomSectionComposition(authoritativeSelected.content, previewMode),
           ),
@@ -751,6 +765,7 @@ function WebsitePageContent() {
         await updateWebsiteSectionPresentation(
           event.id,
           projectId,
+          draft!.draftRevision,
           authoritativeSelected.id,
           presentation.content,
           presentation.appearance,
@@ -768,7 +783,7 @@ function WebsitePageContent() {
 
   async function resetActiveComposition() {
     if (
-      sectionDirty ||
+      saveInFlight.current || listPending || sectionDirty ||
       !authoritativeSelected ||
       !activeCompositionTarget ||
       activeCompositionTarget.scope.kind !== "custom"
@@ -788,6 +803,7 @@ function WebsitePageContent() {
           await updateWebsiteSectionContent(
             event.id,
             projectId,
+          draft!.draftRevision,
             authoritativeSelected.id,
             removeCustomSectionComposition(authoritativeSelected.content, previewMode),
           ),
@@ -813,6 +829,7 @@ function WebsitePageContent() {
         await updateWebsiteSectionPresentation(
           event.id,
           projectId,
+          draft!.draftRevision,
           authoritativeSelected.id,
           presentation.content,
           presentation.appearance,
@@ -969,6 +986,7 @@ function WebsitePageContent() {
     sectionId: string,
     flow: SectionChildFlow,
   ): Promise<string | null> {
+    if (saveInFlight.current || listPending) return "Wait for the current save to finish.";
     const section = workingSections.find(({ id }) => id === sectionId);
     if (!section) return "Unable to find this section. Please try again.";
     const content = structuredClone(
@@ -1000,6 +1018,7 @@ function WebsitePageContent() {
       const updated = await updateWebsiteSectionContent(
         event.id,
         projectId,
+          draft!.draftRevision,
         sectionId,
         parsed.data as Record<string, unknown>,
       );
@@ -1097,134 +1116,66 @@ function WebsitePageContent() {
   ]);
 
   async function saveEditorChanges() {
-    if (!draft) return false;
-    let domain: "structure" | "content" | "appearance" | "design" = "structure";
-    let latestDraft = draft;
-    const desiredStructure = structureFor(workingSections);
+    if (!draft || saveInFlight.current || listPending || sectionDesignSaving || colorSaving) return false;
+    const submitted = { structure: sectionStructureOverride, content: contentOverride, appearance: appearanceOverride, design: designOverride };
+    const changes: WebsiteDraftChanges = {};
+    if (sectionOrderDirty) changes.sectionIds = workingSections.map(({ id }) => id);
+    const sectionChanges = new Map<string, NonNullable<WebsiteDraftChanges["sections"]>[number]>();
+    for (const section of workingSections) {
+      if (draft.sections.find(({ id }) => id === section.id)?.isEnabled !== section.isEnabled) {
+        sectionChanges.set(section.id, { id: section.id, isEnabled: section.isEnabled });
+      }
+    }
+    if (contentDirty && selected && workingContent) {
+      let content = workingContent;
+      if (contentOverride?.scope && activeCompositionTarget && authoritativeSelected) {
+        content = mergeScopedComposition(authoritativeSelected.content as Record<string, unknown>, contentOverride.scope, activeCompositionTarget.composition);
+        if ("semantic" in workingContent) content.semantic = workingContent.semantic;
+        if ("sharedContentDefinitions" in workingContent) content.sharedContentDefinitions = workingContent.sharedContentDefinitions;
+      }
+      const parsed = validateSectionContent(selected.type, content, draft.template?.key);
+      if (!parsed.success) {
+        const issue = parsed.error?.issues[0];
+        setContentError(issue ? issue.path.join(".") + ": " + issue.message : "Review this section before saving.");
+        setSaveStatus("Save failed. Local edits have been kept.");
+        return false;
+      }
+      sectionChanges.set(selected.id, { ...sectionChanges.get(selected.id), id: selected.id, content: parsed.data as Record<string, unknown> });
+    }
+    if (appearanceDirty && effectiveSelectedId && workingAppearance) {
+      const appearance = activeAppearanceTarget && authoritativeSelected && (authoritativeSelected.type === "hero" || authoritativeSelected.type === "gallery" || authoritativeSelected.type === "blank")
+        ? mergeScopedSectionAppearance(authoritativeSelected.appearance, activeAppearanceTarget.scope, pruneResponsiveAppearance(workingAppearance))
+        : pruneResponsiveAppearance(workingAppearance);
+      sectionChanges.set(effectiveSelectedId, { ...sectionChanges.get(effectiveSelectedId), id: effectiveSelectedId, appearance });
+    }
+    if (sectionChanges.size) changes.sections = [...sectionChanges.values()];
+    if (designDirty && designOverride) changes.designSettings = designOverride;
+    if (!Object.keys(changes).length) return true;
+    saveInFlight.current = true;
+    setAtomicSaving(true);
     setListPending(true);
+    setSaveStatus("Saving draft...");
     setListError(null);
     setContentError(null);
     setAppearanceError(null);
     setDesignError(null);
     try {
-      if (sectionOrderDirty) {
-        latestDraft = await reorderWebsiteSections(
-          event.id,
-          projectId,
-          desiredStructure.order,
-        );
-        setDraft(latestDraft);
-      }
-      for (const sectionId of desiredStructure.order) {
-        const persisted = latestDraft.sections.find(
-          ({ id }) => id === sectionId,
-        );
-        const desiredEnabled = desiredStructure.enabledById[sectionId];
-        if (!persisted || persisted.isEnabled === desiredEnabled) continue;
-        latestDraft = await setWebsiteSectionEnabled(
-          event.id,
-          projectId,
-          sectionId,
-          desiredEnabled,
-        );
-        setDraft(latestDraft);
-      }
-      setSectionStructureOverride(null);
-
-      if (contentDirty && selected && workingContent) {
-        domain = "content";
-        const freshestSection = latestDraft.sections.find(
-          ({ id }) => id === selected.id,
-        );
-        let saveContent = workingContent;
-        if (
-          freshestSection &&
-          contentOverride?.scope &&
-          activeCompositionTarget
-        ) {
-          saveContent = mergeScopedComposition(
-            freshestSection.content as Record<string, unknown>,
-            contentOverride.scope,
-            activeCompositionTarget.composition,
-          );
-          if ("semantic" in workingContent)
-            saveContent.semantic = workingContent.semantic;
-        }
-        const parsed = validateSectionContent(
-          selected.type,
-          saveContent,
-          draft?.template?.key,
-        );
-        if (!parsed.success) {
-          const issue = parsed.error?.issues[0];
-          const field = issue?.path.length ? issue.path.join(".") : "content";
-          setContentError(
-            issue
-              ? `${field}: ${issue.message}`
-              : "Review this section and enter valid content before saving.",
-          );
-          return false;
-        }
-        latestDraft = await updateWebsiteSectionContent(
-          event.id,
-          projectId,
-          selected.id,
-          parsed.data as Record<string, unknown>,
-        );
-        contentSaved(latestDraft);
-      }
-
-      if (appearanceDirty && effectiveSelectedId && workingAppearance) {
-        domain = "appearance";
-        const freshestSelected = latestDraft.sections.find(
-          (section) => section.id === effectiveSelectedId,
-        );
-        const appearance =
-          activeAppearanceTarget &&
-          freshestSelected &&
-          (freshestSelected.type === "hero" ||
-            freshestSelected.type === "gallery" ||
-            freshestSelected.type === "blank")
-            ? mergeScopedSectionAppearance(
-                freshestSelected.appearance,
-                activeAppearanceTarget.scope,
-                pruneResponsiveAppearance(workingAppearance),
-              )
-            : pruneResponsiveAppearance(workingAppearance);
-        latestDraft = await updateWebsiteSectionAppearance(
-          event.id,
-          projectId,
-          effectiveSelectedId,
-          appearance,
-        );
-        setDraft(latestDraft);
-        setAppearanceOverride(null);
-      }
-
-      if (designDirty && designOverride) {
-        domain = "design";
-        latestDraft = await updateWebsiteDesignSettings(
-          event.id,
-          projectId,
-          designOverride,
-        );
-        setDraft(latestDraft);
-        setDesignOverride(null);
-      }
-      return true;
+      const updated = await saveWebsiteDraft(event.id, projectId, draft.draftRevision, changes);
+      setDraft(updated);
+      const newerEdits = structureRef.current !== submitted.structure || contentRef.current !== submitted.content || appearanceRef.current !== submitted.appearance || designRef.current !== submitted.design;
+      setSectionStructureOverride(retainUnsubmittedEdit(structureRef.current, submitted.structure));
+      setContentOverride(retainUnsubmittedEdit(contentRef.current, submitted.content));
+      setAppearanceOverride(retainUnsubmittedEdit(appearanceRef.current, submitted.appearance));
+      setDesignOverride(retainUnsubmittedEdit(designRef.current, submitted.design));
+      setSaveStatus(newerEdits ? "Submitted changes saved. Newer edits are still unsaved." : "Draft saved.");
+      return !newerEdits;
     } catch (saveError) {
-      if (domain === "structure") setListError(messageFor(saveError));
-      else if (domain === "content") {
-        setContentError(
-          saveError instanceof ApiError
-            ? (saveError.validationErrors.content?.[0] ?? saveError.message)
-            : "Unable to save this section. Please try again.",
-        );
-      } else if (domain === "appearance") {
-        setAppearanceError(messageFor(saveError));
-      } else setDesignError(messageFor(saveError));
+      setListError(draftSaveError(saveError));
+      setSaveStatus(saveError instanceof ApiError && saveError.status === 409 ? "Stale draft: local edits kept." : "Save failed: local edits kept.");
       return false;
     } finally {
+      saveInFlight.current = false;
+      setAtomicSaving(false);
       setListPending(false);
     }
   }
@@ -1238,7 +1189,7 @@ function WebsitePageContent() {
   }
 
   async function saveSectionDesignDefaults(defaults: SectionDesignDefaults) {
-    if (!effectiveSelectedId) return;
+    if (!effectiveSelectedId || saveInFlight.current || listPending || sectionDesignSaving || colorSaving) return;
     setSectionDesignSaving(true);
     setSectionDesignError(null);
     try {
@@ -1246,6 +1197,7 @@ function WebsitePageContent() {
         await updateWebsiteSectionDesignDefaults(
           event.id,
           projectId,
+          draft!.draftRevision,
           effectiveSelectedId,
           defaults,
         ),
@@ -1258,12 +1210,14 @@ function WebsitePageContent() {
   }
 
   async function addProjectColor(value: string): Promise<ProjectColor> {
+    if (saveInFlight.current || listPending || sectionDesignSaving || colorSaving) throw new Error("Wait for the current save to finish.");
+    setColorSaving(true);
     try {
-      const updated = await addWebsiteProjectColor(event.id, projectId, value);
+      const updated = await addWebsiteProjectColor(event.id, projectId,
+          draft!.draftRevision, value);
       const customColors = updated.designSettings.customColors;
       setDraft({
-        ...draft!,
-        designSettings: { ...draft!.designSettings, customColors },
+        ...updated,
       });
       setDesignOverride((current) =>
         current ? { ...current, customColors } : null,
@@ -1280,6 +1234,8 @@ function WebsitePageContent() {
         );
       }
       throw addError;
+    } finally {
+      setColorSaving(false);
     }
   }
 
@@ -1604,11 +1560,12 @@ function WebsitePageContent() {
       <BuilderSaveBar
         dirty={globalDirty}
         resetDirty={globalDirty}
-        saving={listPending}
+        saving={listPending || sectionDesignSaving || colorSaving}
         onSave={() => void saveEditorChanges()}
         onReset={resetEditorChanges}
       />
 
+      {saveStatus && <p role="status" className="shrink-0 border-b border-border px-4 py-2 text-sm">{saveStatus}</p>}
       {listError && (
         <p
           className="shrink-0 border-b border-border bg-danger-muted px-4 py-2 text-sm text-danger"
@@ -1621,6 +1578,7 @@ function WebsitePageContent() {
         <EmptyEditor />
       ) : (
         <div
+          inert={(listPending && !atomicSaving) || sectionDesignSaving || colorSaving}
           className="flex h-0 min-h-0 flex-1 overflow-hidden xl:grid xl:grid-cols-[var(--desktop-editor-grid-columns)] xl:grid-rows-[minmax(0,1fr)]"
           style={desktopEditorGridStyle}
         >
@@ -2564,7 +2522,7 @@ function SectionInspector({
   const selectedAccordion =
     selectedElement?.type === "accordion" ? selectedElement : null;
   const selectedSchedule =
-    selectedElement?.type === "schedule" ? selectedElement : null;
+    selectedElement?.type === "schedule" ? resolveSchedule(selectedElement, (workingContent as SharedContentOwner).sharedContentDefinitions) : null;
   const selectedPeople =
     selectedElement?.type === "people" ? selectedElement : null;
   const selectedCountdown =
@@ -2829,12 +2787,19 @@ function SectionInspector({
       ) : selectedSchedule && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
           {blockAppearanceEditors}
+          <div className="space-y-3">
+          {!selectedSchedule.contentId && <Button type="button" variant="secondary" onClick={() => onContentChange(optInSchedule(workingContent as SharedContentOwner, selectedSchedule.id) as unknown as Record<string, unknown>)}>Share Schedule content across device placements</Button>}
+          <ScheduleLayoutEditor element={selectedSchedule} library={capabilities!.designLibrary} projectColors={projectColors} onAddColor={onAddColor} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />
+          <ColorPreviewScopeContext value={selected.id}>
+            <ScheduleAppearanceEditor element={selectedSchedule} viewport={authoringViewport} library={capabilities!.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />
+          </ColorPreviewScopeContext>
           <ScheduleElementEditor
             element={selectedSchedule}
-            onChange={(element) =>
-              changeSharedFlow(updateSectionElement(childFlow, element))
-            }
+            onChange={(element) => element.contentId
+              ? onContentChange(updateSharedSchedule(workingContent as SharedContentOwner, element.id, element.days) as unknown as Record<string, unknown>)
+              : changeSharedFlow(updateSectionElement(childFlow, element))}
           />
+          </div>
         </div>
       ) : selectedPeople && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">

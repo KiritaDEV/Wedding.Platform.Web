@@ -7,7 +7,7 @@ import {
   DialogHeader,
 } from "../../../components/ui/Dialog";
 import { Text } from "../../../components/ui/Text";
-import { mediaUsageDetail, mediaUsageKey, type MediaAsset } from "../types";
+import { mediaUsageDetail, mediaUsageKey, mediaUsageSourceLabel, mediaUsageRemovalHelp, type MediaAsset } from "../types";
 import type { MediaAssetUsage } from "../types";
 import { mediaDeleteConflictSchema } from "../schemas";
 
@@ -101,6 +101,7 @@ export function MediaDeleteDialog({
                             <span className="block text-xs text-foreground-muted">
                               {reference.sectionName}
                               {detail ? ` - ${detail}` : ""}
+                              {` · ${mediaUsageSourceLabel(reference)}`}
                             </span>
                           </li>
                         );
@@ -109,8 +110,7 @@ export function MediaDeleteDialog({
                   </div>
                 )}
                 <Text className="mt-4" variant="muted">
-                  Remove it from these Website Project sections first, then try
-                  again.
+                  {usage ? mediaUsageRemovalHelp(usage) : "Refresh the Media Library and try again."}
                 </Text>
               </>
             ) : failure ? (

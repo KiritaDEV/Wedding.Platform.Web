@@ -82,7 +82,7 @@ describe("canonical Website animation contract", () => {
       { id: "text", type: "text", editorName: "Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Copy" }] }] } },
       { id: "date", type: "date", editorName: "Date 1" },
       { id: "accordion", type: "accordion", editorName: "Accordion 1", items: [] },
-      { id: "schedule", type: "schedule", editorName: "Schedule 1", items: [] },
+      { id: "schedule", type: "schedule", editorName: "Schedule 1", days: [{ id: 'day-1', date: null, title: null, visible: true, activities: [] }] },
       { id: "people", type: "people", editorName: "People 1", groups: [] },
       { id: "media", type: "media", editorName: "Media 1", items: [] },
       { id: "divider", type: "divider", editorName: "Divider 1" },

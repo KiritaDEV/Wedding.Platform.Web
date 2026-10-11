@@ -25,8 +25,8 @@ export function MediaAssetViewer({ asset, onClose }: { asset: MediaAsset | null;
 function PreviewImage({ asset }: { asset: MediaAsset }) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading')
   return <div className="relative grid min-h-56 place-items-center bg-black/90 sm:min-h-80">
-    {status === 'loading' && <p className="absolute text-sm text-white/75">Loading preview…</p>}
-    {status === 'failed' ? (
+    {status === 'loading' && asset.variants.web && <p className="absolute text-sm text-white/75">Loading preview…</p>}
+    {status === 'failed' || !asset.variants.web ? (
       <div className="grid place-items-center gap-2 p-8 text-center text-white/75"><ImageOff aria-hidden="true" /><p className="text-sm">Unable to load this Media preview.</p></div>
     ) : (
       <img className={`max-h-[78dvh] max-w-full object-contain ${status === 'loading' ? 'invisible' : ''}`} src={asset.variants.web.url} alt="" onLoad={() => setStatus('ready')} onError={() => setStatus('failed')} />

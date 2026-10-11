@@ -8,6 +8,8 @@ import {
 import {
   mediaUsageDetail,
   mediaUsageKey,
+  mediaUsageSourceLabel,
+  mediaUsageSummary,
   type MediaAssetUsage,
 } from "../types";
 
@@ -27,7 +29,7 @@ export function MediaUsageIndicator({ usage }: { usage: MediaAssetUsage }) {
         onClick={() => setOpen(true)}
       >
         <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-foreground">
-          In use
+          {mediaUsageSummary(usage)}
         </span>
         <span>{summary}</span>
       </Button>
@@ -56,6 +58,7 @@ export function MediaUsageIndicator({ usage }: { usage: MediaAssetUsage }) {
                 <span className="mt-0.5 block text-xs text-foreground-muted">
                   {reference.sectionName}
                   {detail ? ` - ${detail}` : ""}
+                  {` · ${mediaUsageSourceLabel(reference)}`}
                 </span>
               </li>
             );

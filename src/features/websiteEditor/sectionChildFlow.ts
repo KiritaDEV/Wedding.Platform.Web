@@ -141,7 +141,7 @@ export function createAccordionElement(editorName: string): import("../websiteEl
 }
 
 export function createScheduleElement(editorName: string): import("../websiteElements/types").ScheduleElement {
-  return { id: createSemanticId("schedule"), type: "schedule", editorName, items: [] };
+  return { id: createSemanticId("schedule"), type: "schedule", editorName, days: [] };
 }
 
 export function createPeopleElement(editorName: string): import("../websiteElements/types").PeopleElement {
@@ -424,7 +424,7 @@ function regenerateElementIdentities(element: WebsiteElement, names: Record<Gene
   if (regenerateNames && isGenericBlock(element)) element.editorName = nextAutomaticName(element.type, names);
   if (element.type === "media") element.items.forEach((item) => { item.id = createSemanticId("media-item"); });
   if (element.type === "accordion") element.items.forEach((item) => { item.id = createSemanticId("accordion-item"); });
-  if (element.type === "schedule") element.items.forEach((item) => { item.id = createSemanticId("schedule-item"); });
+  if (element.type === "schedule") element.days?.forEach((day) => { day.id = createSemanticId("schedule-day"); day.activities.forEach((activity) => { activity.id = createSemanticId("schedule-activity"); }); });
   if (element.type === "people") element.groups.forEach((group) => {
     group.id = createSemanticId("people-group");
     group.people.forEach((person) => { person.id = createSemanticId("person"); });

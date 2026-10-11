@@ -1,0 +1,34 @@
+.schedule-layout { container-type: inline-size; container-name: schedule; width: 100%; min-width: 0; max-width: 100%; }
+.schedule-layout *, .schedule-layout *::before { box-sizing: border-box; }
+.schedule-day, .schedule-activity, .schedule-activity-body, .schedule-copy { min-width: 0; max-width: 100%; }
+.schedule-day-heading { margin: 1rem 0 .5rem; font-weight: 600; overflow-wrap: anywhere; }
+.schedule-day + .schedule-day { margin-top: var(--schedule-day-gap, 0); }
+.schedule-layout[style*="--schedule-day-gap"] .schedule-day-heading { margin-top: 0; }
+.schedule-activities { position: relative; list-style: none; margin: 0; padding: 0; }
+.schedule-activity { position: relative; padding-block: var(--schedule-row-spacing); }
+.schedule-activity-body { display: grid; grid-template-columns: minmax(0,1fr); gap: .5rem; }
+.schedule-time { font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.schedule-copy { overflow-wrap: anywhere; }
+.schedule-title { font-weight: 600; }
+.schedule-description { white-space: pre-line; opacity: .75; margin-top: .25rem; }
+.schedule-location { margin-top: .25rem; }
+.schedule-map { display: inline-block; margin-top: .25rem; text-decoration: underline; max-width: 100%; }
+.schedule-layout[data-schedule-layout="list"][data-schedule-separation="line"] .schedule-activity { border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent); }
+.schedule-layout[data-schedule-layout="timeline"] .schedule-activities::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 1rem; width: var(--schedule-line-width); background: var(--schedule-line-color); opacity: .4; transform: translateX(-50%); }
+.schedule-layout[data-schedule-layout="timeline"] .schedule-activity { display: grid; grid-template-columns: 2rem minmax(0,1fr); column-gap: .75rem; }
+.schedule-marker { position: relative; z-index: 1; justify-self: center; align-self: start; margin-top: .4rem; width: .65rem; height: .65rem; border-radius: 50%; background: var(--schedule-marker-color); }
+.schedule-layout[data-schedule-marker="number"] .schedule-marker { width: 1.75rem; height: 1.75rem; margin-top: 0; display: grid; place-items: center; background: transparent; color: var(--schedule-marker-color); border: 1px solid currentColor; font-size: .8rem; line-height: 1; }
+.schedule-layout[data-schedule-marker="minimal"] .schedule-marker { height: 2px; width: .7rem; border-radius: 0; margin-top: .65rem; }
+.schedule-layout[data-schedule-layout="cards"] .schedule-activities { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--schedule-card-gap); }
+.schedule-layout[data-schedule-layout="cards"] .schedule-activity { padding: min(var(--schedule-card-padding), 8cqi); background: var(--schedule-card-background); border: var(--schedule-card-border-width) solid var(--schedule-card-border); border-radius: var(--schedule-card-radius); text-align: var(--schedule-card-alignment); }
+.schedule-layout[data-schedule-layout="cards"][data-schedule-columns="grid"] .schedule-activities { grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+@container schedule (min-width: 28rem) {
+  .schedule-layout[data-schedule-layout="list"][data-schedule-time-position="left"] .schedule-activity-body { grid-template-columns: 7rem minmax(0,1fr); }
+}
+@container schedule (min-width: 40rem) {
+  .schedule-layout[data-schedule-layout="timeline"][data-schedule-arrangement="alternating"] .schedule-activities::before { inset-inline-start: 50%; }
+  .schedule-layout[data-schedule-layout="timeline"][data-schedule-arrangement="alternating"] .schedule-activity { grid-template-columns: minmax(0,1fr) 2rem minmax(0,1fr); }
+  .schedule-layout[data-schedule-layout="timeline"][data-schedule-arrangement="alternating"] .schedule-marker { grid-column: 2; grid-row: 1; }
+  .schedule-layout[data-schedule-layout="timeline"][data-schedule-arrangement="alternating"] .schedule-activity-body { grid-column: 1; grid-row: 1; }
+  .schedule-layout[data-schedule-layout="timeline"][data-schedule-arrangement="alternating"] .schedule-activity:nth-child(even) .schedule-activity-body { grid-column: 3; }
+}

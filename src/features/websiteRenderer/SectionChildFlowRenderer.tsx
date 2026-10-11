@@ -1,3 +1,4 @@
+import { resolveSharedElement, type SharedContentDefinition } from "../websiteEditor/sharedContent";
 import { isElementRenderable } from "./elementRenderability";
 import { useDecorativeSourceAvailability } from "./decorativeSourceAvailability";
 import type { CSSProperties, ReactNode } from "react";
@@ -16,7 +17,8 @@ import { resolveElementAnimation } from "../websiteAnimation/resolve";
 import { elementMotionOwnerId } from "../websiteAnimation/identity";
 import { useEventTiming } from "./EventTimingContext";
 
-export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, viewport, templateKey, library, projectColors, media = {}, eventDate = null, context, selectedElementId, onElementSelect, onElementEdit, semanticChildWidths = false, inlineAlignment }: {
+export function SectionChildFlowRenderer({ sectionId, flow, sharedContentDefinitions = [], specialized, mode, viewport, templateKey, library, projectColors, media = {}, eventDate = null, context, selectedElementId, onElementSelect, onElementEdit, semanticChildWidths = false, inlineAlignment }: {
+  sharedContentDefinitions?: readonly SharedContentDefinition[];
   sectionId: string;
   flow: SectionChildFlow; specialized: ReactNode; mode: "editor" | "public"; viewport: ResponsiveViewport;
   templateKey: string; library: TemplateDesignLibrary; projectColors: readonly ProjectColor[]; context?: ResolvedDesignContext | null;
@@ -29,7 +31,7 @@ export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, v
 }) {
   useDecorativeSourceAvailability();
   const eventTiming = useEventTiming();
-  const elements = new Map(flow.elements.map((element) => [element.id, element]));
+  const elements = new Map(flow.elements.map((element) => [element.id, resolveSharedElement(element, sharedContentDefinitions)]));
   return <SectionRootFlow inlineAlignment={inlineAlignment}>{flow.order.map((reference) => {
     if (reference.kind === "specialized") return specialized === null ? null : <div key="specialized:content" data-section-specialized-child data-editor-specialized-section-id={mode === "editor" ? sectionId : undefined}>{specialized}</div>;
     const element = elements.get(reference.id);

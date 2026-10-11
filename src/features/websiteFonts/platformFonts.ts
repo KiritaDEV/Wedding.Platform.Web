@@ -65,6 +65,9 @@ function collectRsvpRuntimeFontIds(appearance: RsvpContent["semantic"]["runtimeA
 }
 
 function collectElementFontIds(element: WebsiteElement, ids: Set<string>) {
+  if (element.type === "schedule") {
+    Object.values(element.appearance?.typography ?? {}).forEach((role) => { if (role?.fontFamilyId) ids.add(role.fontFamilyId); });
+  }
   if (element.type === "text" && element.appearance?.fontFamilyId) ids.add(element.appearance.fontFamilyId);
   if (element.type === "countdown") {
     if (element.appearance?.numbers?.fontFamilyId) ids.add(element.appearance.numbers.fontFamilyId);
