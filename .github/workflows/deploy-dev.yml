@@ -1,0 +1,48 @@
+﻿name: Deploy DEV Web
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: kirita-dev-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - kirita-dev-web
+
+    steps:
+      - name: Deploy DEV Web
+        shell: powershell
+        run: |
+          $git = "C:\Program Files\Git\cmd\git.exe"
+          $npm = "C:\Program Files\nodejs\npm.cmd"
+          $repo = "C:\Kirita\dev\web"
+
+          if (-not (Test-Path "$repo\.env.dev")) {
+            Write-Error "Missing $repo\.env.dev"
+            exit 1
+          }
+
+          & $git -C $repo fetch origin develop
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $git -C $repo reset --hard origin/develop
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Push-Location $repo
+
+          & $npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $npm run build -- --mode dev
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Pop-Location

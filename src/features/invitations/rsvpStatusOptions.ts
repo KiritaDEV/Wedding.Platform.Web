@@ -1,0 +1,1 @@
+export const invitationRsvpStatusOptions = [{ value: '', label: 'All RSVP statuses' }, { value: 'pending', label: 'Pending' }, { value: 'partial', label: 'Partial' }, { value: 'complete', label: 'Complete' }]

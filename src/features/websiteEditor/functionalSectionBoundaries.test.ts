@@ -1,0 +1,60 @@
+import { describe, expect, it } from 'vitest'
+import { galleryContentSchema, rsvpContentSchema } from './schemas'
+
+const mediaId = '01J00000000000000000000000'
+const flow = { elements: [], order: [{ kind: 'specialized' as const, key: 'content' as const }] }
+const gallery = (items: unknown[] = []) => ({ semantic: { items }, compositions: { shared: { childFlow: flow } } })
+
+describe('functional Section boundaries', () => {
+  it('accepts the canonical Gallery collection and composition envelope', () => {
+    const item = { id: 'one', type: 'image', mediaId, focalPoint: { x: .2, y: .8 }, zoom: 1.5 }
+    expect(galleryContentSchema.parse(gallery([item]))).toEqual(gallery([item]))
+    expect(galleryContentSchema.parse(gallery([{ id: 'incomplete', type: 'image', mediaId }]))).toBeTruthy()
+    expect(galleryContentSchema.parse(gallery([{ id: 'image', type: 'image', mediaId }]))).toBeTruthy()
+    expect(galleryContentSchema.parse(gallery(Array.from({ length: 24 }, (_, index) => ({ ...item, id: `item-${index}` }))))).toBeTruthy()
+  })
+
+  it('rejects duplicated, excessive, video, responsive, legacy, and duplicate-specialized Gallery state', () => {
+    const item = { id: 'one', type: 'image', mediaId }
+    for (const invalid of [
+      gallery([item, item]),
+      gallery(Array.from({ length: 25 }, (_, index) => ({ ...item, id: `item-${index}` }))),
+      gallery([{ id: 'video', type: 'video', url: 'https://example.com/video.mp4' }]),
+      gallery([{ ...item, alt: 'Legacy description' }]),
+      gallery([{ ...item, decorative: true }]),
+      { ...gallery(), semantic: { items: [], mobile: { items: [] } } },
+      { semantic: { heading: 'Gallery', items: [] }, compositions: { shared: { childFlow: flow } } },
+      { semantic: { items: [] }, compositions: { shared: { childFlow: { elements: [], order: [flow.order[0], flow.order[0]] } } } },
+    ]) expect(galleryContentSchema.safeParse(invalid).success).toBe(false)
+  })
+
+  it('requires one top-level RSVP runtime and only canonical Text, Divider, Media, and Group blocks', () => {
+    const text = { id: 'text', type: 'text', editorName: 'Text 1', document: { type: 'doc', children: [{ type: 'paragraph', children: [{ text: 'Kindly Respond' }] }] } }
+    const divider = { id: 'divider', type: 'divider', editorName: 'Divider 1' }
+    const media = { id: 'media', type: 'media', editorName: 'Media 1', items: [] }
+    const group = { id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [divider, media] }
+    const content = { semantic: {}, compositions: { shared: { childFlow: { elements: [text, group], order: [{ kind: 'element', id: 'text' }, flow.order[0], { kind: 'element', id: 'group' }] } } } }
+    expect(rsvpContentSchema.parse(content)).toEqual(content)
+    const styled = { ...content, semantic: { runtimeAppearance: {
+      status: { fontSize: '2xl', colorId: 'heading', responsive: { mobile: { fontSize: 'l', alignment: 'center' } } },
+      guestName: { fontWeight: 700 }, responseLabel: { textTransform: 'uppercase' }, supporting: { lineHeight: 'relaxed' },
+      choice: { layout: 'segmented', selected: { emphasis: 'bold', borderColorId: 'accent' }, responsive: { mobile: { direction: 'column', size: 'large' } } },
+      action: { variant: 'outline', radius: 'pill', width: 'full', typography: { fontFamilyId: 'inter' }, responsive: { mobile: { width: 'full', alignment: 'center' } } },
+    } } }
+    expect(rsvpContentSchema.parse(styled)).toEqual(styled)
+    for (const runtimeAppearance of [
+      { unknown: {} },
+      { status: { unknown: true } },
+      { choice: { layout: 'buttons' } },
+      { action: { width: 'overflow' } },
+      { previewState: 'completed' },
+      { guests: [{ name: 'Juan Dela Cruz' }] },
+    ]) expect(rsvpContentSchema.safeParse({ ...content, semantic: { runtimeAppearance } }).success).toBe(false)
+    expect(rsvpContentSchema.safeParse({ semantic: { heading: 'Legacy' }, compositions: content.compositions }).success).toBe(false)
+    expect(rsvpContentSchema.safeParse({ semantic: {}, compositions: { shared: { childFlow: { elements: [text], order: [{ kind: 'element', id: 'text' }] } } } }).success).toBe(false)
+    expect(rsvpContentSchema.safeParse({ semantic: {}, compositions: { shared: { childFlow: { elements: [text], order: [flow.order[0], flow.order[0], { kind: 'element', id: 'text' }] } } } }).success).toBe(false)
+    for (const type of ['date', 'accordion', 'schedule', 'people']) {
+      expect(rsvpContentSchema.safeParse({ semantic: {}, compositions: { shared: { childFlow: { elements: [{ id: type, type, editorName: `${type} 1` }], order: [{ kind: 'element', id: type }, flow.order[0]] } } } }).success).toBe(false)
+    }
+  })
+})

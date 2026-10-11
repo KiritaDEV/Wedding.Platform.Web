@@ -1,0 +1,5 @@
+{
+  "templateKey": "modern-editorial-v1",
+  "assets": [],
+  "metadataFields": ["id", "template", "semanticIntent", "kind", "repositoryPath", "behavior", "responsiveRelationship", "source.provider", "source.url", "source.author", "source.license", "source.licenseUrl", "intakeDate", "originalFilename", "repositoryFilename", "modifications", "scalable", "repeatable", "tintable", "sha256"]
+}
