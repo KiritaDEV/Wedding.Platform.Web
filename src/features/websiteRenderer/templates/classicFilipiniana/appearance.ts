@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { WebsiteDesignSettings, WebsiteSectionAppearance } from '../../../websiteEditor/types'
+import type { RsvpSectionAppearance, WebsiteDesignSettings, WebsiteSectionAppearance } from '../../../websiteEditor/types'
 import { resolveSectionCustomBackground } from '../../sectionSurface'
 import type { TemplateDesignLibrary } from '../../../websiteCapabilities/types'
 import type { ProjectColor } from '../../../websiteColors/projectColors'
@@ -23,23 +23,28 @@ const bodyAlignmentClasses = {
 export function resolveClassicFilipinianaSectionAppearance(
   sectionType: string,
   _design: WebsiteDesignSettings,
-  appearance: WebsiteSectionAppearance,
+  appearance: WebsiteSectionAppearance | RsvpSectionAppearance,
   library: TemplateDesignLibrary,
   projectColors: readonly ProjectColor[],
 ): ResolvedSectionAppearance {
   const defaultBodyAlignment = 'center'
-  const heading = appearance.headingAlignment === 'inherit' ? 'center' : appearance.headingAlignment
-  const body = appearance.bodyAlignment === 'inherit' ? defaultBodyAlignment : appearance.bodyAlignment
+  const headingAlignment = 'headingAlignment' in appearance ? appearance.headingAlignment : 'inherit'
+  const bodyAlignment = 'bodyAlignment' in appearance ? appearance.bodyAlignment : 'inherit'
+  const backgroundTreatment = 'backgroundTreatment' in appearance ? appearance.backgroundTreatment : 'inherit'
+  const sectionEmphasis = 'emphasis' in appearance ? appearance.emphasis : 'inherit'
+  const heading = headingAlignment === 'inherit' ? 'center' : headingAlignment
+  const body = bodyAlignment === 'inherit' ? defaultBodyAlignment : bodyAlignment
   const customBackground = resolveSectionCustomBackground(appearance, library, projectColors)
-  const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? classicBackgroundDefault(sectionType) : appearance.backgroundTreatment
-  const emphasis = appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
+  const background = backgroundTreatment === 'inherit' || backgroundTreatment === 'custom' ? classicBackgroundDefault(sectionType) : backgroundTreatment
+  const emphasis = sectionEmphasis === 'inherit' ? 'standard' : sectionEmphasis
 
   const backgroundResult = resolveBackground(background)
-  const emphasisClass = emphasis === 'featured'
+  const alignmentClass = sectionType === 'rsvp' ? '' : `${headingAlignmentClasses[heading]} ${bodyAlignmentClasses[body]}`
+  const emphasisClass = sectionType === 'rsvp' ? '' : emphasis === 'featured'
     ? 'border-b-2 [&_[data-section-specialized-content]]:py-24'
     : emphasis === 'subtle' ? 'opacity-[0.92] [&_[data-section-specialized-content]]:py-14' : ''
   return {
-    sectionClass: `${backgroundResult.className} ${headingAlignmentClasses[heading]} ${bodyAlignmentClasses[body]} ${emphasisClass}`,
+    sectionClass: `${backgroundResult.className} ${alignmentClass} ${emphasisClass}`,
     sectionStyle: customBackground ? { ...backgroundResult.style, ...customBackground } : backgroundResult.style,
   }
 }

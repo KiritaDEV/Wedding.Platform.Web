@@ -104,6 +104,15 @@ describe("SectionChildFlowRenderer canvas selection", () => {
     expect(publicMarkup).toContain("w-full");
   });
 
+  it("marks specialized content for editor canvas selection without publishing the editor identifier", () => {
+    const editor = renderToStaticMarkup(<SectionChildFlowRenderer {...props} mode="editor" />);
+    expect(editor).toContain('data-section-specialized-child="true"');
+    expect(editor).toContain('data-editor-specialized-section-id="date-section"');
+    const published = renderToStaticMarkup(<SectionChildFlowRenderer {...props} mode="public" />);
+    expect(published).toContain('data-section-specialized-child="true"');
+    expect(published).not.toContain("data-editor-specialized-section-id");
+  });
+
   it("shows friendly, editor-only selection badges for every element type", () => {
     const text = renderToStaticMarkup(<WebsiteElementFrame mode="editor" sectionId="date-section" elementId="text" elementType="text" selected={false}><span /></WebsiteElementFrame>);
     const divider = renderToStaticMarkup(<WebsiteElementFrame mode="editor" sectionId="date-section" elementId="divider" elementType="divider" selected={false}><span /></WebsiteElementFrame>);

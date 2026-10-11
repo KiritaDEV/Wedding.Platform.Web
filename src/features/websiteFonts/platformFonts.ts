@@ -1,6 +1,7 @@
-import type { WebsiteDraft } from "../websiteEditor/types";
+import type { RenderableWebsite } from "../websiteEditor/types";
 import { listSectionCompositions } from "../websiteEditor/sectionComposition";
 import type { WebsiteElement } from "../websiteElements/types";
+import type { RsvpContent } from "../websiteEditor/types";
 
 export type FontCategory = "serif" | "sans" | "script" | "display" | "mono" | "legacy";
 export type FontRole = "heading" | "body" | "accent";
@@ -39,7 +40,7 @@ export const platformFonts: PlatformFontDefinition[] = [
 export const platformFont = (id: string) => platformFonts.find((font) => font.id === id);
 export const platformFontStack = (id: string) => { const font = platformFont(id); if (!font) return undefined; return font.source.type === "googleFonts" ? `"${font.family}", ${font.fallback}` : font.fallback; };
 
-export function collectRequiredFontIds(website: WebsiteDraft): string[] {
+export function collectRequiredFontIds(website: RenderableWebsite): string[] {
   const ids = new Set<string>();
   const preset = website.template?.capabilities.designLibrary.typographyPresets.find(({ id }) => id === website.designSettings.fontSet);
   if (preset) { ids.add(preset.headingFontId); ids.add(preset.bodyFontId); }
@@ -50,13 +51,28 @@ export function collectRequiredFontIds(website: WebsiteDraft): string[] {
     if (section.resolvedDesignContext) { ids.add(section.resolvedDesignContext.headingFontId); ids.add(section.resolvedDesignContext.bodyFontId); }
     if (section.designDefaults.headingFontId) ids.add(section.designDefaults.headingFontId);
     if (section.designDefaults.bodyFontId) ids.add(section.designDefaults.bodyFontId);
+    if (section.type === "rsvp") collectRsvpRuntimeFontIds((section.content as RsvpContent).semantic.runtimeAppearance, ids);
     listSectionCompositions(section).forEach(({ composition }) => composition.childFlow.elements.forEach((element) => collectElementFontIds(element, ids)));
   }
   return [...ids];
 }
 
+function collectRsvpRuntimeFontIds(appearance: RsvpContent["semantic"]["runtimeAppearance"], ids: Set<string>) {
+  if (!appearance) return;
+  for (const role of [appearance.status, appearance.guestName, appearance.responseLabel, appearance.supporting, appearance.action?.typography]) {
+    if (role?.fontFamilyId) ids.add(role.fontFamilyId);
+  }
+}
+
 function collectElementFontIds(element: WebsiteElement, ids: Set<string>) {
+  if (element.type === "schedule") {
+    Object.values(element.appearance?.typography ?? {}).forEach((role) => { if (role?.fontFamilyId) ids.add(role.fontFamilyId); });
+  }
   if (element.type === "text" && element.appearance?.fontFamilyId) ids.add(element.appearance.fontFamilyId);
+  if (element.type === "countdown") {
+    if (element.appearance?.numbers?.fontFamilyId) ids.add(element.appearance.numbers.fontFamilyId);
+    if (element.appearance?.labels?.fontFamilyId) ids.add(element.appearance.labels.fontFamilyId);
+  }
   if (element.type !== "compositionGroup") return;
   element.children.forEach((child) => collectElementFontIds(child as WebsiteElement, ids));
 }

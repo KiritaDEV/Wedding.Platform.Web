@@ -2,19 +2,20 @@ import type { ContextDefaultsIntent, ResolvedDesignContext, TemplateCapabilities
 import type { ProjectColor } from '../websiteColors/projectColors'
 import type { SectionChildFlow } from './sectionChildFlow'
 import type { BackgroundMedia } from '../websiteMedia/backgroundMedia'
+import type { AuthoredAnimation, GalleryItemAnimation } from '../websiteAnimation/contract'
 
 export type SectionDesignDefaults = ContextDefaultsIntent
 
 export type SectionMedia = BackgroundMedia
 export type SectionComposition = { childFlow: SectionChildFlow }
 export type SectionCompositions = { shared: SectionComposition; custom?: Partial<Record<ResponsiveViewport, SectionComposition>> }
-export type HeroContent = { semantic: Record<string, never>; compositions: SectionCompositions }
+export type HeroContent = { semantic: Record<string, never>; compositions: SectionCompositions; sharedContentDefinitions?: import('./sharedContent').SharedContentDefinition[] }
 export type PeoplePerson = { id: string; name: string; role?: string | null; media?: SectionMedia }
 export type PeopleGroup = { id: string; name: string; people: PeoplePerson[] }
 export type GalleryItem = { id: string; type: 'image'; mediaId: string; focalPoint?: { x: number; y: number }; zoom?: number }
 export type GalleryContent = { semantic: { items: GalleryItem[] }; compositions: SectionCompositions }
-export type RsvpContent = { semantic: { heading: string; description: string; buttonLabel: string } }
-export type BlankContent = { semantic: Record<string, never>; compositions: SectionCompositions }
+export type RsvpContent = { semantic: { runtimeAppearance?: import('../websitePresentation/rsvpThemePresentation').RsvpRuntimeAppearance }; compositions: SectionCompositions }
+export type BlankContent = { semantic: Record<string, never>; compositions: SectionCompositions; sharedContentDefinitions?: import('./sharedContent').SharedContentDefinition[] }
 
 type SectionBase<TType extends string, TContent> = {
   id: string
@@ -52,6 +53,13 @@ export type SectionDecorativeAppearance = {
     colorId?: string
   }
 }
+export type RsvpSectionAppearance = {
+  decorativeAppearance?: SectionDecorativeAppearance
+  innerSpacing?: import('../websiteElements/group').InnerSpacing
+  animation?: AuthoredAnimation
+  specialized?: { content?: { animation?: AuthoredAnimation } }
+  responsive?: Partial<Record<'tablet' | 'mobile', Pick<WebsiteSectionResponsiveAppearance, 'animation' | 'specialized'>>>
+}
 export type SectionEmphasis = 'inherit' | 'standard' | 'featured' | 'subtle'
 export type MediaSpacingValue = 'none' | 'small' | 'medium' | 'large'
 export type MediaSpacing = { top: MediaSpacingValue; right: MediaSpacingValue; bottom: MediaSpacingValue; left: MediaSpacingValue }
@@ -70,11 +78,17 @@ export type WebsiteSectionResponsiveAppearance = {
   headingAlignment?: string
   bodyAlignment?: string
   mediaSpacing?: { top: string; right: string; bottom: string; left: string }
+  animation?: AuthoredAnimation
+  specialized?: { content?: { animation?: AuthoredAnimation } }
 }
 export type WebsiteSectionAppearance = {
+  rootVerticalDistribution?: import('../websiteRenderer/rootFlowDistribution').RootVerticalDistribution
   columns?: number
   gap?: 'small' | 'medium' | 'large'
   aspectRatio?: 'square' | 'portrait' | 'landscape'
+  radius?: 'square' | 'soft' | 'rounded' | 'pill'
+  shadow?: 'none' | 'soft' | 'medium' | 'strong'
+  galleryContentInnerSpacing?: import('../websiteElements/group').InnerSpacing
   backgroundMedia?: SectionMedia
   contentPosition?: import('../websiteRenderer/heroContentPosition').HeroContentPosition
   innerSpacing?: import('../websiteElements/group').InnerSpacing
@@ -95,6 +109,9 @@ export type WebsiteSectionAppearance = {
   responsive?: Partial<Record<'tablet' | 'mobile', WebsiteSectionResponsiveAppearance>>
   backgroundImageOpacity?: number
   height?: HeroMinimumHeight
+  animation?: AuthoredAnimation
+  galleryItemAnimation?: GalleryItemAnimation
+  specialized?: { content?: { animation?: AuthoredAnimation } }
 }
 export type WebsiteSectionAppearanceEnvelope = {
   shared: WebsiteSectionAppearance
@@ -161,6 +178,8 @@ export type WebsiteDesignSettings = {
   projectDefaults: ProjectDesignDefaultOverrides
   customColors: ProjectColor[]
 }
+
+export type RenderableWebsite = Omit<WebsiteDraft, 'eventId' | 'name' | 'draftRevision'>
 export type ProjectDesignDefaults = {
   headingFontId: string
   bodyFontId: string
@@ -177,6 +196,7 @@ export type WebsiteDesignOptions = {
 export type WebsiteTemplateSummary = { key: string; displayName: string; designOptions: WebsiteDesignOptions; capabilities: TemplateCapabilities }
 
 export type WebsiteDraft = {
+  draftRevision: string
   schemaVersion: 5
   id: string
   eventId: string

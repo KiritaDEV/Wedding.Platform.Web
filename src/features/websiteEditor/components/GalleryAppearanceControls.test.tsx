@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Select } from "../../../components/ui/Select";
 import { GalleryAppearanceControls } from "./GalleryAppearanceControls";
 import { InspectorResetAction } from "./InspectorPrimitives";
+import { FourSidedSpacingControl } from "./FourSidedSpacingControl";
 import { AppearancePanel } from "./AppearancePanel";
 import { createCustomSectionPresentation, removeCustomSectionPresentation } from "../compositionLifecycle";
 import { mergeScopedSectionAppearance, resolveSectionAppearance } from "../sectionAppearance";
@@ -49,7 +50,7 @@ describe("Gallery layout authoring", () => {
   it.each([["mobile", "1"], ["tablet", "2"], ["desktop", "3"]] as const)("shows %s defaults without materializing authored properties", (viewport, expected) => {
     const onChange = vi.fn();
     const controls = selects(base, viewport, onChange);
-    expect(controls.map(control => control.props.value)).toEqual([expected, "medium", "portrait"]);
+    expect(controls.map(control => control.props.value)).toEqual([expected, "medium", "portrait", "square", "none"]);
     expect(onChange).not.toHaveBeenCalled();
     expect(base).not.toHaveProperty("columns");
   });
@@ -66,11 +67,11 @@ describe("Gallery layout authoring", () => {
     const onChange = vi.fn();selects(base, "tablet", onChange)[2].props.onChange(aspectRatio);
     expect(onChange).toHaveBeenCalledWith({ ...base, aspectRatio });
   });
-  it.each(["columns", "gap", "aspectRatio"] as const)("removes only %s on per-control reset", key => {
-    const authored: WebsiteSectionAppearance = { ...base, columns: 3, gap: "medium", aspectRatio: "portrait", decorativeAppearance: { background: { texture: "grain" } } };
+  it.each(["columns", "gap", "aspectRatio", "radius", "shadow"] as const)("removes only %s on per-control reset", key => {
+    const authored: WebsiteSectionAppearance = { ...base, columns: 3, gap: "medium", aspectRatio: "portrait", radius: "rounded", shadow: "medium", decorativeAppearance: { background: { texture: "grain" } } };
     const onChange = vi.fn();
     const actions = nodes(GalleryAppearanceControls({ appearance: authored, viewport: "mobile", onChange })).filter(node => node.type === InspectorResetAction) as ReactElement<ComponentProps<typeof InspectorResetAction>>[];
-    actions[["columns", "gap", "aspectRatio"].indexOf(key)].props.onClick();
+    actions[["columns", "gap", "aspectRatio", "radius", "shadow"].indexOf(key)].props.onClick();
     const expected = { ...authored };delete expected[key];expect(onChange).toHaveBeenCalledWith(expected);
   });
   it("uses complete exact-device owners with no shared-property or device cascade", () => {
@@ -89,9 +90,23 @@ describe("Gallery layout authoring", () => {
     const reset = removeCustomSectionPresentation(saved.content, saved.appearance, viewport);
     expect(reset.appearance).toEqual({ shared: base });expect(reset.content).toEqual(content);
   });
-  it("keeps the Gallery group separate from generic surface controls and available when empty", () => {
+  it("keeps grid controls out of the parent Gallery surface inspector", () => {
     const html = renderToStaticMarkup(<AppearancePanel appearance={base} targetViewport="mobile" templateKey="classic-filipiniana-v1" sectionCapability={{ id: "gallery", appearanceControls: [], presentations: [], defaultPresentation: null, contextDefaults: { typography: [], colors: [] }, decorativeAppearance: { textures: [], patterns: [], overlays: [], frames: [], backgroundColorIds: [], frameColorIds: [] } } as never} library={{ colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } as never} projectColors={[]} error={null} onAddColor={async () => { throw Error(); }} onChange={() => {}} />);
-    for (const label of ["Gallery", 'aria-label="Columns"', 'aria-label="Gap"', 'aria-label="Aspect ratio"']) expect(html).toContain(label);
+    for (const label of ['aria-label="Columns"', 'aria-label="Gap"', 'aria-label="Aspect ratio"']) expect(html).not.toContain(label);
+    for (const sectionControl of ["Inner spacing", "Section background color"]) expect(html).toContain(sectionControl);
     expect(html).not.toContain("Restore mobile defaults");expect(html).not.toContain("Natural");expect(html).not.toContain("Contain");
+  });
+  it("authors sparse Gallery content inner spacing independently of the parent Section", () => {
+    const onChange = vi.fn();
+    const control = nodes(GalleryAppearanceControls({ appearance: { ...base, innerSpacing: { left: "xl" } }, viewport: "desktop", onChange })).find(node => node.type === FourSidedSpacingControl) as ReactElement<ComponentProps<typeof FourSidedSpacingControl>>;
+    control.props.onChange({ top: "s", right: "m", bottom: "none", left: "l" });
+    expect(onChange).toHaveBeenCalledWith({ ...base, innerSpacing: { left: "xl" }, galleryContentInnerSpacing: { top: "s", right: "m", left: "l" } });
+  });
+
+  it("shows only Gallery content layout and surface controls", () => {
+    const html = renderToStaticMarkup(<GalleryAppearanceControls appearance={base} viewport="mobile" onChange={() => {}} />);
+    for (const label of ['aria-label="Columns"', 'aria-label="Gap"', 'aria-label="Aspect ratio"', 'aria-label="Radius"', 'aria-label="Shadow"']) expect(html).toContain(label);
+    expect(html).toContain("Inner spacing");
+    for (const parentControl of ["Section background color", "Texture", "Pattern", "Overlay", "Frame"]) expect(html).not.toContain(parentControl);
   });
 });

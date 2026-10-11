@@ -105,7 +105,7 @@ export function GalleryCollectionEditor({ sectionId, eventId, items, resolvedMed
     setAnnouncement(message);
     return true;
   };
-  const resolve = (asset: MediaAsset) => onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web });
+  const resolve = (asset: MediaAsset) => { if (asset.variants.web) onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web }); };
   const appendAssets = (assets: MediaAsset[], pickerSession: number) => {
     if (session.current !== pickerSession || assets.length === 0) return;
     const available = Math.max(0, 24 - items.length);

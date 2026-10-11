@@ -8,6 +8,7 @@ import { DateElementRenderer } from "./DateElementRenderer";
 import { AccordionElementRenderer } from "./AccordionElementRenderer";
 import { ScheduleElementRenderer } from "./ScheduleElementRenderer";
 import { PeopleElementRenderer } from "./PeopleElementRenderer";
+import { CountdownElementRenderer } from "./CountdownElementRenderer";
 
 type Props = Omit<TextElementRendererProps, "element" | "editor" | "previewColor" | "previewTextShadowColor" | "previewGlowColor"> & { element: WebsiteLeafElement; mode?: "editor" | "public"; sectionId?: string; selected?: boolean; media?: import("../websiteEditor/types").WebsiteDraft["media"]; eventDate?: string | null };
 
@@ -24,8 +25,9 @@ export function WebsiteLeafElementRenderer({ element, mode = "public", sectionId
   else if (element.type === "media") content = <MediaElementRenderer element={element} mode={mode} viewport={context.viewport} media={media} />;
   else if (element.type === "date") content = <DateElementRenderer previewColor={previewColor} previewTextShadowColor={previewTextShadowColor} previewGlowColor={previewGlowColor} element={element} eventDate={eventDate} mode={mode} {...context} />;
   else if (element.type === "accordion") content = <AccordionElementRenderer element={element} mode={mode} />;
-  else if (element.type === "schedule") content = <ScheduleElementRenderer element={element} mode={mode} templateKey={context.templateKey} />;
+  else if (element.type === "schedule") content = <ScheduleElementRenderer element={element} mode={mode} sectionId={sectionId} viewport={context.viewport} templateKey={context.templateKey} library={context.library} projectColors={context.projectColors} context={context.context} />;
   else if (element.type === "people") content = <PeopleElementRenderer element={element} mode={mode} templateKey={context.templateKey} media={media} />;
+  else if (element.type === "countdown") content = <CountdownElementRenderer sectionId={sectionId} element={element} mode={mode} {...context} />;
   else return mode === "editor" ? <div data-unsupported-website-element role="status">Unsupported element: {element.type}</div> : null;
   return content;
 }

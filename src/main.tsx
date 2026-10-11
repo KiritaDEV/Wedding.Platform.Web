@@ -6,12 +6,13 @@ import { router } from './app/router'
 import { AuthProvider } from './features/auth/AuthProvider'
 import { ThemeProvider } from './app/theme/ThemeProvider'
 
+const application = <RouterProvider router={router} />
+const publicEventSite = /^\/e\/[^/]+\/?$/.test(window.location.pathname)
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      {publicEventSite ? application : <AuthProvider>{application}</AuthProvider>}
     </ThemeProvider>
   </StrictMode>,
 )

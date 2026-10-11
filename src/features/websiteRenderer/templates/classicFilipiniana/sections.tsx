@@ -1,7 +1,9 @@
-import type { RsvpContent } from "../../../websiteEditor/types";
-import { EditableText } from "../../../websiteEditor/inline/EditableText";
 import { ClassicFoundationOrnament } from "./decorations";
 import { SectionContentInset } from "../../SectionContentInset";
+import { PrivateRsvpRuntime } from "../../PrivateRsvpRuntime";
+import type { RsvpPresentationEnvironment } from "../../rsvpPresentationResolution";
+import { RsvpEditorPreview } from "../../RsvpEditorPreviewRenderer";
+import type { RsvpEditorPreviewState } from "../../rsvpEditorPreview";
 
 export function ClassicFilipinianaGallery({
   collection,
@@ -14,6 +16,7 @@ export function ClassicFilipinianaGallery({
       heading={null}
       headingParticipates={false}
       foundationOrnamentParticipates={false}
+      fullWidth
     >
       {collection}
     </ContentSection>
@@ -21,53 +24,16 @@ export function ClassicFilipinianaGallery({
 }
 
 export function ClassicFilipinianaRsvp({
-  sectionId,
-  content,
+  presentationEnvironment,
+  editorPreviewState,
+  privateRuntime,
 }: {
-  sectionId: string;
-  content: RsvpContent["semantic"];
+  presentationEnvironment?: RsvpPresentationEnvironment;
+  editorPreviewState?: RsvpEditorPreviewState;
+  privateRuntime: boolean;
 }) {
-  return (
-    <ContentSection
-      eyebrow="Celebrate with us"
-      specializedClassName="min-w-0 max-w-full [overflow-wrap:anywhere]"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "heading"]}
-          value={content.heading}
-          fallback="Kindly Respond"
-          placeholder="Add heading"
-          label="RSVP heading"
-        />
-      }
-    >
-      <p className="mx-auto w-full max-w-lg whitespace-pre-line [overflow-wrap:anywhere]">
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "description"]}
-          value={content.description}
-          fallback="We would be honored to celebrate this day with you."
-          placeholder="Add description"
-          label="RSVP description"
-          multiline
-        />
-      </p>
-      <div
-        data-rsvp-button
-        className="mx-auto mt-9 w-full max-w-xs whitespace-normal border border-[var(--cf-theme-accent)] bg-[var(--cf-theme-accent)] px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.2em] text-white [overflow-wrap:anywhere]"
-      >
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "buttonLabel"]}
-          value={content.buttonLabel}
-          fallback="RSVP"
-          placeholder="Add button label"
-          label="RSVP button label"
-        />
-      </div>
-    </ContentSection>
-  );
+  if (editorPreviewState) return <RsvpEditorPreview key={editorPreviewState} state={editorPreviewState} environment={presentationEnvironment ?? {}} />;
+  return privateRuntime ? <PrivateRsvpRuntime presentationEnvironment={presentationEnvironment}>{null}</PrivateRsvpRuntime> : null;
 }
 
 function ContentSection({
@@ -80,6 +46,7 @@ function ContentSection({
   bodyParticipates = true,
   renderFlow,
   specializedClassName = "",
+  fullWidth = false,
 }: {
   eyebrow?: React.ReactNode;
   heading: React.ReactNode;
@@ -90,6 +57,7 @@ function ContentSection({
   bodyParticipates?: boolean;
   renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
   specializedClassName?: string;
+  fullWidth?: boolean;
 }) {
   const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
@@ -100,7 +68,7 @@ function ContentSection({
         const specialized = (
           <div
             data-section-specialized-content
-            className={`relative mx-auto max-w-5xl overflow-hidden text-center ${specializedClassName}`}
+            className={`relative overflow-hidden text-center ${fullWidth ? "w-full max-w-none" : "mx-auto max-w-5xl"} ${specializedClassName}`}
           >
             {foundationOrnamentParticipates && (
               <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />

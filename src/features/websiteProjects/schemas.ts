@@ -33,6 +33,7 @@ export const websiteProjectSummarySchema = z.object({
   name: nonEmpty.max(100),
   templateKey: nonEmpty,
   designSettings: designSettingsSchema,
+  isPublished: z.boolean(),
 }).strict()
 
 export function parseWebsiteProjectList(value: unknown): WebsiteProjectSummary[] {

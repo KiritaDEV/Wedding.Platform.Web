@@ -74,7 +74,7 @@ describe("Hero sibling width browser layout", () => {
         };
         const results=[...document.querySelectorAll('.case')].map(host=>{
           const before=measure(host);
-          host.querySelector('[data-website-element="date"]').textContent='Saturday, September 25, 2027 — a deliberately much wider date';
+          host.querySelector('[data-website-element="date"]').textContent='Saturday, September 25, 2027 - a deliberately much wider date';
           const afterDate=measure(host);
           host.querySelector('[data-website-element="text"] p').textContent='A deliberately much wider Text block whose intrinsic size must remain independent';
           const afterText=measure(host);

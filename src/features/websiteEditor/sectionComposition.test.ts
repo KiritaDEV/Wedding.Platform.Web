@@ -62,10 +62,10 @@ describe('Section composition persistence', () => {
     expect(resolveSectionComposition({ type: 'gallery', content: { semantic: { items: [] }, compositions: { shared: galleryComposition() } } } as unknown as WebsiteSection, 'mobile').source).toBe('shared')
   })
 
-  it('centrally distinguishes composition Sections from semantic-only functional Sections', () => {
+  it('centrally recognizes every composition Section', () => {
     expect(supportsSectionCompositions({ type: 'hero' })).toBe(true)
     expect(supportsSectionCompositions({ type: 'blank' })).toBe(true)
     expect(supportsSectionCompositions({ type: 'gallery' })).toBe(true)
-    expect(supportsSectionCompositions({ type: 'rsvp' })).toBe(false)
+    expect(supportsSectionCompositions({ type: 'rsvp' })).toBe(true)
   })
 })

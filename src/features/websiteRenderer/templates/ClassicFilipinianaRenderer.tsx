@@ -2,7 +2,6 @@ import type {
   GalleryContent,
   ResolvedWebsiteMedia,
   ResponsiveViewport,
-  RsvpContent,
   WebsiteSection,
   WebsiteSectionAppearance,
 } from "../../websiteEditor/types";
@@ -13,18 +12,21 @@ import {
 } from "./classicFilipiniana/sections";
 import { resolveClassicFilipinianaSectionAppearance } from "./classicFilipiniana/appearance";
 import { resolveClassicFilipinianaDesign } from "./classicFilipiniana/design";
-import {
-  ClassicSectionDivider,
-} from "./classicFilipiniana/decorations";
 import { resolveSectionDesignTokens } from "../../websiteTemplates/design/catalogs";
 import { SectionSurfaceDecoration } from "../SectionSurfaceDecoration";
 import { BlankSectionRenderer } from "../BlankSectionRenderer";
 import { isBlankSectionRenderable, isGallerySectionRenderable, isHeroSectionRenderable } from "../blankSectionRenderability";
 import { HeroSectionRenderer } from "../HeroSectionRenderer";
 import { resolveSectionComposition } from "../../websiteEditor/sectionComposition";
-import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
 import { GalleryCollectionRenderer } from "../GalleryCollectionRenderer";
+import { GallerySpecializedContent } from "../GallerySpecializedContent";
+import { GallerySectionRenderer } from "../GallerySectionRenderer";
 import { resolveOwnedSectionAppearance } from "../../websiteEditor/sectionAppearance";
+import { RsvpSectionRenderer } from "../RsvpSectionRenderer";
+import { scopedColorPreviewTarget, useEditorColorPreview } from "../../websiteEditor/colorPreview";
+import { WebsiteMotion } from "../../websiteAnimation/runtime";
+import { resolveSectionAnimation } from "../../websiteAnimation/resolve";
+import { sectionMotionOwnerId } from "../../websiteAnimation/identity";
 
 export function ClassicFilipinianaRenderer({
   event,
@@ -37,6 +39,8 @@ export function ClassicFilipinianaRenderer({
   selectedElementId,
   onElementSelect,
   onElementEdit,
+  rsvpEditorPreviewState,
+  audience,
 }: WebsiteRendererProps) {
   const candidates =
     scope.kind === "single-section"
@@ -65,11 +69,10 @@ export function ClassicFilipinianaRenderer({
             : "Enabled sections will appear here."}
         </div>
       )}
-      {sections.map(({ section }, renderedIndex) => (
+      {sections.map(({ section }) => (
+        <WebsiteMotion key={section.id} ownerId={sectionMotionOwnerId(section.id)} animation={resolveSectionAnimation(section.appearance as unknown as WebsiteSectionAppearance, targetViewport)} className="w-full min-w-0 max-w-full">
         <ClassicSection
-          key={section.id}
           section={section}
-          showLeadingDivider={scope.kind === "full" && renderedIndex > 0}
           eventDate={event.eventDate}
           mode={mode}
           media={website.media}
@@ -82,14 +85,16 @@ export function ClassicFilipinianaRenderer({
           selectedElementId={selectedElementId}
           onElementSelect={onElementSelect}
           onElementEdit={onElementEdit}
+          rsvpEditorPreviewState={rsvpEditorPreviewState}
+          audience={audience}
         />
+        </WebsiteMotion>
       ))}
     </article>
   );
 }
 function ClassicSection({
   section,
-  showLeadingDivider,
   eventDate,
   mode,
   media,
@@ -102,9 +107,10 @@ function ClassicSection({
   selectedElementId,
   onElementSelect,
   onElementEdit,
+  rsvpEditorPreviewState,
+  audience,
 }: {
   section: WebsiteSection;
-  showLeadingDivider: boolean;
   eventDate: string | null;
   mode: "editor" | "public";
   media: Record<string, ResolvedWebsiteMedia>;
@@ -119,7 +125,10 @@ function ClassicSection({
   selectedElementId?: string | null;
   onElementSelect?: (sectionId: string, elementId: string) => void;
   onElementEdit?: (sectionId: string, elementId: string) => void;
+  rsvpEditorPreviewState?: import("../rsvpEditorPreview").RsvpEditorPreviewState;
+  audience?: WebsiteRendererProps["audience"];
 }) {
+  const previewBackgroundColor = useEditorColorPreview(scopedColorPreviewTarget(section.id, "backgroundColor"), mode === "editor");
   const appearance = resolveClassicFilipinianaSectionAppearance(
     section.type,
     designSettings,
@@ -134,10 +143,11 @@ function ClassicSection({
   );
   return (
     <section
-      className={`${appearance.sectionClass} relative isolate cursor-default font-[family-name:var(--cf-body-font)] transition-shadow ${selected ? "z-10" : ""}`}
+      className={`${appearance.sectionClass} relative isolate cursor-default font-[family-name:var(--cf-body-font)] ${selected ? "z-10" : ""}`}
       style={
         {
           ...appearance.sectionStyle,
+          ...(previewBackgroundColor ? { backgroundColor: previewBackgroundColor } : {}),
           ...(design
             ? {
                 "--cf-heading-font": design.headingFont,
@@ -170,7 +180,7 @@ function ClassicSection({
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {section.type === "hero" ? <>{showLeadingDivider && <ClassicSectionDivider />}<Section
+      {section.type === "hero" ? <Section
         section={section}
         eventDate={eventDate}
         mode={mode}
@@ -181,7 +191,7 @@ function ClassicSection({
         selectedElementId={selectedElementId}
         onElementSelect={onElementSelect}
         onElementEdit={onElementEdit}
-      /></> : <SectionSurfaceDecoration templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} library={library} projectColors={designSettings.customColors} sectionId={section.id} mode={mode}>{showLeadingDivider && <ClassicSectionDivider />}<Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={designSettings.customColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /></SectionSurfaceDecoration>}
+      /> : <SectionSurfaceDecoration templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} library={library} projectColors={designSettings.customColors} sectionId={section.id} mode={mode}><Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={designSettings.customColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} rsvpEditorPreviewState={rsvpEditorPreviewState} audience={audience} /></SectionSurfaceDecoration>}
     </section>
   );
 }
@@ -197,6 +207,8 @@ function Section({
   selectedElementId,
   onElementSelect,
   onElementEdit,
+  rsvpEditorPreviewState,
+  audience,
 }: {
   section: WebsiteSection;
   eventDate: string | null;
@@ -210,6 +222,8 @@ function Section({
   selectedElementId?: string | null;
   onElementSelect?: (sectionId: string, elementId: string) => void;
   onElementEdit?: (sectionId: string, elementId: string) => void;
+  rsvpEditorPreviewState?: import("../rsvpEditorPreview").RsvpEditorPreviewState;
+  audience?: WebsiteRendererProps["audience"];
 }) {
   switch (section.type) {
     case "blank": {
@@ -222,18 +236,20 @@ function Section({
     }
     case "gallery": {
       const resolved = resolveSectionComposition(section, targetViewport);
-      return <SectionChildFlowRenderer sectionId={section.id} flow={resolved.composition.childFlow} specialized={<ClassicFilipinianaGallery
+      const galleryAppearance = resolveOwnedSectionAppearance(section.appearance, targetViewport);
+      return <GallerySectionRenderer sectionId={section.id} composition={resolved.composition} appearance={galleryAppearance} context={section.resolvedDesignContext} specialized={<ClassicFilipinianaGallery
           sectionId={section.id}
-          collection={<GalleryCollectionRenderer sectionId={section.id} items={(section.content as GalleryContent).semantic.items} media={media} appearance={resolveOwnedSectionAppearance(section.appearance, targetViewport)} viewport={targetViewport} mode={mode} />}
+          collection={<GallerySpecializedContent mode={mode} sectionId={section.id} selectedElementId={selectedElementId} onElementSelect={onElementSelect}><GalleryCollectionRenderer sectionId={section.id} items={(section.content as GalleryContent).semantic.items} media={media} appearance={galleryAppearance} viewport={targetViewport} mode={mode} /></GallerySpecializedContent>}
         />} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
     }
-    case "rsvp":
-      return (
-        <ClassicFilipinianaRsvp
-          sectionId={section.id}
-          content={(section.content as RsvpContent).semantic}
-        />
-      );
+    case "rsvp": {
+      const resolved = resolveSectionComposition(section, targetViewport);
+      return <RsvpSectionRenderer section={section} composition={resolved.composition} specialized={rsvpEditorPreviewState || audience === "private-site" ? <ClassicFilipinianaRsvp
+        presentationEnvironment={{ sectionId: section.id, editor: mode === "editor", templateKey: "classic-filipiniana-v1", viewport: targetViewport, library, projectColors, context: section.resolvedDesignContext, authored: (section.content as import("../../websiteEditor/types").RsvpContent).semantic.runtimeAppearance }}
+        editorPreviewState={rsvpEditorPreviewState}
+        privateRuntime={audience === "private-site"}
+      /> : null} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
+    }
     default:
       return mode === "editor" ? (
         <div className="px-6 py-10 text-center text-sm text-[var(--cf-muted)]">

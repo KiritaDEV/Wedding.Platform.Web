@@ -23,6 +23,7 @@ const mediaUsageReferenceSchema = z.discriminatedUnion('type', [
 ])
 
 const mediaUsageRecordSchema = z.object({
+  source: z.enum(['draft', 'publishedSnapshot']),
   mediaId: z.string().min(1),
   eventId: z.string().min(1),
   websiteProjectId: z.string().min(1),
@@ -52,9 +53,6 @@ export const mediaAssetSchema = z.object({
   height: z.number().int().positive(),
   sizeBytes: z.number().int().nonnegative(),
   createdAt: z.string().datetime(),
-  variants: z.record(z.string(), mediaVariantSchema).refine(
-    (variants) => variants.thumbnail !== undefined && variants.web !== undefined,
-    'Thumbnail and web variants are required.',
-  ),
+  variants: z.record(z.string(), mediaVariantSchema),
   usage: mediaUsageSchema,
 }).strict()

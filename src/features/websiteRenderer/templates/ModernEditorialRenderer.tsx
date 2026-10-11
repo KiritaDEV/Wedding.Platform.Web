@@ -2,7 +2,6 @@ import type {
   GalleryContent,
   ResolvedWebsiteMedia,
   ResponsiveViewport,
-  RsvpContent,
   WebsiteSection,
   WebsiteSectionAppearance,
 } from "../../websiteEditor/types";
@@ -19,9 +18,15 @@ import { BlankSectionRenderer } from "../BlankSectionRenderer";
 import { isBlankSectionRenderable, isGallerySectionRenderable, isHeroSectionRenderable } from "../blankSectionRenderability";
 import { HeroSectionRenderer } from "../HeroSectionRenderer";
 import { resolveSectionComposition } from "../../websiteEditor/sectionComposition";
-import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
 import { GalleryCollectionRenderer } from "../GalleryCollectionRenderer";
+import { GallerySpecializedContent } from "../GallerySpecializedContent";
+import { GallerySectionRenderer } from "../GallerySectionRenderer";
 import { resolveOwnedSectionAppearance } from "../../websiteEditor/sectionAppearance";
+import { scopedColorPreviewTarget, useEditorColorPreview } from "../../websiteEditor/colorPreview";
+import { RsvpSectionRenderer } from "../RsvpSectionRenderer";
+import { WebsiteMotion } from "../../websiteAnimation/runtime";
+import { resolveSectionAnimation } from "../../websiteAnimation/resolve";
+import { sectionMotionOwnerId } from "../../websiteAnimation/identity";
 
 export function ModernEditorialRenderer({
   event,
@@ -34,6 +39,8 @@ export function ModernEditorialRenderer({
   selectedElementId,
   onElementSelect,
   onElementEdit,
+  rsvpEditorPreviewState,
+  audience,
 }: WebsiteRendererProps) {
   const candidates =
     scope.kind === "single-section"
@@ -62,8 +69,8 @@ export function ModernEditorialRenderer({
         </div>
       )}
       {sections.map(({ section }) => (
+        <WebsiteMotion key={section.id} ownerId={sectionMotionOwnerId(section.id)} animation={resolveSectionAnimation(section.appearance as unknown as WebsiteSectionAppearance, targetViewport)} className="w-full min-w-0 max-w-full">
         <ModernSection
-          key={section.id}
           section={section}
           eventDate={event.eventDate}
           mode={mode}
@@ -77,7 +84,10 @@ export function ModernEditorialRenderer({
           selectedElementId={selectedElementId}
           onElementSelect={onElementSelect}
           onElementEdit={onElementEdit}
+          rsvpEditorPreviewState={rsvpEditorPreviewState}
+          audience={audience}
         />
+        </WebsiteMotion>
       ))}
     </article>
   );
@@ -96,6 +106,8 @@ function ModernSection({
   selectedElementId,
   onElementSelect,
   onElementEdit,
+  rsvpEditorPreviewState,
+  audience,
 }: {
   section: WebsiteSection;
   eventDate: string | null;
@@ -112,7 +124,10 @@ function ModernSection({
   selectedElementId?: string | null;
   onElementSelect?: (sectionId: string, elementId: string) => void;
   onElementEdit?: (sectionId: string, elementId: string) => void;
+  rsvpEditorPreviewState?: import("../rsvpEditorPreview").RsvpEditorPreviewState;
+  audience?: WebsiteRendererProps["audience"];
 }) {
+  const previewBackgroundColor = useEditorColorPreview(scopedColorPreviewTarget(section.id, "backgroundColor"), mode === "editor");
   const appearance = resolveModernEditorialSectionAppearance(
     section.type,
     section.appearance as unknown as WebsiteSectionAppearance,
@@ -126,10 +141,11 @@ function ModernSection({
   );
   return (
     <section
-      className={`${appearance.sectionClass} relative isolate cursor-default border-b border-[var(--me-border)] font-[family-name:var(--me-body-font)] transition-shadow ${selected ? "z-10" : ""}`}
+      className={`${appearance.sectionClass} relative isolate cursor-default border-b border-[var(--me-border)] font-[family-name:var(--me-body-font)] ${selected ? "z-10" : ""}`}
       style={
         {
           ...appearance.sectionStyle,
+          ...(previewBackgroundColor ? { backgroundColor: previewBackgroundColor } : {}),
           ...(design
             ? {
                 "--me-heading-font": design.headingFont,
@@ -173,7 +189,7 @@ function ModernSection({
         selectedElementId={selectedElementId}
         onElementSelect={onElementSelect}
         onElementEdit={onElementEdit}
-      /> : <SectionSurfaceDecoration templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} library={library} projectColors={projectColors} sectionId={section.id} mode={mode}><Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={projectColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /></SectionSurfaceDecoration>}
+      /> : <SectionSurfaceDecoration templateKey={templateKey} appearance={(section.appearance as unknown as WebsiteSectionAppearance).decorativeAppearance} viewport={targetViewport} library={library} projectColors={projectColors} sectionId={section.id} mode={mode}><Section section={section} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={projectColors} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} rsvpEditorPreviewState={rsvpEditorPreviewState} audience={audience} /></SectionSurfaceDecoration>}
     </section>
   );
 }
@@ -189,6 +205,8 @@ function Section({
   selectedElementId,
   onElementSelect,
   onElementEdit,
+  rsvpEditorPreviewState,
+  audience,
 }: {
   section: WebsiteSection;
   eventDate: string | null;
@@ -202,6 +220,8 @@ function Section({
   selectedElementId?: string | null;
   onElementSelect?: (sectionId: string, elementId: string) => void;
   onElementEdit?: (sectionId: string, elementId: string) => void;
+  rsvpEditorPreviewState?: import("../rsvpEditorPreview").RsvpEditorPreviewState;
+  audience?: WebsiteRendererProps["audience"];
 }) {
   switch (section.type) {
     case "blank": {
@@ -214,18 +234,20 @@ function Section({
     }
     case "gallery": {
       const resolved = resolveSectionComposition(section, targetViewport);
-      return <SectionChildFlowRenderer sectionId={section.id} flow={resolved.composition.childFlow} specialized={<ModernEditorialGallery
+      const galleryAppearance = resolveOwnedSectionAppearance(section.appearance, targetViewport);
+      return <GallerySectionRenderer sectionId={section.id} composition={resolved.composition} appearance={galleryAppearance} context={section.resolvedDesignContext} specialized={<ModernEditorialGallery
           sectionId={section.id}
-          collection={<GalleryCollectionRenderer sectionId={section.id} items={(section.content as GalleryContent).semantic.items} media={media} appearance={resolveOwnedSectionAppearance(section.appearance, targetViewport)} viewport={targetViewport} mode={mode} />}
+          collection={<GallerySpecializedContent mode={mode} sectionId={section.id} selectedElementId={selectedElementId} onElementSelect={onElementSelect}><GalleryCollectionRenderer sectionId={section.id} items={(section.content as GalleryContent).semantic.items} media={media} appearance={galleryAppearance} viewport={targetViewport} mode={mode} /></GallerySpecializedContent>}
         />} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
     }
-    case "rsvp":
-      return (
-        <ModernEditorialRsvp
-          sectionId={section.id}
-          content={(section.content as RsvpContent).semantic}
-        />
-      );
+    case "rsvp": {
+      const resolved = resolveSectionComposition(section, targetViewport);
+      return <RsvpSectionRenderer section={section} composition={resolved.composition} specialized={rsvpEditorPreviewState || audience === "private-site" ? <ModernEditorialRsvp
+        presentationEnvironment={{ sectionId: section.id, editor: mode === "editor", templateKey: "modern-editorial-v1", viewport: targetViewport, library, projectColors, context: section.resolvedDesignContext, authored: (section.content as import("../../websiteEditor/types").RsvpContent).semantic.runtimeAppearance }}
+        editorPreviewState={rsvpEditorPreviewState}
+        privateRuntime={audience === "private-site"}
+      /> : null} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
+    }
     default:
       return mode === "editor" ? (
         <div className="px-6 py-10 text-center text-sm text-[var(--me-muted)]">

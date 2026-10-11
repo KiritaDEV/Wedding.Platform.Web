@@ -5,6 +5,7 @@ import { ThemeSwitch } from "../components/ui/ThemeSwitch";
 import { useAuth } from "../features/auth/AuthContext";
 import { authErrorMessage } from "../features/auth/errorMessage";
 import { WorkspaceSidebarContext } from "../features/events/workspace/WorkspaceSidebarContext";
+import { NotificationCenter } from "../features/notifications/NotificationCenter";
 
 const SIDEBAR_STORAGE_KEY = "event-platform-workspace-sidebar";
 
@@ -79,6 +80,7 @@ export function AuthenticatedLayout() {
           )}
 
           <ThemeSwitch />
+          <NotificationCenter />
 
           <div className="hidden min-w-0 text-right md:block">
             <p className="truncate text-sm font-medium">{user?.name}</p>

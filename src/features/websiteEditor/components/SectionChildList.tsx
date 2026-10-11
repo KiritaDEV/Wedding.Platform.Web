@@ -94,6 +94,7 @@ const GENERIC_BLOCK_ICONS = {
   accordion: ListCollapse,
   schedule: CalendarClock,
   people: Users,
+  countdown: CalendarClock,
   media: Images,
   divider: Minus,
   compositionGroup: GroupIcon,
@@ -102,6 +103,7 @@ const blockIcon = (type: GenericBlockType) => {
   const BlockIcon = GENERIC_BLOCK_ICONS[type];
   return <BlockIcon size={14} />;
 };
+const ALL_GENERIC_BLOCK_TYPES = Object.keys(GENERIC_BLOCK_ICONS) as GenericBlockType[];
 const accessibleBlockLabel = (element: WebsiteElement) =>
   `${GENERIC_BLOCK_LABELS[element.type as GenericBlockType]} block: ${(element as WebsiteElement & { editorName: string }).editorName}${element.isHidden ? ", hidden" : ""}`;
 
@@ -112,6 +114,7 @@ export function SectionChildList({
   onSelect,
   onChange,
   onRenameSave,
+  allowedGenericTypes = ALL_GENERIC_BLOCK_TYPES,
   onDuplicate,
   onDelete,
 }: {
@@ -121,6 +124,7 @@ export function SectionChildList({
   onSelect: (reference: SectionChildReference) => void;
   onChange: (flow: SectionChildFlow) => void;
   onRenameSave: (flow: SectionChildFlow) => Promise<string | null>;
+  allowedGenericTypes?: readonly GenericBlockType[];
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
@@ -288,6 +292,7 @@ export function SectionChildList({
                 onRename={requestRename}
                 onMove={requestMove}
                 expandedDestinationIds={expandedDestinationIds}
+                allowedGenericTypes={allowedGenericTypes}
               />
             ))}
             <TreeDropTarget flow={flow} parentId={null} index={flow.order.length} label="Move to end of Section" />
@@ -406,6 +411,7 @@ function TopLevelRow({
   onRename,
   onMove,
   expandedDestinationIds,
+  allowedGenericTypes,
 }: {
   reference: SectionChildReference;
   index: number;
@@ -420,6 +426,7 @@ function TopLevelRow({
   onRename: (element: WebsiteElement) => void;
   onMove: (element: WebsiteElement) => void;
   expandedDestinationIds: ReadonlySet<string>;
+  allowedGenericTypes: readonly GenericBlockType[];
 }) {
   const [expanded, setExpanded] = useState(true);
   const { active } = useDndContext();
@@ -451,7 +458,7 @@ function TopLevelRow({
       : undefined;
   const label =
     reference.kind === "specialized"
-      ? `${sectionLabel} content`
+      ? sectionLabel === "RSVP" ? "RSVP form" : `${sectionLabel} content`
       : element
         ? accessibleBlockLabel(element)
         : "Unknown element";
@@ -504,7 +511,7 @@ function TopLevelRow({
         />
         <div data-structure-actions className="ml-auto flex shrink-0 items-center gap-0.5">
           {add && (
-            <GroupAddControl depth={1} label="Add child to Group" disabled={element?.type === "compositionGroup" && element.children.length >= GROUP_CHILD_LIMIT} onAdd={add} />
+            <GroupAddControl depth={1} label="Add child to Group" allowedGenericTypes={allowedGenericTypes} disabled={element?.type === "compositionGroup" && element.children.length >= GROUP_CHILD_LIMIT} onAdd={add} />
           )}
           <StructureActionMenu className="shrink-0" label={`${label} actions`}>
           <>
@@ -597,6 +604,7 @@ function TopLevelRow({
           onRename={onRename}
           onMove={onMove}
           expandedDestinationIds={expandedDestinationIds}
+          allowedGenericTypes={allowedGenericTypes}
         />
       )}
     </div>
@@ -613,6 +621,7 @@ function GroupChildren({
   onRename,
   onMove,
   expandedDestinationIds,
+  allowedGenericTypes,
 }: {
   group: CompositionGroup;
   depth: number;
@@ -623,6 +632,7 @@ function GroupChildren({
   onRename: (element: WebsiteElement) => void;
   onMove: (element: WebsiteElement) => void;
   expandedDestinationIds: ReadonlySet<string>;
+  allowedGenericTypes: readonly GenericBlockType[];
 }) {
   const itemId = (id: string) => `group-child:${group.id}:${id}`;
   return (
@@ -649,6 +659,7 @@ function GroupChildren({
               onRename={onRename}
               onMove={onMove}
               expandedDestinationIds={expandedDestinationIds}
+              allowedGenericTypes={allowedGenericTypes}
             />
           ))}
         </div>
@@ -669,6 +680,7 @@ function NestedRow({
   onRename,
   onMove,
   expandedDestinationIds,
+  allowedGenericTypes,
 }: {
   child: WebsiteElement;
   sortableId: string;
@@ -682,6 +694,7 @@ function NestedRow({
   onRename: (element: WebsiteElement) => void;
   onMove: (element: WebsiteElement) => void;
   expandedDestinationIds: ReadonlySet<string>;
+  allowedGenericTypes: readonly GenericBlockType[];
 }) {
   const [expanded, setExpanded] = useState(true);
   const { active } = useDndContext();
@@ -751,6 +764,7 @@ function NestedRow({
           {isGroup && (
             <GroupAddControl
               depth={depth + 1}
+              allowedGenericTypes={allowedGenericTypes}
               label="Add child to Group"
               disabled={child.children.length >= GROUP_CHILD_LIMIT}
               onAdd={(kind) => addToGroup(child, kind, flow, onChange, onSelect)}
@@ -840,6 +854,7 @@ function NestedRow({
           onRename={onRename}
           onMove={onMove}
           expandedDestinationIds={expandedDestinationIds}
+          allowedGenericTypes={allowedGenericTypes}
         />
       )}
     </div>
@@ -928,11 +943,13 @@ function RowLabel({
 function GroupAddControl({
   depth,
   label,
+  allowedGenericTypes,
   disabled = false,
   onAdd,
 }: {
   depth: number;
   label: string;
+  allowedGenericTypes: readonly GenericBlockType[];
   disabled?: boolean;
   onAdd: (kind: GroupAddKind) => void;
 }) {
@@ -943,6 +960,7 @@ function GroupAddControl({
     accordion: "Accordion",
     schedule: "Schedule",
     people: "People",
+    countdown: "Countdown",
     divider: "Divider",
     media: "Media",
     group: "Group",
@@ -971,7 +989,7 @@ function GroupAddControl({
           aria-label={label}
           className="absolute right-0 top-full z-40 w-36 rounded-md border border-border bg-surface p-1 text-xs shadow-[var(--shadow-dialog)]"
         >
-          {groupAddKinds(depth).map((kind) => (
+          {groupAddKinds(depth).filter((kind) => allowedGenericTypes.includes(kind === "group" ? "compositionGroup" : kind)).map((kind) => (
             <AddAction
               key={kind}
               label={labels[kind]}

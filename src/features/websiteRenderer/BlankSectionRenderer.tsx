@@ -44,6 +44,7 @@ export function BlankSectionRenderer({
     </div>}
     {hasEditorChildren && <SectionChildFlowRenderer
       sectionId={section.id}
+      sharedContentDefinitions={section.content && 'sharedContentDefinitions' in section.content ? section.content.sharedContentDefinitions : undefined}
       flow={flow}
       specialized={null}
       mode={mode}

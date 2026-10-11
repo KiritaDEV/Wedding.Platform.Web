@@ -1,4 +1,10 @@
+import { ScheduleLayoutEditor } from '../../features/websiteEditor/components/ScheduleLayoutEditor';
+import { ScheduleAppearanceEditor } from '../../features/websiteEditor/components/ScheduleAppearanceEditor';
+import { useTrackedOverride } from '../../features/websiteEditor/useTrackedOverride';
+import { draftSaveError, retainUnsubmittedEdit, type WebsiteDraftChanges } from '../../features/websiteEditor/draftSave';
 import { ColorPreviewScopeContext } from "../../features/websiteEditor/colorPreview";
+import { specializedSectionIdFromTarget } from "../../features/websiteEditor/specializedCanvasSelection";
+import { isSurfaceOnlyParentSelection, resolveOwnedInspectorPanelMode } from "../../features/websiteEditor/sectionInspectorOwnership";
 import { ColorPreviewProvider } from "../../features/websiteEditor/ColorPreviewProvider";
 import {
   ArrowLeft,
@@ -24,6 +30,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
+import { Button } from "../../components/ui/Button";
 import { Heading } from "../../components/ui/Heading";
 import { Select } from "../../components/ui/Select";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
@@ -31,14 +38,11 @@ import { Text } from "../../components/ui/Text";
 import { useEventWorkspace } from "../../features/events/workspace/EventWorkspaceContext";
 import {
   addWebsiteProjectColor,
+  saveWebsiteDraft,
   createWebsiteSection,
   deleteWebsiteSection,
   duplicateWebsiteSection,
-  reorderWebsiteSections,
   renameWebsiteSection,
-  setWebsiteSectionEnabled,
-  updateWebsiteDesignSettings,
-  updateWebsiteSectionAppearance,
   updateWebsiteSectionPresentation,
   updateWebsiteSectionContent,
   updateWebsiteSectionDesignDefaults,
@@ -56,12 +60,24 @@ import { GroupElementEditor } from "../../features/websiteEditor/components/Grou
 import { DividerElementEditor } from "../../features/websiteEditor/components/DividerElementEditor";
 import { DateElementEditor } from "../../features/websiteEditor/components/DateElementEditor";
 import { AccordionElementEditor } from "../../features/websiteEditor/components/AccordionElementEditor";
+import { resolveSchedule, updateSharedSchedule, optInSchedule, type SharedContentOwner } from '../../features/websiteEditor/sharedContent';
 import { ScheduleElementEditor } from "../../features/websiteEditor/components/ScheduleElementEditor";
 import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
+import { CountdownElementEditor } from "../../features/websiteEditor/components/CountdownElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionCompositionControls } from "../../features/websiteEditor/components/SectionCompositionControls";
+import { RsvpRuntimeAppearanceEditor } from "../../features/websiteEditor/components/RsvpRuntimeAppearanceEditor";
+import { GalleryAppearanceControls } from "../../features/websiteEditor/components/GalleryAppearanceControls";
+import { AnimationAppearanceControls } from "../../features/websiteEditor/components/AnimationAppearanceControls";
+import { animatedElementAncestor, authoredElementAnimation, updateElementAnimation } from "../../features/websiteAnimation/authoring";
+import { resolveElementAnimation, resolveGalleryItemAnimation, resolveRsvpSpecializedAnimation, resolveSectionAnimation } from "../../features/websiteAnimation/resolve";
+import { hasEntranceAnimation } from "../../features/websiteAnimation/contract";
+import { elementMotionOwnerId, galleryItemsMotionOwnerId, rsvpMotionOwnerId, sectionMotionOwnerId } from "../../features/websiteAnimation/identity";
+import { resolveRsvpPresentation } from "../../features/websiteRenderer/rsvpPresentationResolution";
 import {
+  createCustomSectionComposition,
   createCustomSectionPresentation,
+  removeCustomSectionComposition,
   removeCustomSectionPresentation,
 } from "../../features/websiteEditor/compositionLifecycle";
 import {
@@ -100,9 +116,17 @@ import {
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
 import {
+  DEFAULT_RSVP_EDITOR_PREVIEW_STATE,
+  type RsvpEditorPreviewState,
+} from "../../features/websiteRenderer/rsvpEditorPreview";
+import {
+  editorElementId,
+  editorElementReference,
+} from "../../features/websiteRenderer/rsvpEditorSelection";
+import {
   authoredPropertyViewport,
   mergeScopedComposition,
-  replaceScopedComposition,
+  replaceEditedScopedComposition as replaceScopedComposition,
   resolveEditorCompositionTarget,
   sameCompositionScope,
   type SectionCompositionScope,
@@ -200,9 +224,11 @@ function messageFor(error: unknown): string {
 }
 
 export function WebsitePage() {
+  const { projectId = "" } = useParams();
+  const event = useEventWorkspace();
   return (
     <ColorPreviewProvider>
-      <WebsitePageContent />
+      <WebsitePageContent key={`${event.id}:${projectId}`} />
     </ColorPreviewProvider>
   );
 }
@@ -227,6 +253,10 @@ function WebsitePageContent() {
   } | null>(null);
   const [mode, setMode] = useState<BuilderMode>("content");
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
+  const [previewMotionSession, setPreviewMotionSession] = useState(0);
+  const [editMotionReplay, setEditMotionReplay] = useState<import("../../features/websiteAnimation/runtime").EditMotionReplay>();
+  const [rsvpEditorPreviewState, setRsvpEditorPreviewState] =
+    useState<RsvpEditorPreviewState>(DEFAULT_RSVP_EDITOR_PREVIEW_STATE);
   const [sectionPanelMode, setSectionPanelMode] =
     useState<SectionPanelMode>("content");
   const [drawerMode, setDrawerMode] = useState<DrawerMode>("content");
@@ -235,13 +265,17 @@ function WebsitePageContent() {
     null,
   );
   const [listPending, setListPending] = useState(false);
+  const [atomicSaving, setAtomicSaving] = useState(false);
+  const saveInFlight = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [colorSaving, setColorSaving] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [renameSectionTarget, setRenameSectionTarget] =
     useState<WebsiteSection | null>(null);
   const [deleteSectionTarget, setDeleteSectionTarget] =
     useState<WebsiteSection | null>(null);
-  const [sectionStructureOverride, setSectionStructureOverride] =
-    useState<SectionStructureOverride | null>(null);
+  const [sectionStructureOverride, setSectionStructureOverride, structureRef] =
+    useTrackedOverride<SectionStructureOverride | null>(null);
   const deviceCategory = useEditorDeviceCategory();
   const [previewMode, setPreviewMode] =
     useState<ResponsiveViewport>(deviceCategory);
@@ -250,12 +284,12 @@ function WebsitePageContent() {
     [deviceCategory],
   );
 
-  const [contentOverride, setContentOverride] = useState<{
+  const [contentOverride, setContentOverride, contentRef] = useTrackedOverride<{
     sectionId: string;
     scope?: SectionCompositionScope;
     content: Record<string, unknown>;
   } | null>(null);
-  const [appearanceOverride, setAppearanceOverride] = useState<{
+  const [appearanceOverride, setAppearanceOverride, appearanceRef] = useTrackedOverride<{
     sectionId: string;
     appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope;
   } | null>(null);
@@ -278,8 +312,8 @@ function WebsitePageContent() {
   const canvasSelectionRequestId = useRef(0);
   const [canvasSelectionRequest, setCanvasSelectionRequest] =
     useState<CanvasSelectionRequest | null>(null);
-  const [designOverride, setDesignOverride] =
-    useState<WebsiteDesignSettings | null>(null);
+  const [designOverride, setDesignOverride, designRef] =
+    useTrackedOverride<WebsiteDesignSettings | null>(null);
   const [designError, setDesignError] = useState<string | null>(null);
   const [mediaOverrides, setMediaOverrides] = useState<WebsiteDraft["media"]>(
     {},
@@ -306,7 +340,7 @@ function WebsitePageContent() {
   const activeCompositionTarget =
     workingSelected &&
     workingContent &&
-    (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery")
+    (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery" || workingSelected.type === "rsvp")
       ? resolveEditorCompositionTarget(
           { ...workingSelected, content: workingContent } as WebsiteSection,
           previewMode,
@@ -358,13 +392,20 @@ function WebsitePageContent() {
   const sectionStructureDirty = sectionOrderDirty || sectionVisibilityDirty;
   const globalDirty = sectionStructureDirty || sectionDirty || designDirty;
 
+  function requestAnimationReplay(ownerId: string) {
+    setEditMotionReplay((current) => ({
+      ownerId,
+      generation: current?.ownerId === ownerId ? current.generation + 1 : 1,
+    }));
+  }
+
   useEffect(() => {
     if (accessibleViewports.includes(previewMode)) return;
     const next = accessibleViewports[0];
     const nextScope =
       workingSelected &&
       workingContent &&
-      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery")
+      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery" || workingSelected.type === "rsvp")
         ? resolveEditorCompositionTarget(
             { ...workingSelected, content: workingContent } as WebsiteSection,
             next,
@@ -375,19 +416,24 @@ function WebsitePageContent() {
         setPendingPreviewMode({ viewport: next, scope: nextScope });
       else {
         setSelectedChild(null);
+        setEditMotionReplay(undefined);
         setPreviewMode(next);
+        if (editorMode === "preview")
+          setPreviewMotionSession((current) => current + 1);
       }
     }, 0);
     return () => window.clearTimeout(timer);
   }, [
     accessibleViewports,
     previewMode,
+    editorMode,
     sectionDirty,
     workingContent,
     workingSelected,
   ]);
 
   function selectSection(id: string, requestCanvasScroll = false) {
+    setEditMotionReplay(undefined);
     if (requestCanvasScroll) {
       setCanvasSelectionRequest({
         kind: "section",
@@ -428,7 +474,7 @@ function WebsitePageContent() {
     const nextTarget =
       workingSelected &&
       workingContent &&
-      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery")
+      (workingSelected.type === "blank" || workingSelected.type === "hero" || workingSelected.type === "gallery" || workingSelected.type === "rsvp")
         ? resolveEditorCompositionTarget(
             { ...workingSelected, content: workingContent } as WebsiteSection,
             next,
@@ -446,7 +492,14 @@ function WebsitePageContent() {
     if (isStandaloneTextEditingTarget(inlineEditingTarget))
       setInlineEditingTarget(null);
     setSelectedChild(null);
+    applyPreviewMode(next);
+  }
+
+  function applyPreviewMode(next: ResponsiveViewport) {
+    setEditMotionReplay(undefined);
     setPreviewMode(next);
+    if (editorMode === "preview")
+      setPreviewMotionSession((current) => current + 1);
   }
 
   function changeMode(
@@ -522,7 +575,7 @@ function WebsitePageContent() {
   }
 
   async function createBlankSection() {
-    if (globalDirty || !draft) {
+    if (saveInFlight.current || listPending || globalDirty || !draft) {
       setListError("Save or discard current changes before adding a Section.");
       return;
     }
@@ -530,7 +583,8 @@ function WebsitePageContent() {
     setListError(null);
     try {
       const existing = new Set(draft.sections.map(({ id }) => id));
-      const updated = await createWebsiteSection(event.id, projectId, "blank");
+      const updated = await createWebsiteSection(event.id, projectId,
+          draft!.draftRevision, "blank");
       const created = updated.sections.find(({ id }) => !existing.has(id));
       if (!created) throw new Error("The new Section could not be identified.");
       selectCanonicalSection(updated, created.id);
@@ -545,7 +599,7 @@ function WebsitePageContent() {
     section: WebsiteSection,
     requested: string,
   ): Promise<boolean> {
-    if (globalDirty) {
+    if (saveInFlight.current || listPending || globalDirty) {
       setListError(
         "Save or discard current changes before renaming a Section.",
       );
@@ -560,7 +614,8 @@ function WebsitePageContent() {
     setListError(null);
     try {
       selectCanonicalSection(
-        await renameWebsiteSection(event.id, projectId, section.id, editorName),
+        await renameWebsiteSection(event.id, projectId,
+          draft!.draftRevision, section.id, editorName),
         section.id,
       );
       return true;
@@ -573,7 +628,7 @@ function WebsitePageContent() {
   }
 
   async function duplicateBlankSection(section: WebsiteSection) {
-    if (globalDirty) {
+    if (saveInFlight.current || listPending || globalDirty) {
       setListError(
         "Save or discard current changes before duplicating a Section.",
       );
@@ -585,6 +640,7 @@ function WebsitePageContent() {
       const updated = await duplicateWebsiteSection(
         event.id,
         projectId,
+          draft!.draftRevision,
         section.id,
       );
       const sourceIndex = updated.sections.findIndex(
@@ -602,7 +658,7 @@ function WebsitePageContent() {
   }
 
   async function deleteBlankSection(section: WebsiteSection): Promise<boolean> {
-    if (globalDirty || !draft) {
+    if (saveInFlight.current || listPending || globalDirty || !draft) {
       setListError(
         "Save or discard current changes before deleting a Section.",
       );
@@ -615,6 +671,7 @@ function WebsitePageContent() {
       const updated = await deleteWebsiteSection(
         event.id,
         projectId,
+          draft!.draftRevision,
         section.id,
       );
       const next =
@@ -641,6 +698,7 @@ function WebsitePageContent() {
   }
 
   function updateWorkingContent(content: Record<string, unknown>) {
+    setEditMotionReplay(undefined);
     if (effectiveSelectedId) {
       setContentOverride({
         sectionId: effectiveSelectedId,
@@ -661,7 +719,7 @@ function WebsitePageContent() {
 
   async function customizeActiveComposition() {
     if (
-      sectionDirty ||
+      saveInFlight.current || listPending || sectionDirty ||
       !authoritativeSelected ||
       !activeCompositionTarget ||
       activeCompositionTarget.scope.kind !== "shared"
@@ -670,9 +728,32 @@ function WebsitePageContent() {
     if (
       authoritativeSelected.type !== "hero" &&
       authoritativeSelected.type !== "gallery" &&
-      authoritativeSelected.type !== "blank"
+      authoritativeSelected.type !== "blank" &&
+      authoritativeSelected.type !== "rsvp"
     )
       return;
+    if (authoritativeSelected.type === "rsvp") {
+      setListPending(true);
+      try {
+        contentSaved(
+          await updateWebsiteSectionContent(
+            event.id,
+            projectId,
+          draft!.draftRevision,
+            authoritativeSelected.id,
+            createCustomSectionComposition(authoritativeSelected.content, previewMode),
+          ),
+        );
+        setSelectedChild(null);
+        setInlineEditingTarget(null);
+        setCanvasSelectionRequest(null);
+      } catch (branchError) {
+        setContentError(messageFor(branchError));
+      } finally {
+        setListPending(false);
+      }
+      return;
+    }
     const presentation = createCustomSectionPresentation(
       authoritativeSelected.content,
       authoritativeSelected.appearance,
@@ -684,6 +765,7 @@ function WebsitePageContent() {
         await updateWebsiteSectionPresentation(
           event.id,
           projectId,
+          draft!.draftRevision,
           authoritativeSelected.id,
           presentation.content,
           presentation.appearance,
@@ -701,7 +783,7 @@ function WebsitePageContent() {
 
   async function resetActiveComposition() {
     if (
-      sectionDirty ||
+      saveInFlight.current || listPending || sectionDirty ||
       !authoritativeSelected ||
       !activeCompositionTarget ||
       activeCompositionTarget.scope.kind !== "custom"
@@ -710,9 +792,32 @@ function WebsitePageContent() {
     if (
       authoritativeSelected.type !== "hero" &&
       authoritativeSelected.type !== "gallery" &&
-      authoritativeSelected.type !== "blank"
+      authoritativeSelected.type !== "blank" &&
+      authoritativeSelected.type !== "rsvp"
     )
       return;
+    if (authoritativeSelected.type === "rsvp") {
+      setListPending(true);
+      try {
+        contentSaved(
+          await updateWebsiteSectionContent(
+            event.id,
+            projectId,
+          draft!.draftRevision,
+            authoritativeSelected.id,
+            removeCustomSectionComposition(authoritativeSelected.content, previewMode),
+          ),
+        );
+        setSelectedChild(null);
+        setInlineEditingTarget(null);
+        setCanvasSelectionRequest(null);
+      } catch (branchError) {
+        setContentError(messageFor(branchError));
+      } finally {
+        setListPending(false);
+      }
+      return;
+    }
     const presentation = removeCustomSectionPresentation(
       authoritativeSelected.content,
       authoritativeSelected.appearance,
@@ -724,6 +829,7 @@ function WebsitePageContent() {
         await updateWebsiteSectionPresentation(
           event.id,
           projectId,
+          draft!.draftRevision,
           authoritativeSelected.id,
           presentation.content,
           presentation.appearance,
@@ -744,6 +850,7 @@ function WebsitePageContent() {
     reference: SectionChildReference,
     requestCanvasScroll = false,
   ) {
+    setEditMotionReplay(undefined);
     const section = workingSections.find(({ id }) => id === sectionId);
     const content =
       sectionId === effectiveSelectedId && workingContent
@@ -752,7 +859,7 @@ function WebsitePageContent() {
     const compositionTarget =
       section &&
       content &&
-      (section.type === "blank" || section.type === "hero" || section.type === "gallery")
+      (section.type === "blank" || section.type === "hero" || section.type === "gallery" || section.type === "rsvp")
         ? resolveEditorCompositionTarget(
             { ...section, content } as WebsiteSection,
             previewMode,
@@ -825,7 +932,7 @@ function WebsitePageContent() {
     );
     if (!flow) return false;
     const target =
-      section.type === "blank" || section.type === "hero" || section.type === "gallery"
+      section.type === "blank" || section.type === "hero" || section.type === "gallery" || section.type === "rsvp"
         ? resolveEditorCompositionTarget(
             { ...section, content } as WebsiteSection,
             previewMode,
@@ -879,6 +986,7 @@ function WebsitePageContent() {
     sectionId: string,
     flow: SectionChildFlow,
   ): Promise<string | null> {
+    if (saveInFlight.current || listPending) return "Wait for the current save to finish.";
     const section = workingSections.find(({ id }) => id === sectionId);
     if (!section) return "Unable to find this section. Please try again.";
     const content = structuredClone(
@@ -887,7 +995,7 @@ function WebsitePageContent() {
         : (section.content as Record<string, unknown>),
     );
     const target =
-      section.type === "blank" || section.type === "hero" || section.type === "gallery"
+      section.type === "blank" || section.type === "hero" || section.type === "gallery" || section.type === "rsvp"
         ? resolveEditorCompositionTarget(
             { ...section, content } as WebsiteSection,
             previewMode,
@@ -910,6 +1018,7 @@ function WebsitePageContent() {
       const updated = await updateWebsiteSectionContent(
         event.id,
         projectId,
+          draft!.draftRevision,
         sectionId,
         parsed.data as Record<string, unknown>,
       );
@@ -939,8 +1048,12 @@ function WebsitePageContent() {
   }
 
   function changeEditorMode(next: EditorMode) {
+    setEditMotionReplay(undefined);
     setEditorMode(next);
-    if (next === "preview") setInlineEditingTarget(null);
+    if (next === "preview") {
+      setInlineEditingTarget(null);
+      setPreviewMotionSession((current) => current + 1);
+    }
   }
 
   function contentSaved(updated: WebsiteDraft) {
@@ -1003,134 +1116,66 @@ function WebsitePageContent() {
   ]);
 
   async function saveEditorChanges() {
-    if (!draft) return false;
-    let domain: "structure" | "content" | "appearance" | "design" = "structure";
-    let latestDraft = draft;
-    const desiredStructure = structureFor(workingSections);
+    if (!draft || saveInFlight.current || listPending || sectionDesignSaving || colorSaving) return false;
+    const submitted = { structure: sectionStructureOverride, content: contentOverride, appearance: appearanceOverride, design: designOverride };
+    const changes: WebsiteDraftChanges = {};
+    if (sectionOrderDirty) changes.sectionIds = workingSections.map(({ id }) => id);
+    const sectionChanges = new Map<string, NonNullable<WebsiteDraftChanges["sections"]>[number]>();
+    for (const section of workingSections) {
+      if (draft.sections.find(({ id }) => id === section.id)?.isEnabled !== section.isEnabled) {
+        sectionChanges.set(section.id, { id: section.id, isEnabled: section.isEnabled });
+      }
+    }
+    if (contentDirty && selected && workingContent) {
+      let content = workingContent;
+      if (contentOverride?.scope && activeCompositionTarget && authoritativeSelected) {
+        content = mergeScopedComposition(authoritativeSelected.content as Record<string, unknown>, contentOverride.scope, activeCompositionTarget.composition);
+        if ("semantic" in workingContent) content.semantic = workingContent.semantic;
+        if ("sharedContentDefinitions" in workingContent) content.sharedContentDefinitions = workingContent.sharedContentDefinitions;
+      }
+      const parsed = validateSectionContent(selected.type, content, draft.template?.key);
+      if (!parsed.success) {
+        const issue = parsed.error?.issues[0];
+        setContentError(issue ? issue.path.join(".") + ": " + issue.message : "Review this section before saving.");
+        setSaveStatus("Save failed. Local edits have been kept.");
+        return false;
+      }
+      sectionChanges.set(selected.id, { ...sectionChanges.get(selected.id), id: selected.id, content: parsed.data as Record<string, unknown> });
+    }
+    if (appearanceDirty && effectiveSelectedId && workingAppearance) {
+      const appearance = activeAppearanceTarget && authoritativeSelected && (authoritativeSelected.type === "hero" || authoritativeSelected.type === "gallery" || authoritativeSelected.type === "blank")
+        ? mergeScopedSectionAppearance(authoritativeSelected.appearance, activeAppearanceTarget.scope, pruneResponsiveAppearance(workingAppearance))
+        : pruneResponsiveAppearance(workingAppearance);
+      sectionChanges.set(effectiveSelectedId, { ...sectionChanges.get(effectiveSelectedId), id: effectiveSelectedId, appearance });
+    }
+    if (sectionChanges.size) changes.sections = [...sectionChanges.values()];
+    if (designDirty && designOverride) changes.designSettings = designOverride;
+    if (!Object.keys(changes).length) return true;
+    saveInFlight.current = true;
+    setAtomicSaving(true);
     setListPending(true);
+    setSaveStatus("Saving draft...");
     setListError(null);
     setContentError(null);
     setAppearanceError(null);
     setDesignError(null);
     try {
-      if (sectionOrderDirty) {
-        latestDraft = await reorderWebsiteSections(
-          event.id,
-          projectId,
-          desiredStructure.order,
-        );
-        setDraft(latestDraft);
-      }
-      for (const sectionId of desiredStructure.order) {
-        const persisted = latestDraft.sections.find(
-          ({ id }) => id === sectionId,
-        );
-        const desiredEnabled = desiredStructure.enabledById[sectionId];
-        if (!persisted || persisted.isEnabled === desiredEnabled) continue;
-        latestDraft = await setWebsiteSectionEnabled(
-          event.id,
-          projectId,
-          sectionId,
-          desiredEnabled,
-        );
-        setDraft(latestDraft);
-      }
-      setSectionStructureOverride(null);
-
-      if (contentDirty && selected && workingContent) {
-        domain = "content";
-        const freshestSection = latestDraft.sections.find(
-          ({ id }) => id === selected.id,
-        );
-        let saveContent = workingContent;
-        if (
-          freshestSection &&
-          contentOverride?.scope &&
-          activeCompositionTarget
-        ) {
-          saveContent = mergeScopedComposition(
-            freshestSection.content as Record<string, unknown>,
-            contentOverride.scope,
-            activeCompositionTarget.composition,
-          );
-          if ("semantic" in workingContent)
-            saveContent.semantic = workingContent.semantic;
-        }
-        const parsed = validateSectionContent(
-          selected.type,
-          saveContent,
-          draft?.template?.key,
-        );
-        if (!parsed.success) {
-          const issue = parsed.error?.issues[0];
-          const field = issue?.path.length ? issue.path.join(".") : "content";
-          setContentError(
-            issue
-              ? `${field}: ${issue.message}`
-              : "Review this section and enter valid content before saving.",
-          );
-          return false;
-        }
-        latestDraft = await updateWebsiteSectionContent(
-          event.id,
-          projectId,
-          selected.id,
-          parsed.data as Record<string, unknown>,
-        );
-        contentSaved(latestDraft);
-      }
-
-      if (appearanceDirty && effectiveSelectedId && workingAppearance) {
-        domain = "appearance";
-        const freshestSelected = latestDraft.sections.find(
-          (section) => section.id === effectiveSelectedId,
-        );
-        const appearance =
-          activeAppearanceTarget &&
-          freshestSelected &&
-          (freshestSelected.type === "hero" ||
-            freshestSelected.type === "gallery" ||
-            freshestSelected.type === "blank")
-            ? mergeScopedSectionAppearance(
-                freshestSelected.appearance,
-                activeAppearanceTarget.scope,
-                pruneResponsiveAppearance(workingAppearance),
-              )
-            : pruneResponsiveAppearance(workingAppearance);
-        latestDraft = await updateWebsiteSectionAppearance(
-          event.id,
-          projectId,
-          effectiveSelectedId,
-          appearance,
-        );
-        setDraft(latestDraft);
-        setAppearanceOverride(null);
-      }
-
-      if (designDirty && designOverride) {
-        domain = "design";
-        latestDraft = await updateWebsiteDesignSettings(
-          event.id,
-          projectId,
-          designOverride,
-        );
-        setDraft(latestDraft);
-        setDesignOverride(null);
-      }
-      return true;
+      const updated = await saveWebsiteDraft(event.id, projectId, draft.draftRevision, changes);
+      setDraft(updated);
+      const newerEdits = structureRef.current !== submitted.structure || contentRef.current !== submitted.content || appearanceRef.current !== submitted.appearance || designRef.current !== submitted.design;
+      setSectionStructureOverride(retainUnsubmittedEdit(structureRef.current, submitted.structure));
+      setContentOverride(retainUnsubmittedEdit(contentRef.current, submitted.content));
+      setAppearanceOverride(retainUnsubmittedEdit(appearanceRef.current, submitted.appearance));
+      setDesignOverride(retainUnsubmittedEdit(designRef.current, submitted.design));
+      setSaveStatus(newerEdits ? "Submitted changes saved. Newer edits are still unsaved." : "Draft saved.");
+      return !newerEdits;
     } catch (saveError) {
-      if (domain === "structure") setListError(messageFor(saveError));
-      else if (domain === "content") {
-        setContentError(
-          saveError instanceof ApiError
-            ? (saveError.validationErrors.content?.[0] ?? saveError.message)
-            : "Unable to save this section. Please try again.",
-        );
-      } else if (domain === "appearance") {
-        setAppearanceError(messageFor(saveError));
-      } else setDesignError(messageFor(saveError));
+      setListError(draftSaveError(saveError));
+      setSaveStatus(saveError instanceof ApiError && saveError.status === 409 ? "Stale draft: local edits kept." : "Save failed: local edits kept.");
       return false;
     } finally {
+      saveInFlight.current = false;
+      setAtomicSaving(false);
       setListPending(false);
     }
   }
@@ -1144,7 +1189,7 @@ function WebsitePageContent() {
   }
 
   async function saveSectionDesignDefaults(defaults: SectionDesignDefaults) {
-    if (!effectiveSelectedId) return;
+    if (!effectiveSelectedId || saveInFlight.current || listPending || sectionDesignSaving || colorSaving) return;
     setSectionDesignSaving(true);
     setSectionDesignError(null);
     try {
@@ -1152,6 +1197,7 @@ function WebsitePageContent() {
         await updateWebsiteSectionDesignDefaults(
           event.id,
           projectId,
+          draft!.draftRevision,
           effectiveSelectedId,
           defaults,
         ),
@@ -1164,12 +1210,14 @@ function WebsitePageContent() {
   }
 
   async function addProjectColor(value: string): Promise<ProjectColor> {
+    if (saveInFlight.current || listPending || sectionDesignSaving || colorSaving) throw new Error("Wait for the current save to finish.");
+    setColorSaving(true);
     try {
-      const updated = await addWebsiteProjectColor(event.id, projectId, value);
+      const updated = await addWebsiteProjectColor(event.id, projectId,
+          draft!.draftRevision, value);
       const customColors = updated.designSettings.customColors;
       setDraft({
-        ...draft!,
-        designSettings: { ...draft!.designSettings, customColors },
+        ...updated,
       });
       setDesignOverride((current) =>
         current ? { ...current, customColors } : null,
@@ -1186,6 +1234,8 @@ function WebsitePageContent() {
         );
       }
       throw addError;
+    } finally {
+      setColorSaving(false);
     }
   }
 
@@ -1216,7 +1266,7 @@ function WebsitePageContent() {
       workingChildFlow={
         selected &&
         workingContent &&
-        (selected.type === "blank" || selected.type === "hero" || selected.type === "gallery")
+        (selected.type === "blank" || selected.type === "hero" || selected.type === "gallery" || selected.type === "rsvp")
           ? {
               sectionId: selected.id,
               flow: activeCompositionTarget?.composition.childFlow,
@@ -1237,6 +1287,7 @@ function WebsitePageContent() {
                 type === "accordion" ||
                 type === "schedule" ||
                 type === "people" ||
+                type === "countdown" ||
                 type === "divider" ||
                 type === "media" ||
                 type === "compositionGroup",
@@ -1283,7 +1334,12 @@ function WebsitePageContent() {
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
+        workingAppearanceOwner={workingAppearanceOwner}
         targetViewport={previewMode}
+        rsvpPreviewState={rsvpEditorPreviewState}
+        editMotionReplay={editMotionReplay}
+        onAnimationReplay={requestAnimationReplay}
+        onRsvpPreviewStateChange={setRsvpEditorPreviewState}
         selectedChild={
           selectedChild &&
           selectedChild.sectionId === selected?.id &&
@@ -1309,9 +1365,9 @@ function WebsitePageContent() {
         onContentChange={updateWorkingContent}
         onCustomizeComposition={customizeActiveComposition}
         onResetComposition={resetActiveComposition}
-        onAppearanceChange={(appearance) =>
-          selected &&
-          setAppearanceOverride({
+        onAppearanceChange={(appearance) => {
+          setEditMotionReplay(undefined);
+          if (selected) setAppearanceOverride({
             sectionId: selected.id,
             appearance: activeAppearanceTarget
               ? replaceScopedSectionAppearance(
@@ -1320,8 +1376,9 @@ function WebsitePageContent() {
                   appearance,
                 )
               : appearance,
-          })
-        }
+          });
+        }}
+        onAppearanceOwnerChange={(appearance) => { setEditMotionReplay(undefined); if (selected) setAppearanceOverride({ sectionId: selected.id, appearance }); }}
         onSectionDesignChange={(defaults) =>
           void saveSectionDesignDefaults(defaults)
         }
@@ -1357,7 +1414,12 @@ function WebsitePageContent() {
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
+        workingAppearanceOwner={workingAppearanceOwner}
         targetViewport={previewMode}
+        rsvpPreviewState={rsvpEditorPreviewState}
+        editMotionReplay={editMotionReplay}
+        onAnimationReplay={requestAnimationReplay}
+        onRsvpPreviewStateChange={setRsvpEditorPreviewState}
         selectedChild={
           selectedChild &&
           selectedChild.sectionId === selected?.id &&
@@ -1383,9 +1445,9 @@ function WebsitePageContent() {
         onContentChange={updateWorkingContent}
         onCustomizeComposition={customizeActiveComposition}
         onResetComposition={resetActiveComposition}
-        onAppearanceChange={(appearance) =>
-          selected &&
-          setAppearanceOverride({
+        onAppearanceChange={(appearance) => {
+          setEditMotionReplay(undefined);
+          if (selected) setAppearanceOverride({
             sectionId: selected.id,
             appearance: activeAppearanceTarget
               ? replaceScopedSectionAppearance(
@@ -1394,8 +1456,9 @@ function WebsitePageContent() {
                   appearance,
                 )
               : appearance,
-          })
-        }
+          });
+        }}
+        onAppearanceOwnerChange={(appearance) => { setEditMotionReplay(undefined); if (selected) setAppearanceOverride({ sectionId: selected.id, appearance }); }}
         onSectionDesignChange={(defaults) =>
           void saveSectionDesignDefaults(defaults)
         }
@@ -1497,11 +1560,12 @@ function WebsitePageContent() {
       <BuilderSaveBar
         dirty={globalDirty}
         resetDirty={globalDirty}
-        saving={listPending}
+        saving={listPending || sectionDesignSaving || colorSaving}
         onSave={() => void saveEditorChanges()}
         onReset={resetEditorChanges}
       />
 
+      {saveStatus && <p role="status" className="shrink-0 border-b border-border px-4 py-2 text-sm">{saveStatus}</p>}
       {listError && (
         <p
           className="shrink-0 border-b border-border bg-danger-muted px-4 py-2 text-sm text-danger"
@@ -1514,6 +1578,7 @@ function WebsitePageContent() {
         <EmptyEditor />
       ) : (
         <div
+          inert={(listPending && !atomicSaving) || sectionDesignSaving || colorSaving}
           className="flex h-0 min-h-0 flex-1 overflow-hidden xl:grid xl:grid-cols-[var(--desktop-editor-grid-columns)] xl:grid-rows-[minmax(0,1fr)]"
           style={desktopEditorGridStyle}
         >
@@ -1529,8 +1594,11 @@ function WebsitePageContent() {
             draft={previewDraft}
             mode={mode}
             editorMode={editorMode}
+            motionSessionKey={previewMotionSession}
+            editMotionReplay={editMotionReplay}
             selectedId={effectiveSelectedId}
             previewMode={previewMode}
+            rsvpEditorPreviewState={rsvpEditorPreviewState}
             unsaved={globalDirty}
             inlineValue={
               mode === "content"
@@ -1616,7 +1684,7 @@ function WebsitePageContent() {
             if (pendingMode) setMode(pendingMode);
             if (pendingDrawerMode) applyDrawerMode(pendingDrawerMode);
             if (pendingPreviewMode) {
-              setPreviewMode(pendingPreviewMode.viewport);
+              applyPreviewMode(pendingPreviewMode.viewport);
               setSelectedChild(null);
               setInlineEditingTarget(null);
             }
@@ -1633,7 +1701,8 @@ function WebsitePageContent() {
                 pendingSection &&
                 (pendingSection.type === "blank" ||
                   pendingSection.type === "gallery" ||
-                  pendingSection.type === "hero")
+                  pendingSection.type === "hero" ||
+                  pendingSection.type === "rsvp")
                   ? resolveEditorCompositionTarget(pendingSection, previewMode)
                       .composition.childFlow
                   : undefined;
@@ -1669,7 +1738,7 @@ function WebsitePageContent() {
           if (pendingMode) setMode(pendingMode);
           if (pendingDrawerMode) applyDrawerMode(pendingDrawerMode);
           if (pendingPreviewMode) {
-            setPreviewMode(pendingPreviewMode.viewport);
+            applyPreviewMode(pendingPreviewMode.viewport);
             setSelectedChild(null);
           }
           if (pendingSelection || pendingMode) {
@@ -1688,7 +1757,8 @@ function WebsitePageContent() {
               pendingSection &&
               (pendingSection.type === "blank" ||
                 pendingSection.type === "gallery" ||
-                pendingSection.type === "hero")
+                pendingSection.type === "hero" ||
+                pendingSection.type === "rsvp")
                 ? resolveEditorCompositionTarget(pendingSection, previewMode)
                     .composition.childFlow
                 : undefined;
@@ -1980,8 +2050,11 @@ function PreviewCanvas({
   draft,
   mode,
   editorMode,
+  motionSessionKey,
+  editMotionReplay,
   selectedId,
   previewMode,
+  rsvpEditorPreviewState,
   unsaved,
   inlineValue,
   selectedChild,
@@ -1996,8 +2069,11 @@ function PreviewCanvas({
   draft: WebsiteDraft;
   mode: BuilderMode;
   editorMode: EditorMode;
+  motionSessionKey: number;
+  editMotionReplay?: import("../../features/websiteAnimation/runtime").EditMotionReplay;
   selectedId: string | null;
   previewMode: ResponsiveViewport;
+  rsvpEditorPreviewState: RsvpEditorPreviewState;
   unsaved: boolean;
   inlineValue: React.ComponentProps<typeof InlineEditProvider>["value"];
   selectedChild: SectionChildReference | null;
@@ -2172,13 +2248,27 @@ function PreviewCanvas({
             }}
           >
             <PreviewViewport viewport={previewMode}>
-              <InlineEditProvider
-                value={editorMode === "edit" ? inlineValue : null}
+              <div
+                onPointerDownCapture={(event) => {
+                  if (editorMode !== "edit") return;
+                  const sectionId = specializedSectionIdFromTarget(event.target);
+                  if (sectionId) onChildSelect(sectionId, { kind: "specialized", key: "content" });
+                }}
+                onClickCapture={(event) => {
+                  if (editorMode !== "edit" || event.detail !== 0) return;
+                  const sectionId = specializedSectionIdFromTarget(event.target);
+                  if (sectionId) onChildSelect(sectionId, { kind: "specialized", key: "content" });
+                }}
               >
+                <InlineEditProvider
+                  value={editorMode === "edit" ? inlineValue : null}
+                >
                 <WebsiteRenderer
                   event={event}
                   website={draft}
                   mode={editorMode === "edit" ? "editor" : "public"}
+                  motionSessionKey={motionSessionKey}
+                  editMotionReplay={editorMode === "edit" ? editMotionReplay : undefined}
                   selectedSectionId={
                     editorMode === "edit" && mode === "content"
                       ? selectedId
@@ -2189,17 +2279,17 @@ function PreviewCanvas({
                   }
                   onGalleryAdd={editorMode === "edit" ? onGalleryAdd : undefined}
                   selectedElementId={
-                    editorMode === "edit" && selectedChild?.kind === "element"
-                      ? selectedChild.id
+                    editorMode === "edit"
+                      ? editorElementId(selectedChild, draft.sections.find(({ id }) => id === selectedId)?.type)
                       : null
                   }
                   onElementSelect={
                     editorMode === "edit"
                       ? (sectionId, elementId) =>
-                          onChildSelect(sectionId, {
-                            kind: "element",
-                            id: elementId,
-                          })
+                          onChildSelect(
+                            sectionId,
+                            editorElementReference(elementId),
+                          )
                       : undefined
                   }
                   onElementChange={
@@ -2212,7 +2302,8 @@ function PreviewCanvas({
                             section &&
                             (section.type === "blank" ||
                               section.type === "gallery" ||
-                              section.type === "hero")
+                              section.type === "hero" ||
+                              section.type === "rsvp")
                               ? resolveEditorCompositionTarget(
                                   section,
                                   previewMode,
@@ -2237,7 +2328,8 @@ function PreviewCanvas({
                             section &&
                             (section.type === "blank" ||
                               section.type === "gallery" ||
-                              section.type === "hero")
+                              section.type === "hero" ||
+                              section.type === "rsvp")
                               ? resolveEditorCompositionTarget(
                                   section,
                                   previewMode,
@@ -2259,13 +2351,16 @@ function PreviewCanvas({
                   }
                   onAddColor={editorMode === "edit" ? onAddColor : undefined}
                   targetViewport={previewMode}
+                  audience="management-preview"
+                  rsvpEditorPreviewState={rsvpEditorPreviewState}
                   scope={
                     editorMode === "edit" && selectedId
                       ? { kind: "single-section", sectionId: selectedId }
                       : { kind: "full" }
                   }
                 />
-              </InlineEditProvider>
+                </InlineEditProvider>
+              </div>
             </PreviewViewport>
           </div>
         </div>
@@ -2337,7 +2432,12 @@ function SectionInspector({
   selected,
   workingContent,
   workingAppearance,
+  workingAppearanceOwner,
   targetViewport,
+  rsvpPreviewState,
+  editMotionReplay,
+  onAnimationReplay,
+  onRsvpPreviewStateChange,
   selectedChild,
   panelMode,
   showModeSwitch,
@@ -2354,6 +2454,7 @@ function SectionInspector({
   onCustomizeComposition,
   onResetComposition,
   onAppearanceChange,
+  onAppearanceOwnerChange,
   onSectionDesignChange,
 }: {
   eventId: string;
@@ -2364,7 +2465,12 @@ function SectionInspector({
   selected: WebsiteSection | null;
   workingContent?: Record<string, unknown>;
   workingAppearance?: WebsiteSectionAppearance;
+  workingAppearanceOwner?: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope;
   targetViewport: ResponsiveViewport;
+  rsvpPreviewState: RsvpEditorPreviewState;
+  editMotionReplay?: import("../../features/websiteAnimation/runtime").EditMotionReplay;
+  onAnimationReplay: (ownerId: string) => void;
+  onRsvpPreviewStateChange: (state: RsvpEditorPreviewState) => void;
   selectedChild: SectionChildReference | null;
   panelMode: SectionPanelMode;
   showModeSwitch: boolean;
@@ -2381,6 +2487,7 @@ function SectionInspector({
   onCustomizeComposition: () => void;
   onResetComposition: () => void;
   onAppearanceChange: (appearance: WebsiteSectionAppearance) => void;
+  onAppearanceOwnerChange: (appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope) => void;
   onSectionDesignChange: (defaults: SectionDesignDefaults) => void;
 }) {
   if (!selected || !workingContent || !workingAppearance) return null;
@@ -2388,7 +2495,7 @@ function SectionInspector({
     ? sectionCapability(capabilities, selected.type)
     : undefined;
   const compositionTarget =
-    selected.type === "blank" || selected.type === "hero" || selected.type === "gallery"
+    selected.type === "blank" || selected.type === "hero" || selected.type === "gallery" || selected.type === "rsvp"
       ? resolveEditorCompositionTarget(
           { ...selected, content: workingContent } as WebsiteSection,
           targetViewport,
@@ -2415,15 +2522,22 @@ function SectionInspector({
   const selectedAccordion =
     selectedElement?.type === "accordion" ? selectedElement : null;
   const selectedSchedule =
-    selectedElement?.type === "schedule" ? selectedElement : null;
+    selectedElement?.type === "schedule" ? resolveSchedule(selectedElement, (workingContent as SharedContentOwner).sharedContentDefinitions) : null;
   const selectedPeople =
     selectedElement?.type === "people" ? selectedElement : null;
+  const selectedCountdown =
+    selectedElement?.type === "countdown" ? selectedElement : null;
   const selectedGroup =
     selectedElement?.type === "compositionGroup" ? selectedElement : null;
   const selectedDivider =
     selectedElement?.type === "divider" ? selectedElement : null;
   const selectedMedia =
     selectedElement?.type === "media" ? selectedElement : null;
+  const selectedRsvpRuntime = selected.type === "rsvp" && selectedChild?.kind === "specialized";
+  const selectedGalleryContent = selected.type === "gallery" && selectedChild?.kind === "specialized";
+  const specializedSelected = selectedRsvpRuntime || selectedGalleryContent;
+  const surfaceOnlyParent = isSurfaceOnlyParentSelection(selected.type, specializedSelected);
+  const activePanelMode = resolveOwnedInspectorPanelMode(selected.type, specializedSelected, panelMode);
   const textCapability = capabilities
     ? templateElementCapability(capabilities, "text")
     : undefined;
@@ -2439,10 +2553,11 @@ function SectionInspector({
     selectedAccordion ??
     selectedSchedule ??
     selectedPeople ??
+    selectedCountdown ??
     selectedDivider ??
     selectedMedia;
   const showBlockSpacingEditor =
-    selectedLeaf && childFlow && (!selectedMedia || panelMode === "appearance");
+    selectedLeaf && childFlow && (!selectedMedia || activePanelMode === "appearance");
   const blockSpacingEditor =
     showBlockSpacingEditor ? (
       <GenericBlockOuterSpacingEditor
@@ -2453,6 +2568,126 @@ function SectionInspector({
         }
       />
     ) : null;
+  const showBlockAnimationEditor =
+    selectedElement && childFlow && (!selectedMedia || activePanelMode === "appearance");
+  const composableAppearanceOwner = workingAppearanceOwner && "shared" in workingAppearanceOwner
+    ? workingAppearanceOwner as WebsiteSectionAppearanceEnvelope
+    : undefined;
+  const blockAnimationEditor = showBlockAnimationEditor ? (
+    <AnimationAppearanceControls
+      ownerLabel={selectedElement.type === "compositionGroup" ? "Group" : selectedElement.type}
+      authored={authoredElementAnimation(selectedElement, authoringViewport)}
+      effective={resolveElementAnimation(selectedElement, authoringViewport)}
+      exactDevice={authoringViewport !== "desktop"}
+      conflict={animationConflictMessage(
+        selected,
+        composableAppearanceOwner ?? workingAppearance,
+        childFlow,
+        selectedElement.id,
+        authoringViewport,
+      )}
+      replayed={editMotionReplay?.ownerId === elementMotionOwnerId(selectedElement.id)}
+      onReplay={() => onAnimationReplay(elementMotionOwnerId(selectedElement.id))}
+      onChange={(animation) =>
+        changeSharedFlow(
+          updateSectionElement(
+            childFlow,
+            updateElementAnimation(selectedElement, authoringViewport, animation),
+          ),
+        )
+      }
+      onReset={authoringViewport !== "desktop" ? () =>
+        changeSharedFlow(
+          updateSectionElement(
+            childFlow,
+            updateElementAnimation(selectedElement, authoringViewport, undefined),
+          ),
+        ) : undefined}
+    />
+  ) : null;
+  const blockAppearanceEditors = <>{blockSpacingEditor}{blockAnimationEditor}</>;
+  const rsvpAnimationViewport = authoringViewport;
+  const rsvpAuthoredAnimation = rsvpAnimationViewport === "desktop"
+    ? workingAppearance.specialized?.content?.animation
+    : workingAppearance.responsive?.[rsvpAnimationViewport]?.specialized?.content?.animation;
+  const changeRsvpAnimation = (animation: import("../../features/websiteAnimation/contract").AuthoredAnimation | undefined) => {
+    const next = structuredClone(workingAppearance);
+    const owner = rsvpAnimationViewport === "desktop"
+      ? next
+      : ((next.responsive ??= {})[rsvpAnimationViewport] ??= {});
+    const specialized = { ...(owner.specialized ?? {}) };
+    const content = { ...(specialized.content ?? {}) };
+    if (animation) content.animation = animation;
+    else delete content.animation;
+    if (Object.keys(content).length) specialized.content = content;
+    else delete specialized.content;
+    if (Object.keys(specialized).length) owner.specialized = specialized;
+    else delete owner.specialized;
+    if (rsvpAnimationViewport !== "desktop" && Object.keys(owner).length === 0)
+      delete next.responsive?.[rsvpAnimationViewport];
+    onAppearanceChange(next);
+  };
+  const sectionAnimationViewport = selected.type === "gallery" ? targetViewport : authoringViewport;
+  const sectionExactAnimation = sectionAnimationViewport === "desktop"
+    ? undefined
+    : composableAppearanceOwner?.custom?.[sectionAnimationViewport]?.animation;
+  const sectionAnimationControl = composableAppearanceOwner ? <AnimationAppearanceControls
+    ownerLabel={`${selected.editorName ?? selected.displayName} Section`}
+    authored={sectionAnimationViewport === "desktop" ? composableAppearanceOwner.shared.animation : sectionExactAnimation}
+    effective={resolveSectionAnimation(composableAppearanceOwner, sectionAnimationViewport)}
+    exactDevice={sectionAnimationViewport !== "desktop"}
+    replayed={editMotionReplay?.ownerId === sectionMotionOwnerId(selected.id)}
+    onReplay={() => onAnimationReplay(sectionMotionOwnerId(selected.id))}
+    onChange={(animation) => {
+      const next = structuredClone(composableAppearanceOwner);
+      if (sectionAnimationViewport === "desktop") {
+        if (animation) next.shared.animation = animation;
+        else delete next.shared.animation;
+      } else {
+        const branch = { ...(next.custom?.[sectionAnimationViewport] ?? next.shared) };
+        if (animation) branch.animation = animation;
+        else delete branch.animation;
+        next.custom = { ...next.custom, [sectionAnimationViewport]: branch };
+      }
+      onAppearanceOwnerChange(next);
+    }}
+    onReset={sectionAnimationViewport !== "desktop" ? () => {
+      const next = structuredClone(composableAppearanceOwner);
+      const branch = next.custom?.[sectionAnimationViewport];
+      if (!branch) return;
+      const hasCustomComposition = Boolean((selected.content as { compositions?: { custom?: Partial<Record<ResponsiveViewport, unknown>> } }).compositions?.custom?.[sectionAnimationViewport]);
+      if (hasCustomComposition) delete branch.animation;
+      else delete next.custom?.[sectionAnimationViewport];
+      if (next.custom && Object.keys(next.custom).length === 0) delete next.custom;
+      onAppearanceOwnerChange(next);
+    } : undefined}
+  /> : null;
+  const galleryAnimationViewport = targetViewport;
+  const galleryExactItemAnimation = galleryAnimationViewport === "desktop" ? composableAppearanceOwner?.shared.galleryItemAnimation : composableAppearanceOwner?.custom?.[galleryAnimationViewport]?.galleryItemAnimation;
+  const changeGalleryItemAnimation = (animation: import("../../features/websiteAnimation/contract").GalleryItemAnimation | undefined) => {
+    if (!composableAppearanceOwner) return;
+    const next = structuredClone(composableAppearanceOwner);
+    if (galleryAnimationViewport === "desktop") {
+      if (animation) next.shared.galleryItemAnimation = animation;
+      else delete next.shared.galleryItemAnimation;
+    } else {
+      const branch = { ...(next.custom?.[galleryAnimationViewport] ?? next.shared) };
+      if (animation) branch.galleryItemAnimation = animation;
+      else delete branch.galleryItemAnimation;
+      next.custom = { ...next.custom, [galleryAnimationViewport]: branch };
+    }
+    onAppearanceOwnerChange(next);
+  };
+  const resetGalleryItemAnimation = galleryAnimationViewport === "desktop" || !composableAppearanceOwner ? undefined : () => {
+    const next = structuredClone(composableAppearanceOwner);
+    const branch = next.custom?.[galleryAnimationViewport];
+    if (!branch) return;
+    delete branch.galleryItemAnimation;
+    const hasCustomComposition = Boolean((selected.content as { compositions?: { custom?: Partial<Record<ResponsiveViewport, unknown>> } }).compositions?.custom?.[galleryAnimationViewport]);
+    if (!hasCustomComposition && !branch.animation) delete next.custom?.[galleryAnimationViewport];
+    if (next.custom && Object.keys(next.custom).length === 0) delete next.custom;
+    onAppearanceOwnerChange(next);
+  };
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       {compositionTarget && (
@@ -2471,7 +2706,11 @@ function SectionInspector({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heading className="xl:text-base!" level={2} variant="panel">
-              {selectedText
+              {selectedRsvpRuntime
+                ? "RSVP form"
+                : selectedGalleryContent
+                  ? "Gallery content"
+                : selectedText
                 ? "Text"
                 : selectedDate
                   ? "Date"
@@ -2481,6 +2720,8 @@ function SectionInspector({
                       ? "Schedule"
                       : selectedPeople
                         ? "People"
+                        : selectedCountdown
+                          ? "Countdown"
                         : selectedGroup
                           ? "Group"
                           : selectedDivider
@@ -2496,15 +2737,17 @@ function SectionInspector({
             )}
           </div>
           {showModeSwitch &&
+            !surfaceOnlyParent &&
             !selectedText &&
             !selectedDate &&
             !selectedAccordion &&
             !selectedSchedule &&
             !selectedPeople &&
+            !selectedCountdown &&
             !selectedGroup &&
             !selectedDivider && (
               <SegmentedControl
-                value={panelMode}
+                value={activePanelMode}
                 options={[
                   { value: "content", label: "Content" },
                   { value: "appearance", label: "Appearance" },
@@ -2519,14 +2762,21 @@ function SectionInspector({
             ? "Edit content directly on the canvas. Customize this element's appearance here."
             : selectedGroup
               ? "Arrange this Group's children and responsive layout."
-              : panelMode === "content"
+              : activePanelMode === "content"
                 ? "Edit semantic content."
                 : "Customize this Section's presentation."}
         </Text>
       </div>
-      {selectedAccordion && childFlow ? (
+      {selectedCountdown && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
+          <ColorPreviewScopeContext key={selected.id} value={selected.id}>
+          <CountdownElementEditor onAddColor={onAddColor} element={selectedCountdown} viewport={authoringViewport} library={capabilities!.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />
+          </ColorPreviewScopeContext>
+        </div>
+      ) : selectedAccordion && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          {blockAppearanceEditors}
           <AccordionElementEditor
             element={selectedAccordion}
             onChange={(element) =>
@@ -2536,17 +2786,24 @@ function SectionInspector({
         </div>
       ) : selectedSchedule && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
+          <div className="space-y-3">
+          {!selectedSchedule.contentId && <Button type="button" variant="secondary" onClick={() => onContentChange(optInSchedule(workingContent as SharedContentOwner, selectedSchedule.id) as unknown as Record<string, unknown>)}>Share Schedule content across device placements</Button>}
+          <ScheduleLayoutEditor element={selectedSchedule} library={capabilities!.designLibrary} projectColors={projectColors} onAddColor={onAddColor} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />
+          <ColorPreviewScopeContext value={selected.id}>
+            <ScheduleAppearanceEditor element={selectedSchedule} viewport={authoringViewport} library={capabilities!.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />
+          </ColorPreviewScopeContext>
           <ScheduleElementEditor
             element={selectedSchedule}
-            onChange={(element) =>
-              changeSharedFlow(updateSectionElement(childFlow, element))
-            }
+            onChange={(element) => element.contentId
+              ? onContentChange(updateSharedSchedule(workingContent as SharedContentOwner, element.id, element.days) as unknown as Record<string, unknown>)
+              : changeSharedFlow(updateSectionElement(childFlow, element))}
           />
+          </div>
         </div>
       ) : selectedPeople && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <PeopleEditor
             section={selected}
             content={selectedPeople}
@@ -2566,7 +2823,7 @@ function SectionInspector({
         </div>
       ) : selectedDate && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <DateElementEditor
               element={selectedDate}
@@ -2586,7 +2843,7 @@ function SectionInspector({
         </div>
       ) : selectedText && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <TextElementEditor
               element={selectedText}
@@ -2610,7 +2867,7 @@ function SectionInspector({
         </div>
       ) : selectedDivider && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <DividerElementEditor
               context={selected.resolvedDesignContext}
@@ -2628,12 +2885,12 @@ function SectionInspector({
         </div>
       ) : selectedMedia && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-          {blockSpacingEditor}
+          {blockAppearanceEditors}
           <MediaElementEditor
             element={selectedMedia}
             eventId={eventId}
             viewport={authoringViewport}
-            mode={panelMode}
+            mode={activePanelMode}
             resolvedMedia={resolvedMedia}
             onMediaResolved={onMediaResolved}
             onChange={(element) =>
@@ -2643,6 +2900,7 @@ function SectionInspector({
         </div>
       ) : selectedGroup && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          {blockAnimationEditor}
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>
             <GroupElementEditor
               group={selectedGroup}
@@ -2664,7 +2922,64 @@ function SectionInspector({
             />
           </ColorPreviewScopeContext>
         </div>
-      ) : panelMode === "content" ? (
+      ) : selectedGalleryContent && activePanelMode === "appearance" ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <GalleryAppearanceControls
+            appearance={workingAppearance}
+            viewport={targetViewport}
+            onChange={onAppearanceChange}
+            itemAnimation={galleryExactItemAnimation}
+            effectiveItemAnimation={composableAppearanceOwner ? resolveGalleryItemAnimation(composableAppearanceOwner, galleryAnimationViewport) : undefined}
+            exactDevice={galleryAnimationViewport !== "desktop"}
+            itemAnimationConflict={hasEntranceAnimation(composableAppearanceOwner ? resolveSectionAnimation(composableAppearanceOwner, galleryAnimationViewport) : undefined) ? "Gallery item animation won't play while the Gallery Section has an entrance animation on this device." : undefined}
+            itemAnimationReplayed={editMotionReplay?.ownerId === galleryItemsMotionOwnerId(selected.id)}
+            onItemAnimationChange={changeGalleryItemAnimation}
+            onItemAnimationReset={resetGalleryItemAnimation}
+            onItemAnimationReplay={() => onAnimationReplay(galleryItemsMotionOwnerId(selected.id))}
+          />
+        </div>
+      ) : selectedRsvpRuntime && activePanelMode === "appearance" && capabilities ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <AnimationAppearanceControls
+            ownerLabel="RSVP form"
+            authored={rsvpAuthoredAnimation}
+            effective={resolveRsvpSpecializedAnimation(workingAppearance, rsvpAnimationViewport)}
+            exactDevice={rsvpAnimationViewport !== "desktop"}
+            conflict={hasEntranceAnimation(resolveSectionAnimation(workingAppearance, rsvpAnimationViewport)) ? "This animation won't play while its RSVP Section animates on this device." : undefined}
+            replayed={editMotionReplay?.ownerId === rsvpMotionOwnerId(selected.id)}
+            onReplay={() => onAnimationReplay(rsvpMotionOwnerId(selected.id))}
+            onChange={changeRsvpAnimation}
+            onReset={rsvpAnimationViewport !== "desktop" ? () => changeRsvpAnimation(undefined) : undefined}
+          />
+          <ColorPreviewScopeContext key={selected.id} value={selected.id}>
+            <RsvpRuntimeAppearanceEditor
+              value={(workingContent as import("../../features/websiteEditor/types").RsvpContent).semantic.runtimeAppearance ?? {}}
+              resolved={resolveRsvpPresentation({
+                templateKey,
+                viewport: targetViewport,
+                library: capabilities.designLibrary,
+                projectColors,
+                context: selected.resolvedDesignContext,
+                authored: (workingContent as import("../../features/websiteEditor/types").RsvpContent).semantic.runtimeAppearance,
+              })}
+              viewport={authoringViewport}
+              library={capabilities.designLibrary}
+              allowedFontIds={textFontIds}
+              allowedColorIds={textColorIds}
+              projectColors={projectColors}
+              context={selected.resolvedDesignContext}
+              onAddColor={onAddColor}
+              onChange={(runtimeAppearance) => {
+                const content = workingContent as import("../../features/websiteEditor/types").RsvpContent;
+                onContentChange({
+                  ...content,
+                  semantic: Object.keys(runtimeAppearance).length ? { runtimeAppearance } : {},
+                });
+              }}
+            />
+          </ColorPreviewScopeContext>
+        </div>
+      ) : activePanelMode === "content" ? (
         <div className="min-h-0 flex-1">
           <SectionEditor
             viewport={authoringViewport}
@@ -2675,6 +2990,9 @@ function SectionInspector({
             onAppearanceChange={onAppearanceChange}
             resolvedMedia={resolvedMedia}
             onMediaResolved={onMediaResolved}
+            galleryContentSelected={selectedGalleryContent}
+            rsvpPreviewState={selectedRsvpRuntime ? rsvpPreviewState : undefined}
+            onRsvpPreviewStateChange={selectedRsvpRuntime ? onRsvpPreviewStateChange : undefined}
           />
         </div>
       ) : capability ? (
@@ -2692,7 +3010,11 @@ function SectionInspector({
                 projectColors={projectColors}
                 onAddColor={onAddColor}
                 onChange={onAppearanceChange}
+                animationReplayed={editMotionReplay?.ownerId === sectionMotionOwnerId(selected.id)}
+                onAnimationReplay={() => onAnimationReplay(sectionMotionOwnerId(selected.id))}
+                showAnimation={!composableAppearanceOwner}
               />
+              {sectionAnimationControl}
               </ColorPreviewScopeContext>
               {selected.type !== "blank" && (
                 <SectionDesignDefaultsPanel
@@ -2744,6 +3066,21 @@ function EditorLoading({ eventId }: { eventId: string }) {
     </div>
   );
 }
+
+function animationConflictMessage(
+  section: WebsiteSection,
+  appearance: WebsiteSectionAppearance | WebsiteSectionAppearanceEnvelope,
+  flow: SectionChildFlow,
+  elementId: string,
+  viewport: ResponsiveViewport,
+): string | undefined {
+  if (hasEntranceAnimation(resolveSectionAnimation(appearance, viewport)))
+    return `This animation won't play while its ${section.editorName ?? section.displayName} Section animates on this device.`;
+  const animated = animatedElementAncestor(flow, elementId, viewport);
+  if (!animated) return undefined;
+  return `This animation won't play while its parent ${animated.type === "compositionGroup" ? "Group" : animated.type} animates on this device.`;
+}
+
 function EditorError({
   eventId,
   message,

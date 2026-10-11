@@ -20,8 +20,8 @@ const childFlow = (groupId: string, childId: string) => ({
 });
 
 const sections = [
-  { id: "section-a", type: "blank", displayName: "Section A", editorName: "Section A", isEnabled: true, content: { childFlow: childFlow("group-a", "child-a") } },
-  { id: "section-b", type: "blank", displayName: "Section B", editorName: "Section B", isEnabled: false, content: { childFlow: childFlow("group-b", "nested-child-b") } },
+  { id: "section-a", type: "blank", displayName: "Section A", editorName: "Section A", isEnabled: true, content: { semantic: {}, compositions: { shared: { childFlow: childFlow("group-a", "child-a") } } } },
+  { id: "section-b", type: "blank", displayName: "Section B", editorName: "Section B", isEnabled: false, content: { semantic: {}, compositions: { shared: { childFlow: childFlow("group-b", "nested-child-b") } } } },
 ] as unknown as WebsiteSection[];
 
 const renderNavigator = (selectedId: string, childSectionId?: string, childId?: string) => renderToStaticMarkup(
@@ -45,8 +45,8 @@ const renderNavigator = (selectedId: string, childSectionId?: string, childId?: 
 describe("Section Structure accordion", () => {
   it("keeps repeated Blank rows distinct and labels them by persisted editor name", () => {
     const blanks = [
-      { ...sections[0], id: "blank-1", type: "blank", displayName: "Section", editorName: "Section 1", content: { childFlow: { elements: [], order: [] } } },
-      { ...sections[0], id: "blank-2", type: "blank", displayName: "Section", editorName: "Travel notes", content: { childFlow: { elements: [], order: [] } } },
+      { ...sections[0], id: "blank-1", type: "blank", displayName: "Section", editorName: "Section 1", content: { semantic: {}, compositions: { shared: { childFlow: { elements: [], order: [] } } } } },
+      { ...sections[0], id: "blank-2", type: "blank", displayName: "Section", editorName: "Travel notes", content: { semantic: {}, compositions: { shared: { childFlow: { elements: [], order: [] } } } } },
     ] as unknown as WebsiteSection[];
     const html = renderToStaticMarkup(<SectionNavigator {...{
       sections: blanks, selectedId: "blank-2", workingChildFlow: null, selectedChild: null, genericChildTypesBySectionType: { blank: ["text", "text", "date", "divider", "media", "compositionGroup"] }, pending: false,

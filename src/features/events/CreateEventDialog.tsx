@@ -29,7 +29,7 @@ export function CreateEventDialog({ open, onClose, onCreated }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<CreateEventFormValues>({
     resolver: zodResolver(createEventSchema),
-    defaultValues: { name: "", type: "wedding", eventDate: "", slug: "" },
+    defaultValues: { name: "", type: "wedding", eventDate: "", slug: "", timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" },
   });
 
   function close() {
@@ -47,13 +47,14 @@ export function CreateEventDialog({ open, onClose, onCreated }: Props) {
         type: values.type,
         ...(values.eventDate ? { eventDate: values.eventDate } : {}),
         ...(values.slug ? { slug: values.slug } : {}),
+        timeZone: values.timeZone,
       });
       reset();
       onCreated(event);
       onClose();
     } catch (error) {
       if (error instanceof ApiError) {
-        for (const field of ["name", "type", "eventDate", "slug"] as const) {
+        for (const field of ["name", "type", "eventDate", "slug", "timeZone"] as const) {
           const message = error.validationErrors[field]?.[0];
           if (message) setError(field, { message });
         }

@@ -23,6 +23,7 @@ import { ZoomedMediaImage } from "./ZoomedMediaImage";
 import { resolveElementInlineAlignment } from "./elementInlineAlignment";
 import { resolvedMediaItems } from "./elementRenderability";
 import { resolveMediaAspectRatio } from "../websiteElements/mediaCrop";
+import { SURFACE_RADIUS_CSS, SURFACE_SHADOW_CSS } from "./surfaceEffects";
 
 const widths = {
   small: "20rem",
@@ -30,19 +31,6 @@ const widths = {
   large: "48rem",
   full: "100%",
 } as const;
-const radii = {
-  square: "0",
-  soft: ".5rem",
-  rounded: "1.25rem",
-  pill: "9999px",
-} as const;
-const shadows = {
-  none: "none",
-  soft: "0 4px 16px rgb(0 0 0 / .1)",
-  medium: "0 10px 28px rgb(0 0 0 / .16)",
-  strong: "0 18px 45px rgb(0 0 0 / .24)",
-} as const;
-
 export function MediaElementRenderer({
   element,
   viewport,
@@ -126,8 +114,8 @@ export function MediaElementRenderer({
   const frame = appearance.frame ?? "none";
   const cardStyle: CSSProperties = {
     overflow: "hidden",
-    borderRadius: radii[appearance.corners ?? "square"],
-    boxShadow: shadows[appearance.shadow ?? "none"],
+    borderRadius: SURFACE_RADIUS_CSS[appearance.corners ?? "square"],
+    boxShadow: SURFACE_SHADOW_CSS[appearance.shadow ?? "none"],
     border: frame === "line" ? "1px solid currentColor" : undefined,
     padding: frame === "mat" ? ".5rem" : undefined,
     background: frame === "mat" ? "#fff" : undefined,

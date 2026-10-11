@@ -4,6 +4,18 @@ import type { WebsiteDraft } from "../websiteEditor/types";
 import { fontStylesheetUrl } from "./fontLoader";
 
 describe("fontStylesheetUrl", () => {
+  it("collects Schedule role fonts from shared and nested custom placements", () => {
+    const schedule = (id: string, fontFamilyId: string) => ({ id, type: "schedule", editorName: "Schedule", contentId: "shared-content", appearance: { typography: { dayHeading: { fontFamilyId }, activityTime: { fontFamilyId: "inter" }, activityMapLink: { fontFamilyId: "lora" } } } });
+    const flow = (element: unknown) => ({ childFlow: { elements: [element], order: [] } });
+    const website = {
+      designSettings: { fontSet: "none", projectDefaults: {} }, projectDesignDefaults: null,
+      template: { capabilities: { designLibrary: { typographyPresets: [] } } },
+      sections: [{ type: "blank", resolvedDesignContext: null, designDefaults: {}, content: { semantic: {}, compositions: {
+        shared: flow(schedule("shared", "playfair-display")), custom: { mobile: flow({ id: "group", type: "compositionGroup", children: [schedule("mobile", "nunito")] }) },
+      } } }],
+    } as unknown as WebsiteDraft;
+    expect(collectRequiredFontIds(website)).toEqual(["playfair-display", "inter", "lora", "nunito"]);
+  });
   it("loads every advertised weight in normal and italic style", () => {
     const font = platformFont("inter");
     expect(font).toBeDefined();
@@ -49,5 +61,55 @@ describe("fontStylesheetUrl", () => {
     expect(collectRequiredFontIds(website)).toEqual(["inter", "playfair-display"]);
     delete (website.sections[0].content as { compositions: { custom?: unknown } }).compositions.custom;
     expect(collectRequiredFontIds(website)).toEqual(["inter"]);
+  });
+
+  it("collects authored Countdown number and label fonts, including inside Groups", () => {
+    const countdown = {
+      id: "countdown-1",
+      type: "countdown" as const,
+      editorName: "Countdown 1",
+      target: { source: "event" as const },
+      appearance: {
+        numbers: { fontFamilyId: "fira-code" },
+        labels: { fontFamilyId: "great-vibes" },
+      },
+    };
+    const website = {
+      designSettings: { fontSet: "none", projectDefaults: {} },
+      projectDesignDefaults: null,
+      template: { capabilities: { designLibrary: { typographyPresets: [] } } },
+      sections: [{
+        type: "blank",
+        resolvedDesignContext: null,
+        designDefaults: {},
+        content: { semantic: {}, compositions: { shared: { childFlow: {
+          elements: [{ id: "group-1", type: "compositionGroup", editorName: "Group 1", children: [countdown] }],
+          order: [{ kind: "element", id: "group-1" }],
+        } } } },
+      }],
+    } as unknown as WebsiteDraft;
+
+    expect(collectRequiredFontIds(website)).toEqual(["fira-code", "great-vibes"]);
+  });
+
+  it("collects every authored RSVP runtime font, including Action typography", () => {
+    const website = {
+      designSettings: { fontSet: "none", projectDefaults: {} },
+      projectDesignDefaults: null,
+      template: { capabilities: { designLibrary: { typographyPresets: [] } } },
+      sections: [{
+        type: "rsvp",
+        resolvedDesignContext: null,
+        designDefaults: {},
+        content: { semantic: { runtimeAppearance: {
+          status: { fontFamilyId: "playfair-display" },
+          guestName: { fontFamilyId: "lora" },
+          responseLabel: { fontFamilyId: "inter" },
+          supporting: { fontFamilyId: "nunito" },
+          action: { typography: { fontFamilyId: "montserrat" } },
+        } }, compositions: { shared: { childFlow: { elements: [], order: [{ kind: "specialized", key: "content" }] } } } },
+      }],
+    } as unknown as WebsiteDraft;
+    expect(collectRequiredFontIds(website)).toEqual(["playfair-display", "lora", "inter", "nunito", "montserrat"]);
   });
 });

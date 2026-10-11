@@ -33,4 +33,16 @@ describe("Website section API serialization", () => {
     expect(elements[0].children[0].backgroundMedia).toEqual({ assetId: backgroundMedia.assetId });
     expect(content.compositions.shared.childFlow.elements[0].backgroundMedia.responsive.mobile).toEqual({ assetId: null });
   });
+
+  it("retains validated responsive RSVP runtime appearance while pruning composition state", () => {
+    const content = {
+      semantic: { runtimeAppearance: {
+        status: { responsive: { mobile: { fontSize: "l" } } },
+        choice: { responsive: { tablet: { direction: "column" } } },
+        action: { responsive: { mobile: { width: "full" } } },
+      } },
+      compositions: { shared: { childFlow: { elements: [], order: [{ kind: "specialized", key: "content" }] } } },
+    };
+    expect(canonicalizeWebsiteSectionContentForApi(content).semantic).toEqual(content.semantic);
+  });
 });

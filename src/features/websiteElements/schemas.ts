@@ -1,3 +1,5 @@
+import { scheduleLayoutAppearanceShape, normalizeScheduleAppearance } from './scheduleAppearance'
+import { scheduleContentSchema } from './scheduleContent'
 import { DIVIDER_WIDTHS } from "./divider";
 import { z } from "zod";
 import { backgroundMediaSchema } from "../websiteMedia/backgroundMedia";
@@ -5,9 +7,11 @@ import {
   WEBSITE_ELEMENT_LIMITS,
   WEBSITE_LEAF_ELEMENT_TYPES,
 } from "./constants";
-import { normalizeTextContent, TEXT_SIZES, validateTextFontTuple } from "./text";
+import { normalizeTextContent, validateTextFontTuple } from "./text";
+import { canonicalRuntimeTextAppearanceSchema, canonicalTextResponsiveAppearanceSchema, TEXT_SIZES } from "./textAppearanceContract";
 import { normalizeEditorName } from "./blockIdentity";
 import { isUnsupportedVideoProviderUrl } from "./videoUrl";
+import { authoredAnimationSchema } from "../websiteAnimation/contract";
 export const elementIdSchema = z
   .string()
   .max(WEBSITE_ELEMENT_LIMITS.id)
@@ -36,30 +40,13 @@ export const textAlignmentSchema = z.enum(["start", "center", "end"]);
 export const textTransformSchema = z.enum(["none", "uppercase", "lowercase", "capitalize"]);
 export const groupSpacingSchema = z.enum(["none", "xs", "s", "m", "l", "xl"]);
 export const groupPaddingSchema = z.object({ top: groupSpacingSchema.optional(), right: groupSpacingSchema.optional(), bottom: groupSpacingSchema.optional(), left: groupSpacingSchema.optional() }).strict();
-const blockSpacingResponsiveSchema = z.object({ outerSpacing: groupPaddingSchema.optional() }).strict();
-const blockSpacingAppearanceShape = { outerSpacing: groupPaddingSchema.optional() };
-export const textResponsiveAppearanceSchema = z.object({
+const blockSpacingResponsiveSchema = z.object({ outerSpacing: groupPaddingSchema.optional(), animation: authoredAnimationSchema.optional() }).strict();
+const blockSpacingAppearanceShape = { outerSpacing: groupPaddingSchema.optional(), animation: authoredAnimationSchema.optional() };
+export const textResponsiveAppearanceSchema = canonicalTextResponsiveAppearanceSchema.extend({
   ...blockSpacingAppearanceShape,
-  fontSize: elementFontSizeSchema.optional(),
-  alignment: textAlignmentSchema.optional(),
 }).strict();
-export const textAppearanceSchema = z.object({
+export const textAppearanceSchema = canonicalRuntimeTextAppearanceSchema.extend({
   ...blockSpacingAppearanceShape,
-  fontFamilyId: z.string().min(1).optional(),
-  fontSize: elementFontSizeSchema.optional(),
-  fontWeight: z.union([z.literal(400), z.literal(600), z.literal(700)]).optional(),
-  lineHeight: elementLineSpacingSchema.optional(),
-  letterSpacing: elementLetterSpacingSchema.optional(),
-  alignment: textAlignmentSchema.optional(),
-  colorId: z.string().min(1).optional(),
-  textShadow: textEffectStrengthSchema.optional(),
-  textShadowColorId: z.string().min(1).optional(),
-  glow: textEffectStrengthSchema.optional(),
-  glowColorId: z.string().min(1).optional(),
-  italic: z.boolean().optional(),
-  underline: z.boolean().optional(),
-  strikethrough: z.boolean().optional(),
-  textTransform: textTransformSchema.optional(),
   responsive: z.object({
     tablet: textResponsiveAppearanceSchema.optional(),
     mobile: textResponsiveAppearanceSchema.optional(),
@@ -143,24 +130,18 @@ export const accordionElementSchema = z.object({
   });
 });
 
-export const scheduleItemSchema = z.object({
-  id: elementIdSchema,
-  time: z.string().regex(/^(?:|(?:[01]\d|2[0-3]):[0-5]\d)$/, "Time must use HH:mm format."),
-  title: z.string().max(WEBSITE_ELEMENT_LIMITS.shortText),
-  details: z.string().refine((value) => Array.from(value).length <= WEBSITE_ELEMENT_LIMITS.text, `Details cannot exceed ${WEBSITE_ELEMENT_LIMITS.text} characters.`).transform(normalizeTextContent),
-}).strict();
-
 export const scheduleElementSchema = z.object({
   ...genericBlockShape,
   type: z.literal("schedule"),
-  items: z.array(scheduleItemSchema).max(WEBSITE_ELEMENT_LIMITS.scheduleItems),
-  appearance: z.object({ ...blockSpacingAppearanceShape, responsive: z.object({ tablet: blockSpacingResponsiveSchema.optional(), mobile: blockSpacingResponsiveSchema.optional() }).strict().optional() }).strict().optional(),
+  days: scheduleContentSchema.shape.days.optional(),
+  contentId: z.string().min(1).max(255).regex(/^\S+$/u).optional(),
+  appearance: z.object({ ...scheduleLayoutAppearanceShape, ...blockSpacingAppearanceShape, responsive: z.object({ tablet: blockSpacingResponsiveSchema.optional(), mobile: blockSpacingResponsiveSchema.optional() }).strict().optional() }).strict().transform(normalizeScheduleAppearance).optional(),
 }).strict().superRefine((element, context) => {
-  const seen = new Set<string>();
-  element.items.forEach((item, index) => {
-    if (seen.has(item.id)) context.addIssue({ code: "custom", path: ["items", index, "id"], message: "Schedule item IDs must be unique." });
-    seen.add(item.id);
-  });
+  if ((element.days !== undefined) === (element.contentId !== undefined)) context.addIssue({ code: "custom", message: "Schedule requires exactly one of local days or a contentId." });
+  if (element.days !== undefined) {
+    const result = scheduleContentSchema.safeParse({ days: element.days });
+    if (!result.success) result.error.issues.forEach((issue) => context.addIssue({ ...issue, code: 'custom' }));
+  }
 });
 
 const peopleMediaSchema = z.object({
@@ -326,12 +307,37 @@ export const eventTimeElementSchema = z
   })
   .strict();
 
-export const countdownElementSchema = z
-  .object({
-    ...baseShape,
-    type: z.literal("countdown"),
-  })
-  .strict();
+const countdownUnitsSchema = z.object({ days: z.boolean().optional(), hours: z.boolean().optional(), minutes: z.boolean().optional(), seconds: z.boolean().optional() }).strict();
+const countdownLabelsSchema = z.object({
+  days: z.string().trim().max(40).regex(/^[^<>]*$/, "Countdown labels cannot contain HTML.").optional(), hours: z.string().trim().max(40).regex(/^[^<>]*$/, "Countdown labels cannot contain HTML.").optional(), minutes: z.string().trim().max(40).regex(/^[^<>]*$/, "Countdown labels cannot contain HTML.").optional(), seconds: z.string().trim().max(40).regex(/^[^<>]*$/, "Countdown labels cannot contain HTML.").optional(),
+}).strict();
+const countdownRoleAppearanceSchema = canonicalRuntimeTextAppearanceSchema.strict();
+const countdownResponsiveSchema = z.object({
+  numbers: canonicalTextResponsiveAppearanceSchema.optional(), labels: canonicalTextResponsiveAppearanceSchema.optional(),
+  direction: z.enum(["horizontal", "vertical"]).optional(), alignment: textAlignmentSchema.optional(), gap: z.enum(["xs", "s", "m", "l", "xl"]).optional(),
+  ...blockSpacingAppearanceShape,
+}).strict();
+export const countdownElementSchema = z.object({
+  ...genericBlockShape,
+  type: z.literal("countdown"),
+  target: z.discriminatedUnion("source", [
+    z.object({ source: z.literal("event") }).strict(),
+    z.object({ source: z.literal("custom"), instant: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/, "Countdown instant must be canonical UTC RFC 3339."), timeZone: z.string().min(1).max(255).refine((value) => { try { new Intl.DateTimeFormat("en", { timeZone: value }).format(); return true; } catch { return false; } }, "Countdown timezone must be a valid IANA timezone.") }).strict(),
+  ]),
+  units: countdownUnitsSchema.optional(), labels: countdownLabelsSchema.optional(),
+  appearance: z.object({
+    numbers: countdownRoleAppearanceSchema.optional(), labels: countdownRoleAppearanceSchema.optional(),
+    direction: z.enum(["horizontal", "vertical"]).optional(), alignment: textAlignmentSchema.optional(), gap: z.enum(["xs", "s", "m", "l", "xl"]).optional(),
+    ...blockSpacingAppearanceShape,
+    responsive: z.object({ tablet: countdownResponsiveSchema.optional(), mobile: countdownResponsiveSchema.optional() }).strict().optional(),
+  }).strict().optional(),
+}).strict().superRefine((element, context) => {
+  if (["days", "hours", "minutes", "seconds"].every((unit) => element.units?.[unit as keyof typeof element.units] === false)) context.addIssue({ code: "custom", path: ["units"], message: "At least one Countdown unit must be visible." });
+  for (const role of ["numbers", "labels"] as const) {
+    const issue = validateTextFontTuple(element.appearance?.[role] ?? {});
+    if (issue) context.addIssue({ code: "custom", path: ["appearance", role], message: issue });
+  }
+});
 
 export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   headingElementSchema,
@@ -362,6 +368,7 @@ const groupContentPositionSchema = z.enum(['top-start', 'top-center', 'top-end',
 const groupLayoutOverrideSchema = z.object({ width: groupLayoutValues.width.optional(), direction: groupLayoutValues.direction.optional(), gap: groupLayoutValues.gap.optional(), padding: groupLayoutValues.padding.optional(), alignment: groupLayoutValues.alignment.optional(), division: groupLayoutValues.division.optional(), contentPosition: groupContentPositionSchema.optional() }).strict();
 const groupAppearanceSchema = z.object({
   outerSpacing: groupPaddingSchema.optional(),
+  animation: authoredAnimationSchema.optional(),
   backgroundColorId: z.string().min(1).optional(),
   backgroundImageOpacity: z.number().int().min(0).max(100).optional(),
   shadow: z.enum(["none", "soft", "medium", "strong"]).optional(),
@@ -381,7 +388,7 @@ export const groupLayoutSchema = z.object({
   responsive: z.object({ tablet: groupLayoutOverrideSchema.optional(), mobile: groupLayoutOverrideSchema.optional() }).strict().optional(),
 }).strict();
 
-const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, peopleElementSchema, dividerElementSchema, mediaElementSchema]);
+const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, peopleElementSchema, countdownElementSchema, dividerElementSchema, mediaElementSchema]);
 const nestedCompositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional(), backgroundMedia: backgroundMediaSchema }).strict();
 export const compositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional(), backgroundMedia: backgroundMediaSchema }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 

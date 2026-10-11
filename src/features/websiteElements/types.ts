@@ -12,6 +12,7 @@ import type {
   accordionElementSchema,
   scheduleElementSchema,
   peopleElementSchema,
+  countdownElementSchema,
 } from './schemas'
 
 export type CtaAction = z.infer<typeof ctaActionSchema>
@@ -26,3 +27,4 @@ export type DateElement = z.infer<typeof dateElementSchema>
 export type AccordionElement = z.infer<typeof accordionElementSchema>
 export type ScheduleElement = z.infer<typeof scheduleElementSchema>
 export type PeopleElement = z.infer<typeof peopleElementSchema>
+export type CountdownElement = z.infer<typeof countdownElementSchema>

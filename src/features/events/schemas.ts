@@ -10,7 +10,10 @@ const eventBaseSchema = z.object({
   slug: z.string(),
   eventDate: dateOnly.nullable(),
   startTime: localTime.nullable(),
-  timeZone: z.string().min(1).nullable(),
+  timeZone: z.string().min(1),
+  rsvpIsOpen: z.boolean(),
+  rsvpDeadline: dateOnly.nullable(),
+  rsvpIsEffectivelyOpen: z.boolean(),
   startsAtUtc: utcInstant.nullable(),
   status: z.enum(['active', 'archived']),
   createdAt: z.string(),
@@ -31,6 +34,7 @@ export const createEventSchema = z.object({
   ),
   slug: z.string().trim().max(255, 'Use 255 characters or fewer.')
     .refine((value) => !value || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value), 'Use lowercase letters, numbers, and hyphens.'),
+  timeZone: z.string().min(1, 'Select a valid time zone.'),
 })
 
 export type CreateEventFormValues = z.infer<typeof createEventSchema>

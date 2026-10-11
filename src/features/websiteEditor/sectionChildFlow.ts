@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createSemanticId } from "./createSemanticId";
 import { websiteElementTreeSchema } from "../websiteElements/schemas";
-import type { CompositionGroup, DateElement, DividerElement, MediaElement, TextElement, WebsiteElement } from "../websiteElements/types";
+import type { CompositionGroup, CountdownElement, DateElement, DividerElement, MediaElement, TextElement, WebsiteElement } from "../websiteElements/types";
 import { canonicalizeTextDocument } from "../websiteElements/textDocument";
 import { GENERIC_BLOCK_LABELS, isGenericBlock, normalizeEditorName, type GenericBlockType } from "../websiteElements/blockIdentity";
 
@@ -44,13 +44,13 @@ export const genericSectionChildFlowSchema = childFlowShapeSchema.superRefine((f
 
 export const textSectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "countdown" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
 export const genericTextSectionChildFlowSchema = genericSectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "countdown" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
@@ -58,6 +58,16 @@ export const gallerySectionChildFlowSchema = sectionChildFlowSchema.superRefine(
   const visit = (element: WebsiteElement, path: (string | number)[]) => {
     if (element.type !== "text" && element.type !== "divider" && element.type !== "compositionGroup") {
       context.addIssue({ code: "custom", path, message: `Element type ${element.type} is not allowed in Gallery.` });
+    }
+    if (element.type === "compositionGroup") element.children.forEach((child, index) => visit(child, [...path, "children", index, "type"]));
+  };
+  flow.elements.forEach((element, index) => visit(element, ["elements", index, "type"]));
+});
+
+export const rsvpSectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
+  const visit = (element: WebsiteElement, path: (string | number)[]) => {
+    if (element.type !== "text" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") {
+      context.addIssue({ code: "custom", path, message: `Element type ${element.type} is not allowed in RSVP.` });
     }
     if (element.type === "compositionGroup") element.children.forEach((child, index) => visit(child, [...path, "children", index, "type"]));
   };
@@ -104,7 +114,7 @@ export function visitGenericBlocks(elements: readonly WebsiteElement[], visitor:
 }
 
 function automaticNameState(flow?: SectionChildFlow): Record<GenericBlockType, number> {
-  const state = { text: 0, date: 0, accordion: 0, schedule: 0, people: 0, media: 0, divider: 0, compositionGroup: 0 };
+  const state = { text: 0, date: 0, accordion: 0, schedule: 0, people: 0, countdown: 0, media: 0, divider: 0, compositionGroup: 0 };
   if (!flow) return state;
   visitGenericBlocks(flow.elements, (element) => {
     const match = new RegExp(`^${GENERIC_BLOCK_LABELS[element.type].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} ([1-9]\\d*)$`).exec(element.editorName);
@@ -131,11 +141,15 @@ export function createAccordionElement(editorName: string): import("../websiteEl
 }
 
 export function createScheduleElement(editorName: string): import("../websiteElements/types").ScheduleElement {
-  return { id: createSemanticId("schedule"), type: "schedule", editorName, items: [] };
+  return { id: createSemanticId("schedule"), type: "schedule", editorName, days: [] };
 }
 
 export function createPeopleElement(editorName: string): import("../websiteElements/types").PeopleElement {
   return { id: createSemanticId("people"), type: "people", editorName, groups: [] };
+}
+
+export function createCountdownElement(editorName: string): CountdownElement {
+  return { id: createSemanticId("countdown"), type: "countdown", editorName, target: { source: "event" } };
 }
 
 export function createDividerElement(editorName: string): DividerElement {
@@ -157,6 +171,7 @@ export function createSectionElement(flow: SectionChildFlow | undefined, type: G
   if (type === "accordion") return createAccordionElement(editorName);
   if (type === "schedule") return createScheduleElement(editorName);
   if (type === "people") return createPeopleElement(editorName);
+  if (type === "countdown") return createCountdownElement(editorName);
   if (type === "divider") return createDividerElement(editorName);
   if (type === "media") return createMediaElement(editorName, mediaId);
   return createGroupElement(editorName);
@@ -244,7 +259,7 @@ export function deleteSectionElement(flow: SectionChildFlow, elementId: string):
   const index = flow.order.findIndex((reference) => reference.kind === "element" && reference.id === elementId);
   const order = flow.order.filter((reference) => !(reference.kind === "element" && reference.id === elementId));
   const elements = flow.elements.filter(({ id }) => id !== elementId);
-  return { flow: elements.length ? { elements, order } : undefined, selection: order[Math.min(Math.max(index, 0), order.length - 1)] ?? SECTION_SPECIALIZED_REFERENCE };
+  return { flow: elements.length || order.some(({ kind }) => kind === "specialized") ? { elements, order } : undefined, selection: order[Math.min(Math.max(index, 0), order.length - 1)] ?? SECTION_SPECIALIZED_REFERENCE };
 }
 
 export function deleteGenericSectionElement(flow: SectionChildFlow, elementId: string): { flow: SectionChildFlow; selection?: SectionChildReference } {
@@ -409,7 +424,7 @@ function regenerateElementIdentities(element: WebsiteElement, names: Record<Gene
   if (regenerateNames && isGenericBlock(element)) element.editorName = nextAutomaticName(element.type, names);
   if (element.type === "media") element.items.forEach((item) => { item.id = createSemanticId("media-item"); });
   if (element.type === "accordion") element.items.forEach((item) => { item.id = createSemanticId("accordion-item"); });
-  if (element.type === "schedule") element.items.forEach((item) => { item.id = createSemanticId("schedule-item"); });
+  if (element.type === "schedule") element.days?.forEach((day) => { day.id = createSemanticId("schedule-day"); day.activities.forEach((activity) => { activity.id = createSemanticId("schedule-activity"); }); });
   if (element.type === "people") element.groups.forEach((group) => {
     group.id = createSemanticId("people-group");
     group.people.forEach((person) => { person.id = createSemanticId("person"); });

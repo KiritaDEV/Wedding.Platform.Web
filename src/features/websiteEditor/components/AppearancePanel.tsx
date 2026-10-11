@@ -66,8 +66,10 @@ import {
 import { FourSidedSpacingControl as InnerSpacingControl } from "./FourSidedSpacingControl";
 import type { SpacingChanges } from "./spacingControlModel";
 import { ContentPositionControl } from "./ContentPositionControl";
-import { GalleryAppearanceControls } from "./GalleryAppearanceControls";
 import { HERO_MINIMUM_HEIGHT_MAX, HERO_MINIMUM_HEIGHT_MIN, HERO_MINIMUM_HEIGHT_STEP, setHeroHeightMode, setHeroMinimumHeight } from "../heroMinimumHeight";
+import { AnimationAppearanceControls } from "./AnimationAppearanceControls";
+import type { AuthoredAnimation } from "../../websiteAnimation/contract";
+import { setRootVerticalDistribution } from "../../websiteRenderer/rootFlowDistribution";
 
 export function AppearancePanel({
   appearance,
@@ -79,6 +81,9 @@ export function AppearancePanel({
   projectColors,
   onAddColor,
   onChange,
+  onAnimationReplay,
+  animationReplayed,
+  showAnimation = true,
 }: {
   appearance: WebsiteSectionAppearance;
   templateKey: string;
@@ -89,6 +94,9 @@ export function AppearancePanel({
   projectColors: ProjectColor[];
   onAddColor: (value: string) => Promise<ProjectColor>;
   onChange: (appearance: WebsiteSectionAppearance) => void;
+  onAnimationReplay?: () => void;
+  animationReplayed?: boolean;
+  showAnimation?: boolean;
 }) {
   const presentation =
     appearance.presentation ??
@@ -131,6 +139,65 @@ export function AppearancePanel({
     delete responsive[targetViewport];
     onChange(pruneResponsiveAppearance({ ...appearance, responsive }));
   };
+  const animationUsesResponsive = sectionCapability.id === "rsvp";
+  const exactAnimationOwner = animationUsesResponsive && targetViewport !== "desktop";
+  const authoredAnimation = exactAnimationOwner
+    ? appearance.responsive?.[targetViewport]?.animation
+    : appearance.animation;
+  const effectiveAnimation = effectiveAppearance.animation;
+  const changeAnimation = (animation: AuthoredAnimation | undefined) => {
+    if (!exactAnimationOwner) {
+      const next = { ...appearance };
+      if (animation) next.animation = animation;
+      else delete next.animation;
+      onChange(next);
+      return;
+    }
+    const responsive = { ...appearance.responsive };
+    const branch = { ...responsive[targetViewport] };
+    if (animation) branch.animation = animation;
+    else delete branch.animation;
+    if (Object.keys(branch).length) responsive[targetViewport] = branch;
+    else delete responsive[targetViewport];
+    onChange(pruneResponsiveAppearance({ ...appearance, responsive }));
+  };
+  const animationControls = <AnimationAppearanceControls
+    ownerLabel={`${sectionCapability.id} Section`}
+    authored={authoredAnimation}
+    effective={effectiveAnimation}
+    exactDevice={exactAnimationOwner}
+    replayed={animationReplayed}
+    onReplay={onAnimationReplay}
+    onChange={changeAnimation}
+    onReset={exactAnimationOwner ? () => changeAnimation(undefined) : undefined}
+  />;
+  if (sectionCapability.id === "rsvp") {
+    return (
+      <div className="space-y-5">
+        {error && (
+          <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">
+            {error}
+          </p>
+        )}
+        <SectionInnerSpacingControls
+          appearance={appearance}
+          targetViewport={targetViewport}
+          onChange={onChange}
+        />
+        <SectionDecorativeAppearanceControls
+          sectionLabel="Section"
+          templateKey={templateKey}
+          sectionCapability={sectionCapability}
+          appearance={appearance}
+          library={library}
+          projectColors={projectColors}
+          onAddColor={onAddColor}
+          onChange={onChange}
+        />
+        {showAnimation && animationControls}
+      </div>
+    );
+  }
   if (sectionCapability.id === "blank" || sectionCapability.id === "hero" || sectionCapability.id === "gallery") {
     return (
       <div className="space-y-5">
@@ -149,9 +216,8 @@ export function AppearancePanel({
             onChange={onChange}
           />
         )}
-        {sectionCapability.id === "gallery" && <GalleryAppearanceControls appearance={appearance} viewport={targetViewport} onChange={onChange} />}
-        {sectionCapability.id === "blank" && (
-          <BlankInnerSpacingControls
+        {(sectionCapability.id === "blank" || sectionCapability.id === "gallery") && (
+          <SectionInnerSpacingControls
             appearance={appearance}
             targetViewport={targetViewport}
             onChange={onChange}
@@ -167,6 +233,7 @@ export function AppearancePanel({
           onAddColor={onAddColor}
           onChange={onChange}
         />
+        {showAnimation && animationControls}
       </div>
     );
   }
@@ -340,11 +407,12 @@ export function AppearancePanel({
         onAddColor={onAddColor}
         onChange={onChange}
       />
+      {showAnimation && animationControls}
     </div>
   );
 }
 
-function BlankInnerSpacingControls({
+function SectionInnerSpacingControls({
   appearance,
   onChange,
 }: {
@@ -389,6 +457,7 @@ function HeroSurfaceControls({
   targetViewport: ResponsiveViewport;
   onChange: (appearance: WebsiteSectionAppearance) => void;
 }) {
+  const distribution = appearance.rootVerticalDistribution ?? "packed";
   const heightMode = appearance.height ? "custom" : "automatic";
   const setHeightMode = (mode: "automatic" | "custom") => onChange(setHeroHeightMode(appearance, mode));
   const setHeightValue = (value: number) => onChange(setHeroMinimumHeight(appearance, value));
@@ -475,15 +544,21 @@ function HeroSurfaceControls({
         </div> : <p className="mt-2 text-xs text-foreground-muted">Height follows the Hero content.</p>}
       </fieldset>
       <fieldset>
+        <legend className="mb-2 text-sm xl:text-xs! font-semibold">Vertical distribution</legend>
+        <Select aria-label="Hero vertical distribution" value={distribution} options={[{ value: "packed", label: "Packed" }, { value: "space-between", label: "Space Between" }]} onChange={(value) => onChange(setRootVerticalDistribution(appearance, value as "packed" | "space-between"))} />
+        {distribution === "space-between" && <p className="mt-2 text-xs text-foreground-muted">Multiple visible blocks use the top and bottom of the available height. One visible block keeps its saved vertical position. Switch to Packed to change that position. Empty blocks remain editable in Structure.</p>}
+      </fieldset>
+      <fieldset>
         <div className="mb-2 flex items-center justify-between gap-2">
           <legend className="text-sm xl:text-xs! font-semibold">
-            Content position
+            {distribution === "space-between" ? "Horizontal alignment" : "Content position"}
           </legend>
-          {activePosition !== undefined && (
+          {activePosition !== undefined && distribution === "packed" && (
             <InspectorResetAction onClick={resetPosition} />
           )}
         </div>
         <ContentPositionControl
+          horizontalOnly={distribution === "space-between"}
           value={effectivePosition}
           onChange={setPosition}
         />
@@ -649,7 +724,7 @@ export function SectionDecorativeAppearanceControls({
     appearance.decorativeAppearance?.background?.colorId;
   const legacyBackground = legacySectionBackgroundState(appearance);
   const updateBackgroundColor = (colorId?: string) => {
-    onChange(applySectionBackgroundColor(appearance, colorId));
+    onChange(applySectionBackgroundColor(appearance, colorId, sectionCapability.id === "rsvp") as WebsiteSectionAppearance);
   };
   return (
     <div className="space-y-5">
@@ -657,6 +732,7 @@ export function SectionDecorativeAppearanceControls({
         <div>
           <p className="mb-1.5 text-xs font-medium">Background Color</p>
           <WebsiteColorSwatchControl
+            previewTarget="backgroundColor"
             label={`${sectionLabel} background color`}
             inheritLabel={
               sectionLabel === "Section" ? "No surface color" : "Use Template"

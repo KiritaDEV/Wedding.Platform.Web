@@ -16,6 +16,11 @@ const capability = {
 const library = { colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } as unknown as TemplateDesignLibrary;
 
 describe("Blank decorative appearance controls", () => {
+  it.each(["hero", "gallery", "rsvp", "blank"])("exposes Animation for the canonical %s Section", (id) => {
+    const html = renderToStaticMarkup(<AppearancePanel appearance={appearance} templateKey="classic-filipiniana-v1" sectionCapability={{ ...capability, id } as SectionCapability} targetViewport="desktop" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={vi.fn()} />);
+    expect(html).toContain("Animation");
+    expect(html).toContain("None");
+  });
   it("exposes the shared controls without persisting defaults when opened", () => {
     const onChange = vi.fn();
     const html = renderToStaticMarkup(<AppearancePanel appearance={appearance} templateKey="classic-filipiniana-v1" sectionCapability={capability} targetViewport="desktop" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={onChange} />);
@@ -55,6 +60,17 @@ describe.each(["gallery", "rsvp"])("%s decorative appearance controls", (id) => 
     const sectionCapability = { ...capability, id } as unknown as SectionCapability;
     const html = renderToStaticMarkup(<AppearancePanel appearance={appearance} templateKey="classic-filipiniana-v1" sectionCapability={sectionCapability} targetViewport="mobile" error={null} library={library} projectColors={[]} onAddColor={async () => { throw new Error("not called"); }} onChange={onChange} />);
     for (const label of ["Texture", "Pattern", "Overlay", "Frame"]) expect(html).toContain(label);
+    if (id === "rsvp") {
+      expect(html).toContain("Inner spacing");
+      expect(html).toContain('aria-label="Vertical spacing"');
+      expect(html).toContain('aria-label="Horizontal spacing"');
+      for (const removed of ["Heading alignment", "Content alignment", "Use Template", ">Emphasis<", "Plain", "Soft", "Accent", "Standard", "Featured", "Subtle"]) expect(html).not.toContain(removed);
+    }
+    if (id === "gallery") {
+      expect(html).toContain("Inner spacing");
+      expect(html).toContain('aria-label="Vertical spacing"');
+      expect(html).toContain('aria-label="Horizontal spacing"');
+    }
     expect(html).not.toContain("Frame style");
     expect(onChange).not.toHaveBeenCalled();
   });

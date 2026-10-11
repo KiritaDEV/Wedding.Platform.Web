@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useId, useMemo, useRef } from 'react'
 import { collectRequiredFontIds } from '../websiteFonts/platformFonts'
 import { ensureProjectFonts } from '../websiteFonts/fontLoader'
 import { resolveSectionAppearanceForViewport } from '../websiteEditor/responsiveAppearance'
@@ -8,6 +8,11 @@ import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRender
 import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
 import type { WebsiteRendererProps } from './types'
 import { WebsiteElementChangeContext } from './WebsiteElementChangeContext'
+import { sectionsForAudience } from './audience'
+import { PrivateInvitationRuntimeProvider } from './PrivateInvitationRuntimeContext'
+import { useEditorDeviceCategory } from '../websiteEditor/responsiveViewport'
+import { WebsiteMotionRuntime } from '../websiteAnimation/runtime'
+import { EventTimingProvider } from './EventTimingContext'
 
 const templateRenderers = {
   'classic-filipiniana-v1': ClassicFilipinianaRenderer,
@@ -16,9 +21,11 @@ const templateRenderers = {
 
 export function WebsiteRenderer(props: WebsiteRendererProps) {
   const rootRef = useRef<HTMLDivElement>(null)
+  const runtimeViewport = useEditorDeviceCategory()
   const Renderer = templateRenderers[props.website.templateKey as keyof typeof templateRenderers]
   const requiredFontIds = useMemo(() => collectRequiredFontIds(props.website), [props.website])
   const requiredFontSignature = requiredFontIds.sort().join('|')
+  const runtimeSessionId = useId()
 
   useEffect(() => {
     const documentTarget = rootRef.current?.ownerDocument
@@ -35,10 +42,10 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     return <div className="flex min-h-80 items-center justify-center bg-[#f7f0e6] p-8 text-center text-sm text-[#665d54]">This Template is not supported by this version of the renderer.</div>
   }
 
-  const targetViewport = props.targetViewport ?? 'desktop'
+  const targetViewport = props.targetViewport ?? runtimeViewport
   const website = {
     ...props.website,
-    sections: props.website.sections.map((section) => {
+    sections: sectionsForAudience(props.website.sections, props.audience).map((section) => {
       const capability = props.website.template ? sectionCapability(props.website.template.capabilities, section.type) : undefined
       const ownedAppearance = section.type === 'hero' || section.type === 'gallery' || section.type === 'blank'
         ? resolveSectionAppearance(section.appearance, targetViewport).appearance
@@ -52,5 +59,5 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     }),
   }
 
-  return <div ref={rootRef}><WebsiteElementChangeContext.Provider value={{ onGalleryAdd: props.onGalleryAdd, onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></div>
+  return <div ref={rootRef}><EventTimingProvider value={props.event}><WebsiteMotionRuntime enabled={props.mode !== 'editor'} sessionKey={props.motionSessionKey ?? runtimeSessionId} editReplay={props.editMotionReplay}><PrivateInvitationRuntimeProvider value={props.privateInvitationRuntime}><WebsiteElementChangeContext.Provider value={{ onGalleryAdd: props.onGalleryAdd, onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website as unknown as WebsiteRendererProps['website']} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></PrivateInvitationRuntimeProvider></WebsiteMotionRuntime></EventTimingProvider></div>
 }

@@ -1,15 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import type { BlankContent, HeroContent, WebsiteSection, WebsiteSectionAppearanceEnvelope } from './types'
+import type { BlankContent, HeroContent, RsvpContent, WebsiteSection, WebsiteSectionAppearanceEnvelope } from './types'
 import { createCustomSectionComposition, createCustomSectionPresentation, getSectionCompositionStatus, removeCustomSectionComposition, removeCustomSectionPresentation } from './compositionLifecycle'
 
 const shared = { childFlow: { elements: [{ id: 'group', type: 'compositionGroup' as const, editorName: 'Group 1', children: [
   { id: 'media', type: 'media' as const, editorName: 'Media 1', items: [{ id: 'media-item', type: 'image' as const, mediaId: '01MEDIAASSET00000000000000', alt: 'Photo' }], appearance: { responsive: { mobile: { outerSpacing: { top: 'm' as const } } } } },
   { id: 'accordion', type: 'accordion' as const, editorName: 'Accordion 1', items: [{ id: 'accordion-item', title: 'A', content: 'B' }] },
-  { id: 'schedule', type: 'schedule' as const, editorName: 'Schedule 1', items: [{ id: 'schedule-item', time: '10:00', title: 'Ceremony' }] },
+  { id: 'schedule', type: 'schedule' as const, editorName: 'Schedule 1', days: [{ id: 'day-1', date: null, title: null, visible: true, activities: [{ id: 'schedule-item', startTime: '10:00', title: 'Ceremony' , endTime: null, location: null, mapUrl: null, imageMediaId: null, visible: true }] }] },
   { id: 'people', type: 'people' as const, editorName: 'People 1', groups: [{ id: 'people-group', name: 'Family', people: [{ id: 'person', name: 'Neil', media: { assetId: '01MEDIAASSET00000000000000' } }] }] },
 ] }], order: [{ kind: 'element' as const, id: 'group' }] } }
 
 describe('custom composition lifecycle', () => {
+  it('customizes and resets RSVP composition without requiring an appearance envelope', () => {
+    const content: RsvpContent = { semantic: {}, compositions: { shared: { childFlow: {
+      elements: [{ id: 'intro', type: 'text', editorName: 'Text 1', document: { type: 'doc', children: [{ type: 'paragraph', children: [{ text: 'Kindly Respond' }] }] } }],
+      order: [{ kind: 'element', id: 'intro' }, { kind: 'specialized', key: 'content' }],
+    } } } }
+    const customized = createCustomSectionComposition(content, 'mobile')
+    const mobile = customized.compositions.custom!.mobile!
+    expect(mobile.childFlow.elements[0].id).not.toBe('intro')
+    expect(mobile.childFlow.order.at(-1)).toEqual({ kind: 'specialized', key: 'content' })
+    expect(removeCustomSectionComposition(customized, 'mobile')).toEqual(content)
+  })
+
   it('deep copies and resets composition and Section appearance as one target presentation', () => {
     const content = { semantic: {}, compositions: { shared } } as BlankContent
     const appearance: WebsiteSectionAppearanceEnvelope = { shared: { headingAlignment: 'inherit', bodyAlignment: 'inherit', backgroundTreatment: 'custom', emphasis: 'inherit', decorativeAppearance: { background: { texture: 'grain', textureStrength: 45 } } } }

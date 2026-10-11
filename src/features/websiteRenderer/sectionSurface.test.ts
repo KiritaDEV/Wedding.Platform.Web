@@ -46,5 +46,17 @@ describe("Section custom background", () => {
     expect(resolveClassicFilipinianaSectionAppearance("blank", {} as WebsiteDesignSettings, custom, library, projectColors).sectionStyle?.backgroundColor).toBe("#234567");
     expect(resolveModernEditorialSectionAppearance("blank", custom, library, projectColors).sectionStyle?.backgroundColor).toBe("#234567");
   });
+  it("applies sparse RSVP direct surface color without a semantic Background preset", () => {
+    const direct = { decorativeAppearance: { background: { colorId: "sage-surface" } } };
+    const classic = resolveClassicFilipinianaSectionAppearance("rsvp", {} as WebsiteDesignSettings, direct, library, projectColors);
+    const modern = resolveModernEditorialSectionAppearance("rsvp", direct, library, projectColors);
+    expect(classic.sectionStyle?.backgroundColor).toBe("#E6EBDD");
+    expect(modern.sectionStyle?.backgroundColor).toBe("#E6EBDD");
+    for (const sectionClass of [classic.sectionClass, modern.sectionClass]) {
+      expect(sectionClass).not.toContain("data-section-heading");
+      expect(sectionClass).not.toContain("data-section-body");
+      expect(sectionClass).not.toContain("data-section-specialized-content");
+    }
+  });
 });
 

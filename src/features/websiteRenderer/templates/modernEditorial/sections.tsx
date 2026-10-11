@@ -1,6 +1,8 @@
-import { EditableText } from "../../../websiteEditor/inline/EditableText";
-import type { RsvpContent } from "../../../websiteEditor/types";
 import { SectionContentInset } from "../../SectionContentInset";
+import { PrivateRsvpRuntime } from "../../PrivateRsvpRuntime";
+import type { RsvpPresentationEnvironment } from "../../rsvpPresentationResolution";
+import { RsvpEditorPreview } from "../../RsvpEditorPreviewRenderer";
+import type { RsvpEditorPreviewState } from "../../rsvpEditorPreview";
 
 export function ModernEditorialGallery({
   collection,
@@ -11,63 +13,26 @@ export function ModernEditorialGallery({
   return (
     <EditorialSection
       number={null}
-      editorialRail
       containLongContent
       heading={null}
       headingParticipates={false}
+      fullWidth
     >
       {collection}
     </EditorialSection>
   );
 }
 export function ModernEditorialRsvp({
-  sectionId,
-  content,
+  presentationEnvironment,
+  editorPreviewState,
+  privateRuntime,
 }: {
-  sectionId: string;
-  content: RsvpContent["semantic"];
+  presentationEnvironment?: RsvpPresentationEnvironment;
+  editorPreviewState?: RsvpEditorPreviewState;
+  privateRuntime: boolean;
 }) {
-  return (
-    <EditorialSection
-      number="10"
-      containLongContent
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "heading"]}
-          value={content.heading}
-          fallback="Kindly Respond"
-          placeholder="Add heading"
-          label="RSVP heading"
-        />
-      }
-    >
-      <p className="w-full max-w-xl whitespace-pre-line text-lg [overflow-wrap:anywhere]">
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "description"]}
-          value={content.description}
-          fallback="We would be honored to celebrate this day with you."
-          placeholder="Add description"
-          label="RSVP description"
-          multiline
-        />
-      </p>
-      <div
-        data-rsvp-button
-        className="mt-10 inline-block max-w-full whitespace-normal border-2 border-[var(--me-theme-text)] px-8 py-4 text-xs font-bold uppercase tracking-[0.22em] [overflow-wrap:anywhere]"
-      >
-        <EditableText
-          sectionId={sectionId}
-          path={["semantic", "buttonLabel"]}
-          value={content.buttonLabel}
-          fallback="RSVP"
-          placeholder="Add button label"
-          label="RSVP button label"
-        />
-      </div>
-    </EditorialSection>
-  );
+  if (editorPreviewState) return <RsvpEditorPreview key={editorPreviewState} state={editorPreviewState} environment={presentationEnvironment ?? {}} />;
+  return privateRuntime ? <PrivateRsvpRuntime presentationEnvironment={presentationEnvironment}>{null}</PrivateRsvpRuntime> : null;
 }
 
 function EditorialSection({
@@ -83,6 +48,7 @@ function EditorialSection({
   renderFlow,
   specializedClassName = "",
   containLongContent = false,
+  fullWidth = false,
 }: {
   number: string | null;
   eyebrow?: React.ReactNode;
@@ -96,6 +62,7 @@ function EditorialSection({
   renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
   specializedClassName?: string;
   containLongContent?: boolean;
+  fullWidth?: boolean;
 }) {
   const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
@@ -105,7 +72,7 @@ function EditorialSection({
     >
       {(() => { const specialized = <div data-section-specialized-content
         className={
-          `mx-auto w-full max-w-5xl ${specializedClassName} ${containLongContent ? "min-w-0 max-w-full" : ""} ${!number && !editorialRail
+          `${fullWidth ? "w-full max-w-none" : "mx-auto w-full max-w-5xl"} ${specializedClassName} ${containLongContent ? "min-w-0 max-w-full" : ""} ${!number && !editorialRail
             ? "block"
             : tabletEditorial
             ? "grid grid-cols-[3rem_minmax(0,1fr)] gap-5"

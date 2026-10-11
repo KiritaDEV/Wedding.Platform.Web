@@ -117,14 +117,14 @@ describe("Gallery collection management", () => {
   browserIt("authors exact-device Gallery appearance through the existing controls with sparse resets", async () => {
     await runGalleryBrowser(`
       import '/src/index.css';import React,{useState} from 'react';import {createRoot} from 'react-dom/client';
-      import {AppearancePanel} from '/src/features/websiteEditor/components/AppearancePanel.tsx';
+      import {GalleryAppearanceControls} from '/src/features/websiteEditor/components/GalleryAppearanceControls.tsx';
       import {GalleryCollectionRenderer} from '/src/features/websiteRenderer/GalleryCollectionRenderer.tsx';
       import {resolveSectionAppearance,mergeScopedSectionAppearance} from '/src/features/websiteEditor/sectionAppearance.ts';
       const base={headingAlignment:'inherit',bodyAlignment:'inherit',backgroundTreatment:'inherit',emphasis:'inherit'};
       let latest,setDevice;const semantic={items:[{id:'photo',type:'image',mediaId:'asset',focalPoint:{x:.2,y:.8},zoom:2.3}]};const original=JSON.stringify(semantic);
       const media={asset:{id:'asset',originalFilename:'image.svg',width:1200,height:800,web:{width:1200,height:800,url:'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="100%" height="100%" fill="coral"/></svg>')}}};
       function App(){const [envelope,setEnvelope]=useState({shared:base,custom:{mobile:base,tablet:base,desktop:base}});const [viewport,setViewport]=useState('desktop');latest=envelope;setDevice=setViewport;const owner=resolveSectionAppearance(envelope,viewport);
-        return React.createElement('main',null,React.createElement(AppearancePanel,{appearance:owner.appearance,targetViewport:viewport,templateKey:'classic-filipiniana-v1',sectionCapability:{id:'gallery',appearanceControls:[],presentations:[],contextDefaults:{typography:[],colors:[]}},library:{colors:[],fontFamilies:[],palettePresets:[],typographyPresets:[]},projectColors:[],error:null,onAddColor:()=>{},onChange:a=>setEnvelope(p=>mergeScopedSectionAppearance(p,owner.scope,a))}),React.createElement(GalleryCollectionRenderer,{items:semantic.items,media,appearance:owner.appearance,viewport,mode:'editor'}),React.createElement('div',{'data-empty-public':true},React.createElement(GalleryCollectionRenderer,{items:[],media:{},appearance:owner.appearance,viewport,mode:'public'})));
+        return React.createElement('main',null,React.createElement(GalleryAppearanceControls,{appearance:owner.appearance,viewport,onChange:a=>setEnvelope(p=>mergeScopedSectionAppearance(p,owner.scope,a))}),React.createElement(GalleryCollectionRenderer,{items:semantic.items,media,appearance:owner.appearance,viewport,mode:'editor'}),React.createElement('div',{'data-empty-public':true},React.createElement(GalleryCollectionRenderer,{items:[],media:{},appearance:owner.appearance,viewport,mode:'public'})));
       }
       createRoot(document.getElementById('root')).render(React.createElement(App));const wait=()=>new Promise(r=>setTimeout(r,100));const check=(v,m)=>{if(!v)throw Error(m)};
       const edit=async(label)=>{document.querySelector('button[aria-label="'+label+'"]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));await wait()};
