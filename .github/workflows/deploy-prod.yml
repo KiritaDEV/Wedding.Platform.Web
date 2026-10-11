@@ -1,0 +1,49 @@
+﻿name: Deploy PROD Web
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: kirita-prod-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - kirita-dev-web
+
+    steps:
+      - name: Deploy PROD Web
+        shell: powershell
+        run: |
+          $git = "C:\Program Files\Git\cmd\git.exe"
+          $npm = "C:\Program Files\nodejs\npm.cmd"
+          $repo = "C:\Kirita\prod\web"
+
+          if (-not (Test-Path "$repo\.env.production")) {
+            Write-Error "Missing $repo\.env.production"
+            exit 1
+          }
+
+          & $git -C $repo fetch origin master
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $git -C $repo reset --hard origin/master
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Push-Location $repo
+
+          & $npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $npm run build -- --mode production
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Pop-Location
+
