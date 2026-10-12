@@ -43,7 +43,7 @@ export function EventWorkspaceNavigation({ event, onNavigate, collapsed = false 
           </div>
           {event.membershipRole && (
             <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium capitalize text-foreground-muted">
-              {event.membershipRole}
+              {event.membershipRole === 'owner' ? 'Owner' : 'Manager'}
             </span>
           )}
         </div>
