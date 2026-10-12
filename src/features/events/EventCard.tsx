@@ -37,7 +37,7 @@ export function EventCard({ event }: { event: Event }) {
             <h2 className="mt-0.5 text-lg font-semibold tracking-tight group-hover:text-accent">{event.name}</h2>
           </div>
           <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-foreground-muted">
-            {event.membershipRole === 'owner' ? 'Owner' : 'Admin'}
+            {event.membershipRole === 'owner' ? 'Owner' : 'Manager'}
           </span>
         </div>
         <p className="flex items-center gap-2 text-sm text-foreground-muted">

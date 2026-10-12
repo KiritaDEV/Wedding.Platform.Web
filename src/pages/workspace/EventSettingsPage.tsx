@@ -10,6 +10,7 @@ import type { TimeZoneOption } from '../../features/events/types'
 import { useEventWorkspace, useSetEventWorkspace } from '../../features/events/workspace/EventWorkspaceContext'
 import { WorkspaceSection } from '../../features/events/workspace/WorkspaceSection'
 import { ApiError } from '../../lib/api'
+import { EventCollaborators } from '../../features/eventCollaborators/EventCollaborators'
 
 type TimingForm = { eventDate: string; startTime: string; timeZone: string }
 
@@ -71,6 +72,7 @@ export function EventSettingsPage() {
       <div className="mt-6 flex justify-end border-t border-border pt-4"><Button size="sm" type="button" disabled={!dirty || saving} onClick={() => void save()}><Save aria-hidden="true" size={15} />{saving ? 'Saving…' : 'Save changes'}</Button></div>
     </section>
     <RsvpSettings />
+    {event.membershipRole === 'owner' && <EventCollaborators key={event.id} eventId={event.id} />}
     </div>
   </WorkspaceSection>
 }
