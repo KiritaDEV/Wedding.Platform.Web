@@ -1,6 +1,8 @@
 import { scheduleLayoutAppearanceShape, normalizeScheduleAppearance } from './scheduleAppearance'
 import { scheduleContentSchema } from './scheduleContent'
 import { DIVIDER_WIDTHS } from "./divider";
+import { SURFACE_SHADOWS } from "../websiteRenderer/surfaceEffects";
+import { validateGoogleMapsUrl } from "./googleMaps";
 import { z } from "zod";
 import { backgroundMediaSchema } from "../websiteMedia/backgroundMedia";
 import {
@@ -237,6 +239,21 @@ const dividerAppearanceSchema = z.object({
   responsive: z.object({ tablet: blockSpacingResponsiveSchema.optional(), mobile: blockSpacingResponsiveSchema.optional() }).strict().optional(),
 }).strict();
 
+export const mapElementSchema = z.object({
+  ...genericBlockShape,
+  type: z.literal("map"),
+  embedUrl: z.string().refine((value) => validateGoogleMapsUrl(value) !== null, "Paste a valid Google Maps Share embed.").optional(),
+  appearance: z.object({
+    ...blockSpacingAppearanceShape,
+    shadow: z.enum(SURFACE_SHADOWS).optional(),
+    width: z.enum(["small", "medium", "large", "full"]).optional(),
+    height: z.enum(["small", "medium", "large"]).optional(),
+    alignment: textAlignmentSchema.optional(),
+    cornerRadius: z.enum(["none", "small", "medium", "large"]).optional(),
+    responsive: z.object({ tablet: blockSpacingResponsiveSchema.optional(), mobile: blockSpacingResponsiveSchema.optional() }).strict().optional(),
+  }).strict().optional(),
+}).strict();
+
 export const dividerElementSchema = z
   .object({
     ...genericBlockShape,
@@ -349,6 +366,7 @@ export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   imageElementSchema,
   mediaElementSchema,
   dividerElementSchema,
+  mapElementSchema,
   quoteElementSchema,
   ctaElementSchema,
   eventDateElementSchema,
@@ -388,7 +406,7 @@ export const groupLayoutSchema = z.object({
   responsive: z.object({ tablet: groupLayoutOverrideSchema.optional(), mobile: groupLayoutOverrideSchema.optional() }).strict().optional(),
 }).strict();
 
-const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, peopleElementSchema, countdownElementSchema, dividerElementSchema, mediaElementSchema]);
+const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, peopleElementSchema, countdownElementSchema, mapElementSchema, dividerElementSchema, mediaElementSchema]);
 const nestedCompositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional(), backgroundMedia: backgroundMediaSchema }).strict();
 export const compositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional(), backgroundMedia: backgroundMediaSchema }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 

@@ -291,6 +291,7 @@ const expectedElementAppearanceRoles = {
   eventDate: null,
   eventTime: null,
   countdown: null,
+  map: null,
 } as const
 
 export const templateCapabilitiesSchema = z.object({

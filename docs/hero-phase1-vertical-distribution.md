@@ -1,4 +1,4 @@
-# KIRITA Hero Phase 1 — root flow vertical distribution
+# KIRITA Hero Phase 1 - root flow vertical distribution
 
 Implemented 2026-10-12 (Asia/Manila). Scope: reusable normal-flow distribution for Hero root blocks. No reference design, templates, Group fill-height feature, Divider/Countdown changes, migration, dependency addition, commit or push.
 
