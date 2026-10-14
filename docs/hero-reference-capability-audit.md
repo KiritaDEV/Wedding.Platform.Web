@@ -1,4 +1,4 @@
-# KIRITA — Hero reference capability audit
+# KIRITA - Hero reference capability audit
 
 Audit date: 2026-10-11 (Asia/Manila). Read-only source investigation of the current working trees.
 
@@ -139,14 +139,14 @@ If implementing this on Group instead, add both distribution and meaningful mini
 
 A freeform absolute-positioning canvas is **not recommended**: normal-flow architecture can solve the target. Coordinates would add breakpoint offsets, collision handling and touch editing complexity.
 
-## 9. Implementation sequence — not executed
+## 9. Implementation sequence - not executed
 
 1. Verify baseline code health. Define the reusable distribution contract, optional defaults, usable height propagation, minimum gap and overflow growth. Add matching Web/API and snapshot compatibility coverage. No new template or migration is presumed necessary.
 2. Wire renderer and actual inspector. Prove two root Groups occupy opposite edges in both templates while preserving wrappers, selection, spacing, backgrounds and current packed layouts.
 3. Verify Shared/custom ownership and real save/reload/publish behavior. Build using menus, customize active device, adjust clusters/framing and confirm sibling isolation. Include Mobile-first creation.
 4. Resolve Modern Divider availability and evaluate countdown fit independently. Add wrap, fluid typography or overlay strength only where current controls measurably fail acceptance.
 
-## 10. Verification strategy — future work
+## 10. Verification strategy - future work
 
 Focused automated checks:
 

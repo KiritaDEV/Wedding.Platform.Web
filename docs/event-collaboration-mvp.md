@@ -1,4 +1,4 @@
-# KIRITA — Event Collaboration MVP
+# KIRITA - Event Collaboration MVP
 
 Implemented and checked on 2026-10-12. Web and API remain on their existing `develop` branches. No commits, pushes or deployment were performed.
 

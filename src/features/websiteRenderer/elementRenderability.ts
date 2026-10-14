@@ -10,6 +10,7 @@ export function resolvedMediaItems(element: Extract<WebsiteElement, { type: "med
 export function isElementRenderable(element: WebsiteElement, templateKey: string, mode: "editor" | "public", media: Record<string, ResolvedWebsiteMedia> = {}, eventDate: string | null = null, eventStartsAtUtc?: string | null): boolean {
   if (element.isHidden) return false;
   if (mode === "editor") return true;
+  if (element.type === "map") return Boolean(element.embedUrl);
   if (element.type === "countdown") return element.target.source === "custom" || Boolean(eventStartsAtUtc);
   if (element.type === "divider") return Boolean(resolveDividerAsset(templateKey, element.appearance?.assetId));
   if (element.type === "media") return resolvedMediaItems(element, media).length > 0;
