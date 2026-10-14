@@ -63,6 +63,7 @@ import { AccordionElementEditor } from "../../features/websiteEditor/components/
 import { resolveSchedule, updateSharedSchedule, optInSchedule, type SharedContentOwner } from '../../features/websiteEditor/sharedContent';
 import { ScheduleElementEditor } from "../../features/websiteEditor/components/ScheduleElementEditor";
 import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
+import { MapElementEditor } from "../../features/websiteEditor/components/MapElementEditor";
 import { CountdownElementEditor } from "../../features/websiteEditor/components/CountdownElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionCompositionControls } from "../../features/websiteEditor/components/SectionCompositionControls";
@@ -1288,6 +1289,7 @@ function WebsitePageContent() {
                 type === "schedule" ||
                 type === "people" ||
                 type === "countdown" ||
+                type === "map" ||
                 type === "divider" ||
                 type === "media" ||
                 type === "compositionGroup",
@@ -2525,6 +2527,7 @@ function SectionInspector({
     selectedElement?.type === "schedule" ? resolveSchedule(selectedElement, (workingContent as SharedContentOwner).sharedContentDefinitions) : null;
   const selectedPeople =
     selectedElement?.type === "people" ? selectedElement : null;
+  const selectedMap = selectedElement?.type === "map" ? selectedElement : null;
   const selectedCountdown =
     selectedElement?.type === "countdown" ? selectedElement : null;
   const selectedGroup =
@@ -2553,6 +2556,7 @@ function SectionInspector({
     selectedAccordion ??
     selectedSchedule ??
     selectedPeople ??
+    selectedMap ??
     selectedCountdown ??
     selectedDivider ??
     selectedMedia;
@@ -2720,6 +2724,8 @@ function SectionInspector({
                       ? "Schedule"
                       : selectedPeople
                         ? "People"
+                        : selectedMap
+                          ? "Google Maps"
                         : selectedCountdown
                           ? "Countdown"
                         : selectedGroup
@@ -2743,6 +2749,7 @@ function SectionInspector({
             !selectedAccordion &&
             !selectedSchedule &&
             !selectedPeople &&
+            !selectedMap &&
             !selectedCountdown &&
             !selectedGroup &&
             !selectedDivider && (
@@ -2767,7 +2774,12 @@ function SectionInspector({
                 : "Customize this Section's presentation."}
         </Text>
       </div>
-      {selectedCountdown && childFlow ? (
+      {selectedMap && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-6 xl:px-0">
+          {blockAppearanceEditors}
+          <MapElementEditor key={selectedMap.id} element={selectedMap} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />
+        </div>
+      ) : selectedCountdown && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
           {blockAppearanceEditors}
           <ColorPreviewScopeContext key={selected.id} value={selected.id}>

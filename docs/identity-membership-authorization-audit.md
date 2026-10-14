@@ -1,4 +1,4 @@
-# KIRITA — Phase 0: Identity, Membership and Authorization Architecture Audit
+# KIRITA - Phase 0: Identity, Membership and Authorization Architecture Audit
 
 Audit date: 2026-10-12, Asia/Manila. Read-only application audit; only this report was created.
 
@@ -14,10 +14,10 @@ Option A fits the actual repository because event-scoped listing, nested resourc
 
 Evidence labels used throughout:
 
-- **S — Source-verified:** established by inspected application code, migrations, route declarations or test assertions; not necessarily executed.
-- **R — Recommendation:** proposed behavior, not implemented.
-- **V — Verification required:** production data/configuration, runtime rendering or concurrency not exercised.
-- **P — Product decision:** requires approval before implementation.
+- **S - Source-verified:** established by inspected application code, migrations, route declarations or test assertions; not necessarily executed.
+- **R - Recommendation:** proposed behavior, not implemented.
+- **V - Verification required:** production data/configuration, runtime rendering or concurrency not exercised.
+- **P - Product decision:** requires approval before implementation.
 
 No tests/builds were run. API feature tests generally use `RefreshDatabase`; running them would violate this audit's no-database-writes restriction. No database was queried, no migrations/configuration/dependencies/application/test files were changed, and no branches were switched or commits/pushes made.
 
@@ -28,7 +28,7 @@ No tests/builds were run. API feature tests generally use `RefreshDatabase`; run
 
 `API/` and `Web/` paths below resolve under these roots. Line anchors refer to the inspected checkout. Production deployment state was not inspected.
 
-## 2. Current identity and authentication — Audit A
+## 2. Current identity and authentication - Audit A
 
 | Area | S: current source behavior | Implication |
 |---|---|---|
@@ -55,7 +55,7 @@ Sanctum bearer authentication is also supported by installed `vendor/laravel/san
 
 Do not globally enable verified middleware and lock out existing owners during migration. Preserve their current Event operations while requiring verification for new acceptance and approved sensitive collaboration operations. Laravel verification needs both a model contract and routes: [Laravel 12 email verification](https://laravel.com/framework/docs/12.x/verification).
 
-## 3. Event ownership and current grants — Audit B
+## 3. Event ownership and current grants - Audit B
 
 **S:** `API/app/Actions/Events/CreateEvent.php::handle:18–36` creates Event and Owner membership in one transaction without platform elevation. Events migration contains no owner/creator FK. User::events and Event::users use belongsToMany through event_memberships with id/role pivot data.
 
@@ -71,7 +71,7 @@ Event::booted deletes RSVP submissions before Eloquent Event deletion; direct SQ
 
 **R:** preflight exactly one Owner per existing Event. Do not infer owner from oldest member, media creator or event timestamp. Quarantine ambiguity for approved remediation. Preserve existing ownership identities and snapshots during the additive rollout.
 
-## 4. Complete authenticated Event endpoint inventory — Audit C
+## 4. Complete authenticated Event endpoint inventory - Audit C
 
 **S:** `API/routes/api.php:43–104` declares **56 Event-related authenticated routes**. Every row uses **auth:sanctum**. Every current row lacks a distinct Owner-only check. Listing/creation use authenticated identity; other rows use the policy mechanisms below. FormRequest authorize=true is not itself an authorization gap where controller/middleware checks exist.
 
@@ -211,7 +211,7 @@ All paths: `API/tests/Feature/`. Classes match filenames; none were executed.
 | T27 | WebsiteProjectColorTest.php | Server IDs and library bounds; full role matrix incomplete |
 | T28 | WebsiteSectionPresentationTest.php | Paired composition/appearance branches and atomicity |
 
-## 5. Security gaps, severity and verification limits — Audits C/J
+## 5. Security gaps, severity and verification limits - Audits C/J
 
 Severity is collaboration readiness/impact, not proof of an exploited production vulnerability.
 
@@ -235,7 +235,7 @@ Mass assignment: AuthController explicitly writes safe fields and normal role. S
 
 **V:** actual owner counts, invalid roles, email collisions, deployed CORS/HTTPS/cookies/PATs, original-file/CDN exposure, mail and worker operation, and production transaction behavior. Local `.env` is development evidence only: MySQL/database sessions, secure cookie false, local media, log mail and database queue. Do not extrapolate production insecurity from local HTTP settings. Tests configure in-memory SQLite/array sessions/synchronous queues and often fake storage; inspected assertions cannot prove production behavior.
 
-## 6. Web route and workspace assumptions — Audit D
+## 6. Web route and workspace assumptions - Audit D
 
 **S:** Web src/app/router.tsx exposes `/e/:slug` and `/i/:token` outside ProtectedRoute. Login/register use GuestRoute. ProtectedRoute checks session authentication only; EventWorkspaceLayout then fetches useEventDetail(eventId) and shows API 403/404/loading states. No independent React Event role policy exists.
 
@@ -261,7 +261,7 @@ Key caches by Event and principal; clear old Event/permissions/guest/media data 
 
 LoginPage::intendedPath preserves a safe local pathname/search; RegisterPage always redirects `/events`, and GuestRoute redirects signed-in users away from login/register. Acceptance needs an explicit safe return journey through login, new registration and verification. Invitation links are not access grants and must not leak to analytics/referrers.
 
-## 7. Architecture options — Audit E
+## 7. Architecture options - Audit E
 
 | Criterion | A: Event membership first | B: Event + organization now | C: Organization-centric ownership/control |
 |---|---|---|---|
@@ -280,7 +280,7 @@ LoginPage::intendedPath preserves a safe local pathname/search; RegisterPage alw
 
 **R:** A is best for the approved first use case because personally owned Event is already the resource boundary. Choose B if staff allocation/org administration is actually required in the first release; define consent/assignment/revocation first. C should not replace couple ownership under current requirements. A later business-owned Event product may justify explicit separate ownership semantics after approval.
 
-## 8. Recommended data architecture — Audits B/H
+## 8. Recommended data architecture - Audits B/H
 
 ### Ownership choice
 
@@ -316,7 +316,7 @@ Backfill current memberships active; retain one unique Event/User row through re
 
 These tables are recommendations, not approved Phase 1 schema. Multiple concurrent teams and direct/derived grant precedence are P. Distinguish grant origins so org revocation does not erase independently approved direct access. Do not add org_id to all existing content tables; Event remains the resource scope.
 
-## 9. Roles/capabilities/scopes — Audit F
+## 9. Roles/capabilities/scopes - Audit F
 
 **R:** role = named preset; capability = operation; scope = specific Event/Organization/platform. Use a minimal explicit Laravel resolver/policies. event.view does not grant all sensitive nested data. Y allowed; N denied; D deferred module/role, not shipped now. Future columns evaluate safe presets, not launch approval.
 
@@ -357,7 +357,7 @@ Platform Standard User gets self-service/event.create and their own scope grants
 
 Do not ship every role, per-user override inspector or general role engine in Phase 1. Future coordinator preset should be approved operation-by-operation, normally selected guests/seating/attendance without publish/guest trust/ownership powers.
 
-## 10. Secure invitation and membership lifecycle — Audit G
+## 10. Secure invitation and membership lifecycle - Audit G
 
 This is a new administrative collaboration domain, not existing wedding Invitation/Guest/browser trust.
 
@@ -378,7 +378,7 @@ Audit invite/resend/accept/revoke/role-change/leave from first release, with act
 
 Future org invitations bind exactly one org scope; cannot activate Event membership. Event invites cannot imply org membership. Use separate token/table/route domains. Random tokens need secure hash comparison/storage and single use; no password-style expensive hashing requirement. [OWASP recovery guidance](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html) supports expiring single-use tokens and non-enumerating recovery responses.
 
-## 11. Migration/backfill/deployment strategy — Audit H
+## 11. Migration/backfill/deployment strategy - Audit H
 
 **R; no live data was queried. Never use migrate:fresh, destructive resets, seeders or rewritten historical migrations on existing live data.**
 
@@ -394,7 +394,7 @@ Future org invitations bind exactly one org scope; cannot activate Event members
 
 Rollback: disable collaboration mutation feature first and retain grants/audits/data. **Returning to today's EventPolicy after storing revoked/left rows is unsafe: it would grant them access because status is ignored.** Roll back only to a compatibility release that still filters lifecycle/capabilities. Retain additive schema while writers use it. Before any later schema contraction, verify Owner mirrors and preserve/export grant/audit data; prefer forward fix. Historical down migrations are not a production rollback plan.
 
-## 12. Publishing and guest isolation — Audit I
+## 12. Publishing and guest isolation - Audit I
 
 **S:** PublishedWebsitePresentation::resolve reads active Event pointer and stored Website snapshot in one joined statement, validates Event/project IDs, filters visible/enabled content and public RSVP, and fails closed on malformed/missing snapshot. No draft fallback. Published/media reference validation is Event-scoped. PublishWebsite uses saved state and Event-first coordinator; snapshot/pointer replacement is transactional. Unpublish retains snapshot payload.
 
@@ -425,7 +425,7 @@ Inspected guest coverage: API tests/Feature/PublicEventSiteTest.php, SnapshotGue
 
 Refinement: identity readiness is a Phase 1 gate; access-change audit/atomic revocation ship with first access administration, not Phase 5. Owner delete/transfer abilities are designed now but need no first-release endpoints. Do not ship all role options or organization functionality prematurely.
 
-## 14. Security verification plan — Audit J
+## 14. Security verification plan - Audit J
 
 No execution results claimed. Implementation verification should exercise all 56 routes with valid payload/revision as Owner, Manager, limited active role when introduced, pending invitation only, revoked/left member, outsider, unauthenticated browser, guest-cookie-only browser and platform support. Denied writes assert no database/storage/snapshot/pointer/revision changes.
 
