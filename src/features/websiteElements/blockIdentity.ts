@@ -8,6 +8,7 @@ export const GENERIC_BLOCK_LABELS = {
   people: "People",
   countdown: "Countdown",
   map: "Google Maps",
+  swatches: "Swatches",
   media: "Media",
   divider: "Divider",
   compositionGroup: "Group",

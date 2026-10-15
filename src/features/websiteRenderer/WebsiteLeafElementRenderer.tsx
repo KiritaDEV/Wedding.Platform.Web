@@ -8,6 +8,7 @@ import { DateElementRenderer } from "./DateElementRenderer";
 import { AccordionElementRenderer } from "./AccordionElementRenderer";
 import { ScheduleElementRenderer } from "./ScheduleElementRenderer";
 import { PeopleElementRenderer } from "./PeopleElementRenderer";
+import { SwatchesElementRenderer } from "./SwatchesElementRenderer";
 import { MapElementRenderer } from "./MapElementRenderer";
 import { CountdownElementRenderer } from "./CountdownElementRenderer";
 
@@ -23,6 +24,7 @@ export function WebsiteLeafElementRenderer({ element, mode = "public", sectionId
   let content;
   if (element.type === "text") content = <TextElementRenderer previewColor={previewColor} previewTextShadowColor={previewTextShadowColor} previewGlowColor={previewGlowColor} element={element} editor={mode === "editor" && selected && sectionId && changes.onTextDocumentChange && changes.onAddColor ? { onDocumentChange: (elementId, document) => changes.onTextDocumentChange?.(sectionId, elementId, document), onAddColor: changes.onAddColor } : undefined} {...context} />;
   else if (element.type === "divider") content = <DividerElementRenderer previewColor={previewColor} previewShadowColor={previewDividerShadowColor} previewGlowColor={previewGlowColor} element={element} mode={mode} {...context} />;
+  else if (element.type === "swatches") content = <SwatchesElementRenderer element={element} />;
   else if (element.type === "map") content = <MapElementRenderer element={element} mode={mode} />;
   else if (element.type === "media") content = <MediaElementRenderer element={element} mode={mode} viewport={context.viewport} media={media} />;
   else if (element.type === "date") content = <DateElementRenderer previewColor={previewColor} previewTextShadowColor={previewTextShadowColor} previewGlowColor={previewGlowColor} element={element} eventDate={eventDate} mode={mode} {...context} />;

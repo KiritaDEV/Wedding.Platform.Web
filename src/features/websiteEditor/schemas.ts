@@ -601,6 +601,10 @@ function assertScheduleTypographyResources(website: RenderableWebsite): void {
   website.sections.forEach((section, index) => {
     if (!('compositions' in section.content)) return
     for (const element of ownerElements(section.content as SharedContentOwner)) {
+      if (element.type === 'swatches') {
+        const id = element.appearance?.captionTypography?.fontFamilyId
+        if (id !== undefined && fonts && !fonts.includes(id)) issues.push({ code: 'custom', message: 'Swatches caption font is not supported by this Website', path: ['sections', index, 'content', element.id, 'appearance', 'captionTypography', 'fontFamilyId'] })
+      }
       if (element.type !== 'schedule') continue
       for (const [role, values] of Object.entries(element.appearance?.typography ?? {})) {
         if (!values) continue
