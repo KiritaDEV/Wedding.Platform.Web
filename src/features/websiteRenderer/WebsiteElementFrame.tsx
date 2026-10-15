@@ -24,7 +24,7 @@ export function WebsiteElementFrame({
   onEdit?: (sectionId: string, elementId: string) => void;
   inlineAlignment?: CSSProperties["justifyContent"];
 }) {
-  const stretchesWidth = elementType === "map" || elementType === "text" || elementType === "accordion" || elementType === "schedule" || elementType === "people" || elementType === "divider";
+  const stretchesWidth = elementType === "swatches" || elementType === "map" || elementType === "text" || elementType === "accordion" || elementType === "schedule" || elementType === "people" || elementType === "divider";
   const placesConstrainedChild = elementType === "Group" || elementType === "compositionGroup";
   const placementStyle = placesConstrainedChild ? { display: "flex", justifyContent: inlineAlignment ?? resolveElementInlineAlignment("center") } : undefined;
   if (mode === "public")

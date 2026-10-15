@@ -63,6 +63,7 @@ import { AccordionElementEditor } from "../../features/websiteEditor/components/
 import { resolveSchedule, updateSharedSchedule, optInSchedule, type SharedContentOwner } from '../../features/websiteEditor/sharedContent';
 import { ScheduleElementEditor } from "../../features/websiteEditor/components/ScheduleElementEditor";
 import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
+import { SwatchesElementEditor } from "../../features/websiteEditor/components/SwatchesElementEditor";
 import { MapElementEditor } from "../../features/websiteEditor/components/MapElementEditor";
 import { CountdownElementEditor } from "../../features/websiteEditor/components/CountdownElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
@@ -1289,6 +1290,7 @@ function WebsitePageContent() {
                 type === "schedule" ||
                 type === "people" ||
                 type === "countdown" ||
+                type === "swatches" ||
                 type === "map" ||
                 type === "divider" ||
                 type === "media" ||
@@ -2527,6 +2529,7 @@ function SectionInspector({
     selectedElement?.type === "schedule" ? resolveSchedule(selectedElement, (workingContent as SharedContentOwner).sharedContentDefinitions) : null;
   const selectedPeople =
     selectedElement?.type === "people" ? selectedElement : null;
+  const selectedSwatches = selectedElement?.type === "swatches" ? selectedElement : null;
   const selectedMap = selectedElement?.type === "map" ? selectedElement : null;
   const selectedCountdown =
     selectedElement?.type === "countdown" ? selectedElement : null;
@@ -2556,6 +2559,7 @@ function SectionInspector({
     selectedAccordion ??
     selectedSchedule ??
     selectedPeople ??
+    selectedSwatches ??
     selectedMap ??
     selectedCountdown ??
     selectedDivider ??
@@ -2724,6 +2728,8 @@ function SectionInspector({
                       ? "Schedule"
                       : selectedPeople
                         ? "People"
+                        : selectedSwatches
+                          ? "Swatches"
                         : selectedMap
                           ? "Google Maps"
                         : selectedCountdown
@@ -2749,6 +2755,7 @@ function SectionInspector({
             !selectedAccordion &&
             !selectedSchedule &&
             !selectedPeople &&
+            !selectedSwatches &&
             !selectedMap &&
             !selectedCountdown &&
             !selectedGroup &&
@@ -2774,7 +2781,12 @@ function SectionInspector({
                 : "Customize this Section's presentation."}
         </Text>
       </div>
-      {selectedMap && childFlow ? (
+      {selectedSwatches && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-6 xl:px-0">
+          {blockAppearanceEditors}
+          <SwatchesElementEditor key={selectedSwatches.id} element={selectedSwatches} library={capabilities!.designLibrary} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />
+        </div>
+      ) : selectedMap && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-6 xl:px-0">
           {blockAppearanceEditors}
           <MapElementEditor key={selectedMap.id} element={selectedMap} onChange={(element) => changeSharedFlow(updateSectionElement(childFlow, element))} />

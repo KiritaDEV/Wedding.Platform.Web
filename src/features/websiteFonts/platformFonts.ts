@@ -69,6 +69,7 @@ function collectElementFontIds(element: WebsiteElement, ids: Set<string>) {
     Object.values(element.appearance?.typography ?? {}).forEach((role) => { if (role?.fontFamilyId) ids.add(role.fontFamilyId); });
   }
   if (element.type === "text" && element.appearance?.fontFamilyId) ids.add(element.appearance.fontFamilyId);
+  if (element.type === "swatches" && element.appearance?.captionTypography?.fontFamilyId) ids.add(element.appearance.captionTypography.fontFamilyId);
   if (element.type === "countdown") {
     if (element.appearance?.numbers?.fontFamilyId) ids.add(element.appearance.numbers.fontFamilyId);
     if (element.appearance?.labels?.fontFamilyId) ids.add(element.appearance.labels.fontFamilyId);
