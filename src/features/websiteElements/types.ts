@@ -14,6 +14,7 @@ import type {
   peopleElementSchema,
   countdownElementSchema,
   mapElementSchema,
+  swatchesElementSchema,
 } from './schemas'
 
 export type CtaAction = z.infer<typeof ctaActionSchema>
@@ -31,3 +32,5 @@ export type PeopleElement = z.infer<typeof peopleElementSchema>
 export type CountdownElement = z.infer<typeof countdownElementSchema>
 
 export type MapElement = z.infer<typeof mapElementSchema>
+
+export type SwatchesElement = z.infer<typeof swatchesElementSchema>;

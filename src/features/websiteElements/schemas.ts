@@ -239,6 +239,40 @@ const dividerAppearanceSchema = z.object({
   responsive: z.object({ tablet: blockSpacingResponsiveSchema.optional(), mobile: blockSpacingResponsiveSchema.optional() }).strict().optional(),
 }).strict();
 
+export const swatchCaptionTypographySchema = canonicalRuntimeTextAppearanceSchema.pick({ fontFamilyId: true, fontSize: true, fontWeight: true, lineHeight: true, letterSpacing: true }).extend({ fontSize: z.enum(["xs", "s", "m"]).optional() }).strict();
+export const swatchesElementSchema = z.object({
+  ...genericBlockShape,
+  type: z.literal("swatches"),
+  items: z.array(z.object({
+    id: elementIdSchema,
+    color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).transform(value => value.toUpperCase()),
+    label: z.string().trim().refine(value => Array.from(value).length <= 80, "Label cannot exceed 80 characters.").regex(/^[^<>]*$/, "Labels cannot contain HTML.").transform(value => value || undefined).optional(),
+  }).strict()).min(1).max(12),
+  appearance: z.object({
+    ...blockSpacingAppearanceShape,
+    shape: z.enum(["circle", "roundedSquare", "square", "rectangle"]).optional(),
+    size: z.enum(["small", "medium", "large", "xl", "2xl", "3xl"]).optional(),
+    cornerRadius: z.enum(["none", "small", "medium", "large", "full"]).optional(),
+    surfaceStyle: z.enum(["flat", "raised", "inset"]).optional(),
+    gap: groupSpacingSchema.optional(),
+    alignment: textAlignmentSchema.optional(),
+    showLabels: z.boolean().optional(),
+    showHex: z.boolean().optional(),
+    captionStyle: z.enum(["plain", "soft"]).optional(),
+    captionTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).transform(value => value.toUpperCase()).optional(),
+    captionBackgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).transform(value => value.toUpperCase()).optional(),
+    captionTypography: swatchCaptionTypographySchema.optional(),
+  }).strict().optional(),
+}).strict().superRefine((element, context) => {
+  const seen = new Set([element.id]);
+  element.items.forEach((item, index) => {
+    if (seen.has(item.id)) context.addIssue({ code: "custom", path: ["items", index, "id"], message: "Swatch IDs must be unique." });
+    seen.add(item.id);
+  });
+  const issue = validateTextFontTuple(element.appearance?.captionTypography ?? {});
+  if (issue) context.addIssue({ code: "custom", path: ["appearance", "captionTypography"], message: issue });
+});
+
 export const mapElementSchema = z.object({
   ...genericBlockShape,
   type: z.literal("map"),
@@ -367,6 +401,7 @@ export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   mediaElementSchema,
   dividerElementSchema,
   mapElementSchema,
+  swatchesElementSchema,
   quoteElementSchema,
   ctaElementSchema,
   eventDateElementSchema,
@@ -406,7 +441,7 @@ export const groupLayoutSchema = z.object({
   responsive: z.object({ tablet: groupLayoutOverrideSchema.optional(), mobile: groupLayoutOverrideSchema.optional() }).strict().optional(),
 }).strict();
 
-const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, peopleElementSchema, countdownElementSchema, mapElementSchema, dividerElementSchema, mediaElementSchema]);
+const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, peopleElementSchema, countdownElementSchema, mapElementSchema, swatchesElementSchema, dividerElementSchema, mediaElementSchema]);
 const nestedCompositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional(), backgroundMedia: backgroundMediaSchema }).strict();
 export const compositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional(), backgroundMedia: backgroundMediaSchema }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 
@@ -436,6 +471,7 @@ function addDuplicateIdIssues(
     }
     seen.add(element.id);
 
+    if (element.type === "swatches") element.items?.forEach(visit);
     element.children?.forEach(visit);
   };
   elements.forEach(visit);

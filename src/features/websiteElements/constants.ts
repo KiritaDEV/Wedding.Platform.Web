@@ -15,6 +15,7 @@ export const WEBSITE_ELEMENT_TYPES = [
   'eventTime',
   'countdown',
   'map',
+  'swatches',
 ] as const
 
 export const WEBSITE_LEAF_ELEMENT_TYPES = WEBSITE_ELEMENT_TYPES.filter(
