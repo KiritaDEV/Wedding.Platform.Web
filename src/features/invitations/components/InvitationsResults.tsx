@@ -1,11 +1,9 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { guestFullName } from '../invitationForm'
 import { hasRecoverableTrustedAccess } from '../trustedAccess'
-import type { GuestRelationship, GuestSide, InvitationListGuest, InvitationListItem, InvitationSort } from '../types'
+import type { InvitationListGuest, InvitationListItem, InvitationSort } from '../types'
+import { relationshipLabels, sideLabels } from '../guestLabels'
 import { InvitationActionMenu, InvitationMenuItem } from './InvitationMenus'
-
-const relationshipLabels: Record<GuestRelationship, string> = { guest_other: 'Guest / Other', parent: 'Parent', family_member: 'Family member', friend: 'Friend', colleague: 'Colleague' }
-const sideLabels: Record<GuestSide, string> = { unspecified: 'Unspecified', bride: 'Bride', groom: 'Groom', both: 'Both' }
 
 type Props = {
   invitations: InvitationListItem[]; expanded: Set<string>; sort: InvitationSort
