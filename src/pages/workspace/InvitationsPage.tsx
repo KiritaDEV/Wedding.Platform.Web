@@ -1,4 +1,5 @@
-import { Mail, Plus } from 'lucide-react'
+import { Download, Mail, Plus } from 'lucide-react'
+import { guestListCsv } from '../../features/invitations/exportGuests'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { WorkspaceSection } from '../../features/events/workspace/WorkspaceSection'
@@ -25,6 +26,7 @@ export function InvitationsPage() {
   const [result, setResult] = useState<InvitationListResult | null>(null)
   const [roles, setRoles] = useState<WeddingRole[]>([])
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -78,6 +80,23 @@ export function InvitationsPage() {
       setLinkFeedback({ kind: 'error', message: 'Unable to load the invitation link.' })
     }
   }
+  async function exportGuests() {
+    setExporting(true)
+    setLinkFeedback(null)
+    try {
+      const csv = await guestListCsv(event.id, query)
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `guest-list-${event.id}.csv`
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch {
+      setLinkFeedback({ kind: 'error', message: 'Unable to export the guest list. Please try again.' })
+    } finally {
+      setExporting(false)
+    }
+  }
   async function confirmMutation() {
     if (!confirm || confirmPendingRef.current) return
     confirmPendingRef.current = true
@@ -106,7 +125,12 @@ export function InvitationsPage() {
   const hasInvitations = (result?.meta.lifecycleCounts.all ?? 0) > 0
   const filtering = query.q !== '' || query.lifecycle !== 'all' || query.relationships.length > 0 || query.sides.length > 0 || query.roleIds.length > 0 || query.rsvpStatuses.length > 0 || query.guestResponses.length > 0
   return <WorkspaceSection eyebrow="Event workspace" title="Invitations" description="Manage Invitations and their Guests." wide>
-    <div className="flex justify-end"><Button onClick={() => setDialog({ mode: 'create' })}><Plus aria-hidden="true" size={16} />New invitation</Button></div>
+    <div className="flex flex-wrap justify-end gap-2">
+      <Button variant="secondary" disabled={loading || exporting || !result?.data.length} onClick={exportGuests}>
+        <Download aria-hidden="true" size={16} />{exporting ? 'Exporting…' : 'Export guest list (CSV)'}
+      </Button>
+      <Button onClick={() => setDialog({ mode: 'create' })}><Plus aria-hidden="true" size={16} />New invitation</Button>
+    </div>
     {result && <section className="mt-4 flex flex-wrap gap-x-2 gap-y-1 rounded-xl border border-border bg-surface px-4 py-3 text-sm" aria-label="Invitation operational summary"><strong>{result.meta.summary.activeInvitations} active invitations</strong><span aria-hidden="true">·</span><span>{result.meta.summary.guests} guests</span><span aria-hidden="true">·</span><span>{result.meta.summary.attending} attending</span><span aria-hidden="true">·</span><span>{result.meta.summary.declined} declined</span><span aria-hidden="true">·</span><span>{result.meta.summary.pending} pending</span></section>}
     <section className="mt-4" aria-label="Invitation coordinator controls">{result && <InvitationsToolbar query={query} counts={result.meta.lifecycleCounts} roles={roles} loading={loading} onChange={changeQuery} onRefresh={refetch} />}</section>
     {error && <div className="mt-4 rounded-xl bg-danger-muted p-4 text-sm text-danger" role="alert">{error} <Button className="ml-2" size="sm" variant="secondary" onClick={refetch}>Try again</Button></div>}
